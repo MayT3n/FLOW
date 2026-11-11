@@ -72,7 +72,7 @@ jobs:
         run: |
           mkdir -p app/src/main/assets/fonts
           base="https://raw.githubusercontent.com/rastikerdar/vazirmatn/master/fonts/ttf"
-          for w in Regular Medium Bold; do
+          for w in Regular Medium SemiBold Bold; do
             curl -fsSL --retry 3 -o "app/src/main/assets/fonts/Vazirmatn-$w.ttf" "$base/Vazirmatn-$w.ttf"
           done
           ls -l app/src/main/assets/fonts
