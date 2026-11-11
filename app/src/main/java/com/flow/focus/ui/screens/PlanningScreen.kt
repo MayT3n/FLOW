@@ -100,6 +100,8 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                     vm, data, selDate, today,
                     onSelectDay = { selected = it.toEpochDay() },
                     onShiftWeek = { selected = selDate.plusDays(7L * it).toEpochDay() },
+                    onEdit = { editing = it },
+                    onMove = { moveTask = it },
                 )
                 else -> {
                     val a = JalaliDate.of(LocalDate.ofEpochDay(monthAnchor))
@@ -269,6 +271,8 @@ private fun WeeklyView(
     today: LocalDate,
     onSelectDay: (LocalDate) -> Unit,
     onShiftWeek: (Int) -> Unit,
+    onEdit: (Task) -> Unit,
+    onMove: (Task) -> Unit,
 ) {
     val c = Flow.colors
     val start = JalaliDate.startOfWeek(selectedDay)
@@ -351,5 +355,5 @@ private fun WeeklyView(
     )
 
     SectionTitle(num(DateFormats.full(selectedDay)))
-    EntryList(vm, data, selectedDay, onEdit = {}, onMove = {})
+    EntryList(vm, data, selectedDay, onEdit = onEdit, onMove = onMove)
 }
