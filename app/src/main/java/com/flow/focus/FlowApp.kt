@@ -17,18 +17,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
-/** App dependency container. Existing user data stays in the original private JSON file. */
+/** ظرف وابستگی‌ها؛ مسیر فایل داده‌ی قدیمی عمداً ثابت مانده است. */
 class AppContainer(app: Application) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    // Do not rename or move this file: it contains existing tasks, sessions, timer and settings.
     val repo = FlowRepository(JsonStore(File(app.filesDir, "flow_data.json")), scope)
     val notifier = NotificationHelper(app)
     val alarms = AlarmScheduler(app)
     val ambient = AmbientPlayer(app, scope)
-    val timer = TimerController(repo, alarms, notifier, ambient)
+    val music = MusicManager(app, scope)
+    val timer = TimerController(repo, alarms, notifier, ambient, music)
 
     val remote = RemoteContentRepository(app, scope)
     val updater = UpdateManager(app)
-    val music = MusicManager(app, scope)
 }
 
 class FlowApp : Application() {
@@ -39,6 +40,7 @@ class FlowApp : Application() {
         super.onCreate()
         container = AppContainer(this)
         container.notifier.ensureChannels()
+        container.music.setVolume(container.repo.current.settings.musicVolume)
         container.timer.restore()
         container.alarms.rescheduleAllReminders(container.repo.current)
         RemoteContentScheduler.schedule(this)
