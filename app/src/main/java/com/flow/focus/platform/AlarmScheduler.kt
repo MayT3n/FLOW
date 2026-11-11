@@ -4,6 +4,7 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import com.flow.focus.data.AppData
 import com.flow.focus.data.Task
@@ -15,7 +16,10 @@ class AlarmScheduler(private val ctx: Context) {
 
     private fun pi(action: String, code: Int, taskId: String? = null): PendingIntent {
         val i = Intent(ctx, TimerReceiver::class.java).setAction(action)
-        if (taskId != null) i.putExtra(TimerReceiver.EXTRA_TASK_ID, taskId)
+        if (taskId != null) {
+            i.data = Uri.parse("matfocus://reminder/${Uri.encode(taskId)}")
+            i.putExtra(TimerReceiver.EXTRA_TASK_ID, taskId)
+        }
         return PendingIntent.getBroadcast(ctx, code, i, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
@@ -41,7 +45,7 @@ class AlarmScheduler(private val ctx: Context) {
 
     /** یادآوری وظیفه در ساعت سررسید؛ برای وظیفه‌ی انجام‌شده یا گذشته لغو می‌شود. */
     fun syncReminder(task: Task, enabled: Boolean, now: Long = System.currentTimeMillis()) {
-        val code = CODE_REMINDER_BASE + (task.id.hashCode() and 0xFFFFF)
+        val code = CODE_REMINDER_BASE
         val at = reminderTime(task)
         if (!enabled || task.done || at == null || at <= now) {
             am.cancel(pi(TimerReceiver.ACTION_REMINDER, code, task.id))
@@ -51,7 +55,7 @@ class AlarmScheduler(private val ctx: Context) {
     }
 
     fun cancelReminder(taskId: String) {
-        am.cancel(pi(TimerReceiver.ACTION_REMINDER, CODE_REMINDER_BASE + (taskId.hashCode() and 0xFFFFF), taskId))
+        am.cancel(pi(TimerReceiver.ACTION_REMINDER, CODE_REMINDER_BASE, taskId))
     }
 
     fun rescheduleAllReminders(d: AppData) {
