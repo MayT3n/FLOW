@@ -398,7 +398,7 @@ private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier
                         PhaseType.SHORT_BREAK -> FlowIcons.Wind
                         PhaseType.LONG_BREAK -> FlowIcons.Moon
                     },
-                    tint = c.success, size = 26.dp,
+                    tint = c1, size = 26.dp,
                 )
                 Text(
                     when (timer.phase) {
@@ -417,9 +417,15 @@ private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier
                         TimerStatus.PAUSED -> "متوقف شده"
                         TimerStatus.RUNNING -> "زمان باقی‌مانده"
                     },
-                    style = Flow.type.label, color = c.textSecondary,
+                    Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(c.track.copy(alpha = if (c.isDark) 0.72f else 0.9f))
+                        .padding(horizontal = 10.dp, vertical = 3.dp),
+                    style = Flow.type.caption,
+                    color = c.textSecondary,
+                    maxLines = 1,
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(7.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     val total = rounds.coerceAtLeast(1)
                     for (i in 1..total) {
