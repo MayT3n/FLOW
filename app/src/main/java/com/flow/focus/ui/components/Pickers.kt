@@ -263,10 +263,10 @@ fun Fab(onClick: () -> Unit, modifier: Modifier = Modifier) {
 data class MenuAction(
     val label: String,
     val icon: androidx.compose.ui.graphics.vector.ImageVector,
-    val onClick: () -> Unit,
     val subtitle: String? = null,
     val destructive: Boolean = false,
     val selected: Boolean = false,
+    val onClick: () -> Unit,
 )
 
 @Composable

@@ -439,7 +439,7 @@ fun FlowDock(items: List<DockItem>, selected: Int, onSelect: (Int) -> Unit, modi
                         .fillMaxHeight()
                         .semantics(mergeDescendants = true) {
                             contentDescription = item.label
-                            selected = isSelected
+                            this.selected = isSelected
                         }
                         .springClick(
                             role = Role.Tab,
