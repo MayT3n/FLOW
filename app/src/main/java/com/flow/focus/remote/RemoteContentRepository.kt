@@ -198,9 +198,13 @@ class RemoteContentRepository(
             .first()
         val now = System.currentTimeMillis()
         val last = prefs[lastSyncKey] ?: 0L
-        if (!force && now - last in 0 until MIN_REFRESH_INTERVAL_MS) return@withLock true
+        if (!force && last > 0L && now >= last && now - last < MIN_REFRESH_INTERVAL_MS) {
+            return@withLock true
+        }
         // App launch, onResume and WorkManager may all request a refresh together.
-        if (now - lastAttemptAt in 0 until MIN_DUPLICATE_ATTEMPT_INTERVAL_MS) {
+        if (lastAttemptAt > 0L && now >= lastAttemptAt &&
+            now - lastAttemptAt < MIN_DUPLICATE_ATTEMPT_INTERVAL_MS
+        ) {
             return@withLock _lastSync.value != null
         }
         lastAttemptAt = now
