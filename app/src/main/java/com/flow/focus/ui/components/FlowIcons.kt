@@ -113,7 +113,7 @@ object FlowIcons {
     val Export by lazy { build("export", listOf("M12 15V4", "M7.5 8 12 3.5 16.5 8", "M5 19.5h14")) }
     val Import by lazy { build("import", listOf("M12 4v11", "M7.5 11l4.5 4.5 4.5-4.5", "M5 19.5h14")) }
     val Flag by lazy { build("flag", listOf("M6 20V4", "M6 5h11l-2 3.5 2 3.5H6")) }
-    val Repeat by lazy {
+    val Shuffle by lazy { build("shuffle", listOf("M4 7h2.5a4 4 0 0 1 3.2 1.6l4.6 6.8A4 4 0 0 0 17.5 17H20", "M17 14l3 3-3 3", "M4 17h2.5a4 4 0 0 0 3.2-1.6l.8-1.2", "M15.5 7H20", "M17 4l3 3-3 3")) }\n    val Repeat by lazy {
         build(
             "repeat",
             listOf("M5 11V9.5A2.5 2.5 0 0 1 7.5 7H18", "M15.5 4.5 18 7l-2.5 2.5", "M19 13v1.5a2.5 2.5 0 0 1-2.5 2.5H6", "M8.5 19.5 6 17l2.5-2.5"),
