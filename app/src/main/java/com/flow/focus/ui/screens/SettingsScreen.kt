@@ -571,7 +571,6 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             )
         }
         }
-    }
 
     if (musicOpen) MusicPlayerDialog { musicOpen = false }
 
