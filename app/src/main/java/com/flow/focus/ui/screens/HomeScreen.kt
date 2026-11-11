@@ -1,6 +1,9 @@
 package com.flow.focus.ui.screens
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -368,6 +371,11 @@ private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier
     val c2 by animateColorAsState(if (breakPhase) c.accent else c.accentAlt, tween(500), label = "ringB")
     // فقط وقتی «ثانیه» عوض می‌شود Recomposition رخ می‌دهد، نه با هر تیک
     val seconds by remember(timer) { derivedStateOf { (PomodoroEngine.remaining(timer, now.value) + 999L) / 1000L } }
+    val progress by animateFloatAsState(
+        targetValue = PomodoroEngine.progress(timer, now.value),
+        animationSpec = if (glass.animations) tween(900, easing = LinearEasing) else snap(),
+        label = "timer-ring-progress",
+    )
 
     Box(modifier, contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
@@ -376,7 +384,7 @@ private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier
             val arc = Size(size.width - 2 * inset, size.height - 2 * inset)
             val tl = Offset(inset, inset)
             drawArc(c.track, 0f, 360f, false, tl, arc, style = Stroke(stroke))
-            val p = PomodoroEngine.progress(timer, now.value)
+            val p = progress
             if (p > 0f) {
                 val sweep = 360f * p
                 rotate(-90f, center) {
