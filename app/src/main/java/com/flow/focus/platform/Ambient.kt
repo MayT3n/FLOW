@@ -22,7 +22,6 @@ import java.io.File
 /** Ambient recordings use Media3, repeat-one playback and a private offline audio cache. */
 class AmbientPlayer(
     private val ctx: Context,
-    private val scope: CoroutineScope,
     private val assets: AmbientAssetStore = AmbientAssetStore(ctx),
 ) {
     private var player: ExoPlayer? = null
