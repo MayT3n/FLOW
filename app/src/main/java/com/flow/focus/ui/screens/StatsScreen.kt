@@ -5,9 +5,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,28 +24,31 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.flow.focus.core.formatMinutes
 import com.flow.focus.data.AppData
 import com.flow.focus.data.Categories
 import com.flow.focus.domain.Bucket
+import com.flow.focus.domain.CategoryStat
 import com.flow.focus.domain.Stats
 import com.flow.focus.domain.StatsRange
 import com.flow.focus.ui.components.EmptyState
@@ -56,6 +59,7 @@ import com.flow.focus.ui.components.ScreenHeader
 import com.flow.focus.ui.components.SectionTitle
 import com.flow.focus.ui.components.SegmentedControl
 import com.flow.focus.ui.components.num
+import com.flow.focus.ui.glass.GlassLevel
 import com.flow.focus.ui.glass.GlassSurface
 import com.flow.focus.ui.rememberToday
 import com.flow.focus.ui.theme.Flow
@@ -67,204 +71,491 @@ fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
     val today = rememberToday()
     var rangeIdx by rememberSaveable { mutableStateOf(1) }
     val range = StatsRange.entries[rangeIdx]
-    val s = remember(data.sessions, data.tasks, range, today) { Stats.summarize(data, range, today) }
-    val hasData = data.sessions.isNotEmpty() || data.tasks.any { it.done }
+    val summary = remember(data.sessions, data.tasks, range, today) {
+        Stats.summarize(data, range, today)
+    }
+    val hasFocus = summary.focusMinutes > 0L
 
     Column(
-        modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding()
-            .padding(horizontal = 18.dp).padding(top = 8.dp, bottom = 120.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        modifier.fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .statusBarsPadding()
+            .padding(horizontal = 18.dp)
+            .padding(top = 8.dp, bottom = 126.dp),
+        verticalArrangement = Arrangement.spacedBy(17.dp),
     ) {
         ScreenHeader("آمار و تحلیل")
         SegmentedControl(listOf("روزانه", "هفتگی", "ماهانه"), rangeIdx, { rangeIdx = it })
         Text(
-            when (range) { StatsRange.DAY -> "امروز"; StatsRange.WEEK -> "۷ روز اخیر"; StatsRange.MONTH -> "۳۰ روز اخیر" }.let { num(it) },
-            style = Flow.type.caption, color = c.textSecondary, modifier = Modifier.padding(horizontal = 4.dp),
+            when (range) {
+                StatsRange.DAY -> "نمای امروز"
+                StatsRange.WEEK -> "۷ روز اخیر"
+                StatsRange.MONTH -> "۳۰ روز اخیر"
+            },
+            style = Flow.type.caption,
+            color = c.textSecondary,
+            modifier = Modifier.padding(horizontal = 4.dp),
         )
 
-        if (!hasData) {
-            GlassSurface(Modifier.fillMaxWidth()) {
-                EmptyState(FlowIcons.Stats, "هنوز آماری ثبت نشده", "بعد از اولین جلسه‌ی تمرکز، نمودارها و آمار واقعی اینجا ظاهر می‌شوند.")
+        OverviewCard(
+            focusMinutes = summary.focusMinutes,
+            completedSessions = summary.completedSessions,
+            activeDays = summary.activeDays,
+            range = range,
+        )
+
+        SectionTitle("خلاصه عملکرد")
+        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                MetricCard(
+                    FlowIcons.Target,
+                    num(summary.completedSessions),
+                    "جلسه‌ی کامل‌شده",
+                    c.success,
+                    Modifier.weight(1f),
+                )
+                MetricCard(
+                    FlowIcons.Hourglass,
+                    num(summary.avgSessionMinutes.toString() + " دقیقه"),
+                    "میانگین هر جلسه",
+                    c.accentAlt,
+                    Modifier.weight(1f),
+                )
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                MetricCard(
+                    FlowIcons.CalendarCheck,
+                    num(summary.activeDays),
+                    "روز فعال",
+                    c.warning,
+                    Modifier.weight(1f),
+                )
+                MetricCard(
+                    FlowIcons.Tasks,
+                    num(summary.tasksDone),
+                    "وظیفه‌ی تکمیل‌شده",
+                    c.accent,
+                    Modifier.weight(1f),
+                )
             }
         }
 
-        // ---- خلاصه‌ی شاخص‌ها ----
-        GlassSurface(
-            Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            level = com.flow.focus.ui.glass.GlassLevel.Subtle,
-        ) {
-            Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Tile(FlowIcons.Clock, if (s.focusMinutes == 0L) num("۰ دقیقه") else num(formatMinutes(s.focusMinutes)), "زمان تمرکز", c.accent, Modifier.weight(1f))
-                    Tile(FlowIcons.Target, num(s.completedSessions), "جلسه‌ی کامل‌شده", c.success, Modifier.weight(1f))
-                }
-                Box(Modifier.fillMaxWidth().height(1.dp).background(c.track))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Tile(FlowIcons.Hourglass, num("${s.avgSessionMinutes} دقیقه"), "میانگین هر جلسه", c.accentAlt, Modifier.weight(1f))
-                    Tile(FlowIcons.Calendar, num(s.activeDays), "روز فعال", c.warning, Modifier.weight(1f))
-                }
-                Box(Modifier.fillMaxWidth().height(1.dp).background(c.track))
-                Tile(FlowIcons.Tasks, num(s.tasksDone), "وظیفه‌ی تکمیل‌شده", c.success, Modifier.fillMaxWidth())
-            }
-        }
-
-        // ---- نمودار میله‌ای ----
         SectionTitle(
-            when (range) { StatsRange.DAY -> "تمرکز در ساعت‌های روز"; StatsRange.WEEK -> "تمرکز روزانه"; StatsRange.MONTH -> "تمرکز روزانه در ماه" },
+            when (range) {
+                StatsRange.DAY -> "توزیع تمرکز در روز"
+                StatsRange.WEEK -> "مقایسه‌ی روزهای هفته"
+                StatsRange.MONTH -> "فعالیت روزانه در ماه"
+            },
         )
-        GlassSurface(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                BarChart(s.buckets, labelEvery = if (range == StatsRange.MONTH) 5 else 1)
-                Text("دقیقه", style = Flow.type.caption, color = c.textSecondary)
+        GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(25.dp)) {
+            Column(
+                Modifier.padding(horizontal = 16.dp, vertical = 17.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("زمان تمرکز", Modifier.weight(1f), style = Flow.type.bodyStrong, color = c.textPrimary)
+                    Text(
+                        num(formatMinutes(summary.focusMinutes)),
+                        style = Flow.type.caption,
+                        color = c.accent,
+                    )
+                }
+                FocusBarChart(summary.buckets, labelEvery = if (range == StatsRange.MONTH) 5 else 1)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(7.dp).clip(CircleShape).background(c.accent))
+                    Text(
+                        if (range == StatsRange.DAY) "هر ستون یک بازه‌ی ۳ ساعته است" else "مجموع دقیقه‌های تمرکز",
+                        Modifier.padding(start = 6.dp),
+                        style = Flow.type.caption,
+                        color = c.textSecondary,
+                    )
+                }
             }
         }
 
-        // ---- روند ----
-        SectionTitle("روند ۸ هفته‌ی اخیر")
-        GlassSurface(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                TrendChart(s.weeklyTrend)
-                val last = s.weeklyTrend.lastOrNull() ?: 0L
-                val prev = s.weeklyTrend.getOrNull(s.weeklyTrend.size - 2) ?: 0L
+        SectionTitle("روند هشت هفته‌ی اخیر")
+        GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(25.dp)) {
+            Column(
+                Modifier.padding(17.dp),
+                verticalArrangement = Arrangement.spacedBy(9.dp),
+            ) {
+                WeeklyTrendChart(summary.weeklyTrend)
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("۸ هفته قبل", style = Flow.type.caption, color = c.textSecondary)
+                    Text("این هفته", style = Flow.type.caption, color = c.textSecondary)
+                }
+                val current = summary.weeklyTrend.lastOrNull() ?: 0L
+                val previous = summary.weeklyTrend.getOrNull(summary.weeklyTrend.lastIndex - 1) ?: 0L
                 Text(
                     when {
-                        last == 0L && prev == 0L -> "هنوز داده‌ای برای مقایسه نیست"
-                        prev == 0L -> num("این هفته ${formatMinutes(last)} تمرکز داشتی")
-                        last >= prev -> num("نسبت به هفته‌ی قبل ${formatMinutes(last - prev)} بیشتر")
-                        else -> num("نسبت به هفته‌ی قبل ${formatMinutes(prev - last)} کمتر")
+                        current == 0L && previous == 0L -> "هنوز داده‌ای برای مقایسه ثبت نشده است"
+                        previous == 0L -> "این هفته " + formatMinutes(current) + " تمرکز ثبت شده"
+                        current >= previous -> "افزایش " + formatMinutes(current - previous) + " نسبت به هفته‌ی قبل"
+                        else -> "کاهش " + formatMinutes(previous - current) + " نسبت به هفته‌ی قبل"
                     },
-                    style = Flow.type.caption, color = c.textSecondary,
+                    style = Flow.type.caption,
+                    color = c.textSecondary,
                 )
             }
         }
 
-        // ---- دسته‌بندی‌ها ----
-        SectionTitle("عملکرد دسته‌بندی‌ها")
-        GlassSurface(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (s.categories.isEmpty()) {
-                    Text("جلسه‌هایی که به یک وظیفه وصل باشند اینجا به تفکیک دسته نمایش داده می‌شوند.", style = Flow.type.caption, color = c.textSecondary)
-                } else {
-                    val total = s.categories.sumOf { it.minutes }.coerceAtLeast(1)
-                    s.categories.forEach { cs ->
-                        val cat = Categories.byId(cs.categoryId)
-                        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Box(Modifier.size(9.dp).clip(CircleShape).background(if (cs.categoryId == null) c.textSecondary else Color(cat.color)))
-                                Text(cs.categoryId?.let { cat.name } ?: "بدون وظیفه", Modifier.weight(1f), style = Flow.type.body, color = c.textPrimary)
-                                Text(num("${formatMinutes(cs.minutes)} · ${(cs.minutes * 100 / total)}%"), style = Flow.type.caption, color = c.textSecondary)
-                            }
-                            FlowProgressBar(cs.minutes.toFloat() / total, color = if (cs.categoryId == null) c.textSecondary else Color(cat.color), height = 6.dp)
-                        }
-                    }
-                }
+        SectionTitle("ترکیب دسته‌بندی‌ها")
+        GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(25.dp)) {
+            if (summary.categories.isEmpty()) {
+                EmptyState(
+                    FlowIcons.PieChart,
+                    "هنوز ترکیبی برای نمایش نیست",
+                    "جلسه‌های متصل به وظیفه، بر اساس دسته‌بندی در این بخش دیده می‌شوند.",
+                    modifier = Modifier.padding(vertical = 3.dp),
+                )
+            } else {
+                CategoryBreakdown(summary.categories)
+            }
+        }
+
+        if (!hasFocus) {
+            GlassSurface(
+                Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                level = GlassLevel.Subtle,
+            ) {
+                EmptyState(
+                    FlowIcons.Flame,
+                    "شروع آمار از اولین جلسه",
+                    "با ثبت اولین جلسه‌ی تمرکز، نمودارها و روند پیشرفتت شکل می‌گیرند.",
+                )
             }
         }
     }
 }
 
 @Composable
-private fun Tile(icon: androidx.compose.ui.graphics.vector.ImageVector, value: String, caption: String, tint: Color, modifier: Modifier) {
-    Row(
-        modifier.padding(horizontal = 7.dp, vertical = 9.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(9.dp),
+private fun OverviewCard(
+    focusMinutes: Long,
+    completedSessions: Int,
+    activeDays: Int,
+    range: StatsRange,
+) {
+    val c = Flow.colors
+    GlassSurface(
+        Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(27.dp),
+        level = GlassLevel.Strong,
+        elevated = true,
     ) {
-        Box(
-            Modifier.size(31.dp).clip(RoundedCornerShape(10.dp)).background(tint.copy(alpha = 0.13f)),
-            contentAlignment = Alignment.Center,
+        Column(
+            Modifier.padding(horizontal = 19.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(11.dp),
         ) {
-            FlowIcon(icon, tint = tint, size = 17.dp)
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(value, style = Flow.type.heading, color = Flow.colors.textPrimary, maxLines = 1)
-            Text(caption, style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 1)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(c.accentSoft),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    FlowIcon(FlowIcons.ChartLine, tint = c.accent, size = 23.dp)
+                }
+                Column(
+                    Modifier.weight(1f).padding(start = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(1.dp),
+                ) {
+                    Text("زمان تمرکز", style = Flow.type.bodyStrong, color = c.textPrimary)
+                    Text(
+                        when (range) {
+                            StatsRange.DAY -> "جمع کل امروز"
+                            StatsRange.WEEK -> "جمع کل این هفته"
+                            StatsRange.MONTH -> "جمع کل این ماه"
+                        },
+                        style = Flow.type.caption,
+                        color = c.textSecondary,
+                    )
+                }
+                FlowIcon(FlowIcons.Clock, tint = c.textSecondary, size = 19.dp)
+            }
+            Text(
+                num(formatMinutes(focusMinutes)),
+                style = Flow.type.display.copy(fontSize = 38.sp, lineHeight = 46.sp),
+                color = c.textPrimary,
+                maxLines = 1,
+            )
+            Box(Modifier.fillMaxWidth().height(1.dp).background(c.track))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OverviewMiniStat(
+                    FlowIcons.Target,
+                    num(completedSessions),
+                    "جلسه کامل",
+                    Modifier.weight(1f),
+                )
+                OverviewMiniStat(
+                    FlowIcons.CalendarCheck,
+                    num(activeDays),
+                    "روز فعال",
+                    Modifier.weight(1f),
+                )
+            }
         }
     }
 }
 
-/** نمودار میله‌ای متحرک؛ زمان از راست به چپ (راست‌چین). مقدار انیمیشن فقط در لایه‌ی گرافیکی خوانده می‌شود. */
 @Composable
-private fun BarChart(buckets: List<Bucket>, labelEvery: Int) {
+private fun OverviewMiniStat(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        FlowIcon(icon, tint = Flow.colors.accent, size = 17.dp)
+        Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+            Text(value, style = Flow.type.bodyStrong, color = Flow.colors.textPrimary)
+            Text(label, style = Flow.type.caption, color = Flow.colors.textSecondary)
+        }
+    }
+}
+
+@Composable
+private fun MetricCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    value: String,
+    label: String,
+    tint: Color,
+    modifier: Modifier,
+) {
+    GlassSurface(
+        modifier,
+        shape = RoundedCornerShape(22.dp),
+        level = GlassLevel.Subtle,
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(9.dp),
+        ) {
+            Box(
+                Modifier.size(34.dp).clip(RoundedCornerShape(11.dp)).background(tint.copy(alpha = 0.13f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                FlowIcon(icon, tint = tint, size = 18.dp)
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(value, style = Flow.type.heading, color = Flow.colors.textPrimary, maxLines = 1)
+                Text(
+                    label,
+                    style = Flow.type.caption,
+                    color = Flow.colors.textSecondary,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FocusBarChart(buckets: List<Bucket>, labelEvery: Int) {
     val c = Flow.colors
-    val animate = LocalGlass.current.animations
+    val animated = LocalGlass.current.animations
     val progress = remember { Animatable(0f) }
     LaunchedEffect(buckets) {
-        if (animate) { progress.snapTo(0f); progress.animateTo(1f, tween(650)) } else progress.snapTo(1f)
+        if (animated) {
+            progress.snapTo(0f)
+            progress.animateTo(1f, tween(650))
+        } else {
+            progress.snapTo(1f)
+        }
     }
-    val max = (buckets.maxOfOrNull { it.minutes } ?: 0L).coerceAtLeast(1L)
-    Row(Modifier.fillMaxWidth().height(150.dp), horizontalArrangement = Arrangement.spacedBy(if (buckets.size > 12) 2.dp else 8.dp), verticalAlignment = Alignment.Bottom) {
-        buckets.forEachIndexed { i, b ->
-            Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
-                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
-                    val frac = b.minutes.toFloat() / max
-                    if (b.minutes > 0) {
-                        Box(
-                            Modifier
-                                .fillMaxWidth(if (buckets.size > 12) 0.8f else 0.55f)
-                                .fillMaxHeight(frac.coerceAtLeast(0.04f))
-                                .graphicsLayer { scaleY = progress.value; transformOrigin = TransformOrigin(0.5f, 1f) }
-                                .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 2.dp, bottomEnd = 2.dp))
-                                .background(Brush.verticalGradient(listOf(c.accentAlt, c.accent))),
-                        )
-                    } else {
-                        Box(Modifier.fillMaxWidth(if (buckets.size > 12) 0.8f else 0.55f).height(3.dp).clip(CircleShape).background(c.track))
+    val maxValue = (buckets.maxOfOrNull { it.minutes } ?: 0L).coerceAtLeast(1L)
+    Canvas(Modifier.fillMaxWidth().height(148.dp)) {
+        val top = 6.dp.toPx()
+        val bottom = size.height - 4.dp.toPx()
+        val chartHeight = bottom - top
+        for (step in 0..3) {
+            val y = top + chartHeight * step / 3f
+            drawLine(c.track, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())
+        }
+        val count = buckets.size.coerceAtLeast(1)
+        val slot = size.width / count
+        val barWidth = (slot * 0.54f).coerceAtMost(24.dp.toPx()).coerceAtLeast(4.dp.toPx())
+        buckets.forEachIndexed { index, bucket ->
+            val fraction = bucket.minutes.toFloat() / maxValue
+            val barHeight = if (bucket.minutes > 0L) {
+                (chartHeight * fraction * progress.value).coerceAtLeast(3.dp.toPx())
+            } else 2.dp.toPx()
+            val x = size.width - slot * (index + 0.5f) - barWidth / 2f
+            drawRoundRect(
+                brush = if (bucket.minutes > 0L) {
+                    Brush.verticalGradient(listOf(c.accentAlt, c.accent), top, bottom)
+                } else Brush.verticalGradient(listOf(c.track, c.track)),
+                topLeft = Offset(x, bottom - barHeight),
+                size = Size(barWidth, barHeight),
+                cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f),
+            )
+        }
+    }
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        buckets.forEachIndexed { index, bucket ->
+            Text(
+                if (index % labelEvery == 0 || index == buckets.lastIndex) num(bucket.label) else "",
+                Modifier.weight(1f),
+                style = Flow.type.caption,
+                color = c.textSecondary,
+                maxLines = 1,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+@Composable
+private fun WeeklyTrendChart(values: List<Long>) {
+    val c = Flow.colors
+    val animated = LocalGlass.current.animations
+    val progress = remember { Animatable(0f) }
+    LaunchedEffect(values) {
+        if (animated) {
+            progress.snapTo(0f)
+            progress.animateTo(1f, tween(780))
+        } else {
+            progress.snapTo(1f)
+        }
+    }
+    val maxValue = (values.maxOrNull() ?: 0L).coerceAtLeast(1L).toFloat()
+    Canvas(Modifier.fillMaxWidth().height(132.dp)) {
+        if (values.size < 2) return@Canvas
+        val pad = 9.dp.toPx()
+        val width = size.width - 2f * pad
+        val height = size.height - 2f * pad
+        val bottom = size.height - pad
+        fun point(index: Int): Offset {
+            val x = size.width - pad - width * index / (values.size - 1)
+            val y = pad + height * (1f - values[index] / maxValue)
+            return Offset(x, y)
+        }
+        for (line in 0..3) {
+            val y = pad + height * line / 3f
+            drawLine(c.track, Offset(pad, y), Offset(size.width - pad, y), strokeWidth = 1.dp.toPx())
+        }
+        val stroke = Path()
+        val area = Path()
+        values.indices.forEach { index ->
+            val current = point(index)
+            if (index == 0) {
+                stroke.moveTo(current.x, current.y)
+                area.moveTo(current.x, bottom)
+                area.lineTo(current.x, current.y)
+            } else {
+                val previous = point(index - 1)
+                val middle = (previous.x + current.x) / 2f
+                stroke.cubicTo(middle, previous.y, middle, current.y, current.x, current.y)
+                area.cubicTo(middle, previous.y, middle, current.y, current.x, current.y)
+            }
+        }
+        area.lineTo(point(values.lastIndex).x, bottom)
+        area.close()
+        clipRect(left = size.width * (1f - progress.value)) {
+            drawPath(area, Brush.verticalGradient(listOf(c.accent.copy(alpha = 0.28f), Color.Transparent)))
+            drawPath(
+                stroke,
+                Brush.horizontalGradient(listOf(c.accentAlt, c.accent)),
+                style = Stroke(3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
+            )
+            values.indices.forEach { index ->
+                drawCircle(c.accent, 3.6.dp.toPx(), point(index))
+            }
+        }
+    }
+}
+
+@Composable
+private fun CategoryBreakdown(categories: List<CategoryStat>) {
+    val c = Flow.colors
+    val total = categories.sumOf { it.minutes }.coerceAtLeast(1L)
+    Row(
+        Modifier.fillMaxWidth().padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(18.dp),
+    ) {
+        CategoryDonut(categories, Modifier.size(142.dp))
+        Column(
+            Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(11.dp),
+        ) {
+            categories.take(5).forEach { item ->
+                val category = item.categoryId?.let { Categories.byId(it) }
+                val color = category?.let { Color(it.color) } ?: c.textSecondary
+                val label = category?.name ?: "بدون وظیفه"
+                val percent = (item.minutes * 100L / total).toInt()
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(8.dp).clip(CircleShape).background(color))
+                    Column(
+                        Modifier.weight(1f).padding(start = 7.dp),
+                        verticalArrangement = Arrangement.spacedBy(0.dp),
+                    ) {
+                        Text(label, style = Flow.type.caption, color = c.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(num(formatMinutes(item.minutes)), style = Flow.type.caption, color = c.textSecondary)
                     }
+                    Text(num(percent.toString() + "%"), style = Flow.type.caption, color = c.textSecondary)
                 }
+            }
+            if (categories.size > 5) {
                 Text(
-                    if (i % labelEvery == 0 || i == buckets.lastIndex) num(b.label) else "",
-                    style = Flow.type.caption, color = c.textSecondary, maxLines = 1, textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 4.dp),
+                    num("و " + (categories.size - 5) + " دسته‌ی دیگر"),
+                    style = Flow.type.caption,
+                    color = c.textSecondary,
                 )
             }
         }
     }
 }
 
-/** نمودار خطی روند؛ قدیمی‌ترین نقطه سمت راست و جدیدترین سمت چپ. */
 @Composable
-private fun TrendChart(values: List<Long>) {
+private fun CategoryDonut(categories: List<CategoryStat>, modifier: Modifier = Modifier) {
     val c = Flow.colors
-    val animate = LocalGlass.current.animations
-    val progress = remember { Animatable(0f) }
-    LaunchedEffect(values) {
-        if (animate) { progress.snapTo(0f); progress.animateTo(1f, tween(800)) } else progress.snapTo(1f)
-    }
-    val max = (values.maxOrNull() ?: 0L).coerceAtLeast(1L).toFloat()
-    Canvas(Modifier.fillMaxWidth().height(110.dp)) {
-        if (values.size < 2) return@Canvas
-        val pad = 8.dp.toPx()
-        val w = size.width - 2 * pad
-        val h = size.height - 2 * pad
-        fun pt(i: Int): Offset {
-            val x = size.width - pad - w * i / (values.size - 1)
-            val y = pad + h * (1f - values[i] / max)
-            return Offset(x, y)
-        }
-        // خطوط راهنما
-        for (g in 0..2) {
-            val y = pad + h * g / 2f
-            drawLine(c.track, Offset(pad, y), Offset(size.width - pad, y), strokeWidth = 1.dp.toPx())
-        }
-        val line = Path()
-        val fill = Path()
-        values.indices.forEach { i ->
-            val p = pt(i)
-            if (i == 0) { line.moveTo(p.x, p.y); fill.moveTo(p.x, size.height - pad); fill.lineTo(p.x, p.y) }
-            else {
-                val prev = pt(i - 1)
-                val mx = (prev.x + p.x) / 2f
-                line.cubicTo(mx, prev.y, mx, p.y, p.x, p.y)
-                fill.cubicTo(mx, prev.y, mx, p.y, p.x, p.y)
+    Canvas(modifier) {
+        val strokeWidth = 19.dp.toPx()
+        val inset = strokeWidth / 2f
+        val arcSize = Size(size.width - strokeWidth, size.height - strokeWidth)
+        val origin = Offset(inset, inset)
+        drawArc(
+            color = c.track,
+            startAngle = -90f,
+            sweepAngle = 360f,
+            useCenter = false,
+            topLeft = origin,
+            size = arcSize,
+            style = Stroke(strokeWidth, cap = StrokeCap.Round),
+        )
+        val total = categories.sumOf { it.minutes }.coerceAtLeast(1L).toFloat()
+        var angle = -90f
+        categories.forEach { item ->
+            val categoryColor = item.categoryId?.let { Color(Categories.byId(it).color) } ?: c.textSecondary
+            val rawSweep = 360f * item.minutes / total
+            val sweep = (rawSweep - if (categories.size > 1) 2.6f else 0f).coerceAtLeast(0f)
+            if (sweep > 0f) {
+                drawArc(
+                    color = categoryColor,
+                    startAngle = angle,
+                    sweepAngle = sweep,
+                    useCenter = false,
+                    topLeft = origin,
+                    size = arcSize,
+                    style = Stroke(strokeWidth, cap = StrokeCap.Round),
+                )
             }
-        }
-        fill.lineTo(pt(values.lastIndex).x, size.height - pad)
-        fill.close()
-        clipRect(left = size.width * (1f - progress.value)) {
-            drawPath(fill, Brush.verticalGradient(listOf(c.accent.copy(alpha = 0.32f), Color.Transparent)))
-            drawPath(line, Brush.horizontalGradient(listOf(c.accentAlt, c.accent)), style = Stroke(3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-            values.indices.forEach { i -> drawCircle(c.accent, 3.5.dp.toPx(), pt(i)) }
+            angle += rawSweep
         }
     }
 }

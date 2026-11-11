@@ -53,10 +53,14 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.flow.focus.core.withDigits
@@ -361,20 +365,44 @@ fun Chip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifie
     }
 }
 
-/** دیالوگ شیشه‌ای. پس‌زمینه‌ی Blur در پنجره‌ی جدا ممکن نیست، پس پنل کمی مات‌تر است. */
+/** پوسته‌ی واحد پنجره‌ها؛ عنوان، بستن، فاصله‌گذاری و سطح شیشه‌ای در تمام دیالوگ‌ها یکسان است. */
 @Composable
 fun FlowDialog(onDismiss: () -> Unit, title: String? = null, content: @Composable ColumnScope.() -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         CompositionLocalProvider(LocalRootSize provides null) {
             GlassSurface(
-                Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 24.dp).widthIn(max = 460.dp),
-                shape = RoundedCornerShape(30.dp), level = GlassLevel.Strong, elevated = true,
+                Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 22.dp).widthIn(max = 440.dp),
+                shape = RoundedCornerShape(28.dp),
+                level = GlassLevel.Strong,
+                elevated = true,
             ) {
                 Column(
-                    Modifier.heightIn(max = 640.dp).verticalScroll(rememberScrollState()).padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    Modifier.heightIn(max = 640.dp).verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 17.dp),
+                    verticalArrangement = Arrangement.spacedBy(13.dp),
                 ) {
-                    if (title != null) Text(title, style = Flow.type.title, color = Flow.colors.textPrimary)
+                    if (title != null) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Text(
+                                title,
+                                Modifier.weight(1f),
+                                style = Flow.type.title,
+                                color = Flow.colors.textPrimary,
+                                maxLines = 2,
+                            )
+                            GlassIconButton(
+                                FlowIcons.Close,
+                                onDismiss,
+                                size = 34.dp,
+                                iconSize = 16.dp,
+                                contentDescription = "بستن پنجره",
+                            )
+                        }
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(Flow.colors.track))
+                    }
                     content()
                 }
             }
@@ -384,36 +412,73 @@ fun FlowDialog(onDismiss: () -> Unit, title: String? = null, content: @Composabl
 
 data class DockItem(val label: String, val icon: ImageVector)
 
-/** Dock شناور Liquid Glass با انیمیشن فنری برای بخش فعال. */
+/** نوار شناور پایین با زبان بصری iOS، سطح شیشه‌ای مشترک و وضعیت انتخاب دسترس‌پذیر. */
 @Composable
 fun FlowDock(items: List<DockItem>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
     val c = Flow.colors
     GlassSurface(
-        modifier.fillMaxWidth().widthIn(max = 440.dp).height(66.dp),
-        shape = RoundedCornerShape(33.dp), level = GlassLevel.Strong, elevated = true,
+        modifier.fillMaxWidth().widthIn(max = 440.dp).height(68.dp),
+        shape = RoundedCornerShape(34.dp),
+        level = GlassLevel.Strong,
+        elevated = true,
     ) {
-        Row(Modifier.fillMaxSize().padding(5.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-            items.forEachIndexed { i, item ->
-                val sel = i == selected
-                val p by animateFloatAsState(if (sel) 1f else 0f, floatSpring(0.6f, 450f), label = "dock")
+        Row(
+            Modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            items.forEachIndexed { index, item ->
+                val isSelected = index == selected
+                val emphasis by animateFloatAsState(
+                    targetValue = if (isSelected) 1f else 0f,
+                    animationSpec = floatSpring(0.72f, 520f),
+                    label = "dockSelection",
+                )
                 Box(
                     Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .springClick(role = Role.Tab, scaleDown = 0.9f, onClick = { onSelect(i) }),
+                        .semantics(mergeDescendants = true) {
+                            contentDescription = item.label
+                            selected = isSelected
+                        }
+                        .springClick(
+                            role = Role.Tab,
+                            scaleDown = 0.94f,
+                            onClick = { onSelect(index) },
+                        ),
                     contentAlignment = Alignment.Center,
                 ) {
                     Box(
-                        Modifier.fillMaxSize()
-                            .graphicsLayer { alpha = p; scaleX = 0.7f + 0.3f * p; scaleY = 0.7f + 0.3f * p }
-                            .clip(RoundedCornerShape(28.dp)).background(c.accentSoft),
+                        Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                alpha = emphasis
+                                scaleX = 0.86f + 0.14f * emphasis
+                                scaleY = 0.86f + 0.14f * emphasis
+                            }
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(c.accentSoft),
                     )
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
                         FlowIcon(
-                            item.icon, tint = if (sel) c.accent else c.textSecondary, size = 22.dp,
-                            modifier = Modifier.graphicsLayer { translationY = -3f * p },
+                            item.icon,
+                            tint = if (isSelected) c.accent else c.textSecondary,
+                            size = 21.dp,
+                            modifier = Modifier.graphicsLayer {
+                                scaleX = 1f + 0.035f * emphasis
+                                scaleY = 1f + 0.035f * emphasis
+                            },
                         )
-                        Text(item.label, style = Flow.type.caption, color = if (sel) c.accent else c.textSecondary, maxLines = 1)
+                        Text(
+                            item.label,
+                            style = Flow.type.caption.copy(fontSize = 10.5.sp, lineHeight = 13.sp),
+                            color = if (isSelected) c.accent else c.textSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
                 }
             }

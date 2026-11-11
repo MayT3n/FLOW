@@ -34,7 +34,7 @@ object FlowIcons {
         for (d in filled) {
             b.addPath(
                 pathData = PathParser().parsePathString(d).toNodes(),
-                fill = SolidColor(Color.Black), stroke = SolidColor(Color.Black), strokeLineWidth = 1.4f,
+                fill = SolidColor(Color.Black), stroke = SolidColor(Color.Black), strokeLineWidth = width,
                 strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round,
             )
         }
@@ -57,7 +57,7 @@ object FlowIcons {
             listOf("M5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13A1.5 1.5 0 0 1 5.5 4z", "M8.2 12.3l2.6 2.6 5-5.2"),
         )
     }
-    val Stats by lazy { build("stats", listOf("M6 20v-6.5", "M12 20V5", "M18 20v-9.5"), width = 1.9f) }
+    val Stats by lazy { build("stats", listOf("M6 20v-6.5", "M12 20V5", "M18 20v-9.5"), width = 1.8f) }
     val Settings by lazy {
         build(
             "settings",
@@ -77,8 +77,8 @@ object FlowIcons {
     val Cup by lazy { build("cup", listOf("M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z", "M16 10.5h1.5a2 2 0 0 1 0 4H16", "M8 4.5v2", "M12 4.5v2")) }
     val Book by lazy { build("book", listOf("M12 6.5C10.5 5.3 8 5 4.5 5.2V18c3.5-.2 6 .1 7.5 1.3 1.5-1.2 4-1.5 7.5-1.3V5.2C16 5 13.5 5.3 12 6.5z", "M12 6.5v12.8")) }
     val Music by lazy { build("music", listOf("M9 17.5V6l9-1.8v11.3", "M9 17.5a2.3 2.3 0 1 1-4.6 0 2.3 2.3 0 0 1 4.6 0z", "M18 15.5a2.3 2.3 0 1 1-4.6 0 2.3 2.3 0 0 1 4.6 0z")) }
-    val Minus by lazy { build("minus", listOf("M5 12h14"), width = 1.9f) }
-    val Plus by lazy { build("plus", listOf("M12 5v14", "M5 12h14"), width = 1.9f) }
+    val Minus by lazy { build("minus", listOf("M5 12h14"), width = 1.8f) }
+    val Plus by lazy { build("plus", listOf("M12 5v14", "M5 12h14"), width = 1.8f) }
     val Search by lazy { build("search", listOf("M11 4.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13z", "M16 16l4 4")) }
     val ChevronNext by lazy { build("chevronNext", listOf("M9.5 6l6 6-6 6"), mirror = true) }
     val ChevronPrev by lazy { build("chevronPrev", listOf("M14.5 6l-6 6 6 6"), mirror = true) }
@@ -86,7 +86,7 @@ object FlowIcons {
     val Trash by lazy { build("trash", listOf("M5 7h14", "M9.5 7V4.8h5V7", "M7 7l.8 12h8.4L17 7", "M10 11v5", "M14 11v5")) }
     val Edit by lazy { build("edit", listOf("M4.5 19.5l1-4L16 5a1.8 1.8 0 0 1 2.5 0l.5.5a1.8 1.8 0 0 1 0 2.5L8.5 18.5z", "M14 7l3 3")) }
     val Clock by lazy { build("clock", listOf("M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z", "M12 8v4.2l2.8 1.8")) }
-    val Target by lazy { build("target", listOf("M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z", "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z", "M12 12h.01"), width = 1.9f) }
+    val Target by lazy { build("target", listOf("M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z", "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z", "M12 12h.01"), width = 1.8f) }
     val Leaf by lazy { build("leaf", listOf("M5 19C5 10.5 10 5.5 19 5c0 9-5 14-13.5 14", "M5 19l7.5-7.5")) }
     val Sun by lazy {
         build(
@@ -99,7 +99,7 @@ object FlowIcons {
     }
     val Moon by lazy { build("moon", listOf("M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z")) }
     val Close by lazy { build("close", listOf("M6 6l12 12", "M18 6L6 18")) }
-    val Check by lazy { build("check", listOf("M5.5 12.5l4.2 4.2L18.5 7.8"), width = 2f) }
+    val Check by lazy { build("check", listOf("M5.5 12.5l4.2 4.2L18.5 7.8"), width = 1.8f) }
     val Bell by lazy { build("bell", listOf("M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z", "M10 20.5a2.2 2.2 0 0 0 4 0")) }
     val Volume by lazy { build("volume", listOf("M4.5 9.5h3L12 6v12l-4.5-3.5h-3z", "M15.5 9a4 4 0 0 1 0 6", "M18 6.5a7.5 7.5 0 0 1 0 11")) }
     val Rain by lazy {
@@ -124,4 +124,13 @@ object FlowIcons {
         build("hourglass", listOf("M7 4h10", "M7 20h10", "M8 4c0 4 4 5 4 8s-4 4-4 8", "M16 4c0 4-4 5-4 8s4 4 4 8"))
     }
     val Layers by lazy { build("layers", listOf("M12 4 3.5 8.5 12 13l8.5-4.5z", "M3.5 12.5 12 17l8.5-4.5", "M3.5 16 12 20.5l8.5-4.5")) }
+    val ChartLine by lazy { build("chartLine", listOf("M4 18.5 9 13.5l3 2.5L20 7", "M14.5 7H20v5.5")) }
+    val PieChart by lazy { build("pieChart", listOf("M11.5 3.5a8.5 8.5 0 1 0 9 9h-9z", "M14 3.8a8 8 0 0 1 6.2 6.2H14z")) }
+    val CalendarCheck by lazy { build("calendarCheck", listOf("M5.5 5h13A1.5 1.5 0 0 1 20 6.5v12a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-12A1.5 1.5 0 0 1 5.5 5z", "M4 9.5h16", "M8 3.5v3", "M16 3.5v3", "m8 14 2.2 2.2L16 10.5")) }
+    val Flame by lazy { build("flame", listOf("M12 3.5c1.2 3.1 4.8 4.5 4.8 9a4.8 4.8 0 1 1-9.6 0c0-2.2 1.1-4.1 2.8-5.8.1 2 1.1 3 2 3.5.9-2.1.9-4.3 0-6.7z")) }
+    val Award by lazy { build("award", listOf("M8 4h8v5a4 4 0 0 1-8 0z", "M8 8H5.5a2 2 0 0 0 0 4H9", "M16 8h2.5a2 2 0 0 1 0 4H15", "M10 13l-1.5 7 3.5-2 3.5 2-1.5-7")) }
+    val Timer by lazy { build("timer", listOf("M9 3.5h6", "M12 7v5l3 2", "M6.2 7.2 4.8 5.8", "M17.8 7.2l1.4-1.4", "M12 5a8 8 0 1 0 0 16 8 8 0 0 0 0-16z")) }
+    val Filter by lazy { build("filter", listOf("M4 5h16l-6.2 7v5.5l-3.6 1.8V12z")) }
+    val Sparkles by lazy { build("sparkles", listOf("m12 3 1.2 5.8L19 10l-5.8 1.2L12 17l-1.2-5.8L5 10l5.8-1.2z", "m19 16 .6 2.4L22 19l-2.4.6L19 22l-.6-2.4L16 19l2.4-.6z")) }
+    val Info by lazy { build("info", listOf("M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z", "M12 11v5", "M12 8h.01")) }
 }

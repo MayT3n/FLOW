@@ -1,6 +1,8 @@
 package com.flow.focus.ui.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -257,8 +259,15 @@ fun Fab(onClick: () -> Unit, modifier: Modifier = Modifier) {
     ) { FlowIcon(FlowIcons.Plus, tint = Color.White, size = 28.dp, contentDescription = "افزودن") }
 }
 
-/** فهرست باز شونده‌ی شیشه‌ای (منوی بالای تایمر). */
-data class MenuAction(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val onClick: () -> Unit)
+/** منوی شناور یکپارچه با دیالوگ‌ها؛ ردیف‌ها، آیکون‌ها و وضعیت مخرب/انتخاب‌شده استانداردند. */
+data class MenuAction(
+    val label: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val onClick: () -> Unit,
+    val subtitle: String? = null,
+    val destructive: Boolean = false,
+    val selected: Boolean = false,
+)
 
 @Composable
 fun GlassMenu(expanded: Boolean, onDismiss: () -> Unit, actions: List<MenuAction>) {
@@ -273,23 +282,67 @@ fun GlassMenu(expanded: Boolean, onDismiss: () -> Unit, actions: List<MenuAction
         androidx.compose.runtime.CompositionLocalProvider(
             com.flow.focus.ui.glass.LocalRootSize provides null,
         ) {
-            com.flow.focus.ui.glass.GlassSurface(
-                Modifier.padding(6.dp).width(250.dp),
-                shape = RoundedCornerShape(24.dp),
-                level = com.flow.focus.ui.glass.GlassLevel.Strong,
-                elevated = true,
+            AnimatedVisibility(
+                visible = true,
+                enter = fadeIn(tween(125)) + scaleIn(initialScale = 0.96f, animationSpec = tween(145)),
             ) {
-                Column(Modifier.padding(vertical = 6.dp)) {
-                    actions.forEachIndexed { i, a ->
-                        Row(
-                            Modifier.fillMaxWidth().clickable(role = Role.Button) { onDismiss(); a.onClick() }.padding(horizontal = 18.dp, vertical = 13.dp),
-                            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        ) {
-                            FlowIcon(a.icon, tint = Flow.colors.textSecondary, size = 22.dp)
-                            Text(a.label, style = Flow.type.body, color = Flow.colors.textPrimary, modifier = Modifier.weight(1f))
-                        }
-                        if (i != actions.lastIndex) {
-                            Box(Modifier.padding(horizontal = 16.dp).fillMaxWidth().height(1.dp).background(Flow.colors.track))
+                com.flow.focus.ui.glass.GlassSurface(
+                    Modifier.padding(6.dp).width(270.dp),
+                    shape = RoundedCornerShape(25.dp),
+                    level = com.flow.focus.ui.glass.GlassLevel.Strong,
+                    elevated = true,
+                ) {
+                    Column(Modifier.padding(vertical = 7.dp)) {
+                        actions.forEachIndexed { index, action ->
+                            val tint = when {
+                                action.destructive -> Flow.colors.danger
+                                action.selected -> Flow.colors.accent
+                                else -> Flow.colors.textSecondary
+                            }
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable(role = Role.Button) {
+                                        onDismiss()
+                                        action.onClick()
+                                    }
+                                    .padding(horizontal = 13.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(11.dp),
+                            ) {
+                                Box(
+                                    Modifier
+                                        .size(36.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(tint.copy(alpha = 0.12f)),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    FlowIcon(action.icon, tint = tint, size = 19.dp)
+                                }
+                                Column(
+                                    Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(1.dp),
+                                ) {
+                                    Text(
+                                        action.label,
+                                        style = Flow.type.bodyStrong,
+                                        color = if (action.destructive) Flow.colors.danger else Flow.colors.textPrimary,
+                                        maxLines = 1,
+                                    )
+                                    action.subtitle?.let {
+                                        Text(it, style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 1)
+                                    }
+                                }
+                                if (action.selected) {
+                                    FlowIcon(FlowIcons.Check, tint = Flow.colors.accent, size = 18.dp)
+                                }
+                            }
+                            if (index != actions.lastIndex) {
+                                Box(
+                                    Modifier.padding(start = 60.dp, end = 14.dp)
+                                        .fillMaxWidth().height(1.dp).background(Flow.colors.track),
+                                )
+                            }
                         }
                     }
                 }
