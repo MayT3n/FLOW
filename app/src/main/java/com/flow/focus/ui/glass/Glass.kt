@@ -220,8 +220,15 @@ fun GlassSurface(
     val g = LocalGlass.current
     val rootSize = LocalRootSize.current
     val rootBackdrop = LocalRootBackdrop.current
+    // High quality applies a shared-backdrop blur to every surface. Subtle surfaces
+    // receive a gentler radius rather than being excluded from the Liquid Glass system.
     val blurOn = g.quality == GlassQuality.HIGH && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-        rootSize != null && rootBackdrop != null && g.blurDp > 0 && level != GlassLevel.Subtle
+        rootSize != null && rootBackdrop != null && g.blurDp > 0
+    val levelBlur = when (level) {
+        GlassLevel.Subtle -> 0.55f
+        GlassLevel.Regular -> 1f
+        GlassLevel.Strong -> 1.15f
+    }
     var origin by remember { mutableStateOf(Offset.Zero) }
 
     val baseFill = when {
@@ -245,7 +252,7 @@ fun GlassSurface(
                     .matchParentSize()
                     .graphicsLayer {
                         val extra = rootBackdrop!!.settings.wallpaperBlurDp.dp.toPx()
-                        val r = g.blurDp.dp.toPx() + extra
+                        val r = g.blurDp.dp.toPx() * levelBlur + extra
                         renderEffect = BlurEffect(r, r)
                     }
                     .drawBehind {
