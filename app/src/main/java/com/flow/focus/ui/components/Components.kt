@@ -144,8 +144,9 @@ fun GlassIconButton(
     enabled: Boolean = true,
 ) {
     Box(
-        modifier = modifier
+        modifier = Modifier
             .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+            .then(modifier)
             .alpha(if (enabled) 1f else 0.4f)
             .springClick(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
@@ -289,8 +290,8 @@ fun SettingRow(
 ) {
     Row(modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(title, style = Flow.type.body, color = Flow.colors.textPrimary)
-            if (subtitle != null) Text(subtitle, style = Flow.type.caption, color = Flow.colors.textSecondary)
+            Text(title, style = Flow.type.body, color = Flow.colors.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (subtitle != null) Text(subtitle, style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         Spacer(Modifier.width(12.dp))
         trailing()
@@ -433,7 +434,7 @@ fun FlowProgressBar(progress: Float, modifier: Modifier = Modifier, color: Color
 @Composable
 fun SectionTitle(text: String, modifier: Modifier = Modifier, trailing: (@Composable () -> Unit)? = null) {
     Row(modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(text, style = Flow.type.heading, color = Flow.colors.textPrimary, modifier = Modifier.weight(1f))
+        Text(text, style = Flow.type.heading, color = Flow.colors.textPrimary, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
         trailing?.invoke()
     }
 }
@@ -496,7 +497,7 @@ fun FlowDialog(onDismiss: () -> Unit, title: String? = null, content: @Composabl
             exit = if (animations) fadeOut(tween(115)) + scaleOut(targetScale = 0.965f, animationSpec = tween(135)) else ExitTransition.None,
         ) {
             GlassSurface(
-                Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 22.dp).widthIn(max = 440.dp),
+                Modifier.widthIn(max = 440.dp).fillMaxWidth().padding(horizontal = 18.dp, vertical = 22.dp),
                 shape = RoundedCornerShape(28.dp),
                 level = GlassLevel.Strong,
                 elevated = true,
@@ -543,7 +544,7 @@ data class DockItem(val label: String, val icon: ImageVector)
 fun FlowDock(items: List<DockItem>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
     val c = Flow.colors
     GlassSurface(
-        modifier.fillMaxWidth().widthIn(max = 440.dp).height(68.dp),
+        modifier.widthIn(max = 440.dp).fillMaxWidth().height(68.dp),
         shape = RoundedCornerShape(34.dp),
         level = GlassLevel.Strong,
         elevated = true,
