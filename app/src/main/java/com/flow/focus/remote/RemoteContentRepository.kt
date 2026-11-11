@@ -86,8 +86,9 @@ internal object RemoteContentValidation {
 
         val normalized = feed.items.asSequence()
             .filter { isValidNewsItem(it, nowMs) }
-            .distinctBy { it.id }
+            // Keep the newest revision when the publisher accidentally repeats an ID.
             .sortedByDescending { it.publishedAt }
+            .distinctBy { it.id }
             .toList()
         return feed.copy(items = normalized)
     }
