@@ -6,6 +6,14 @@ import android.graphics.BitmapFactory
 import android.os.Build
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.tween
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -73,9 +81,26 @@ import com.flow.focus.ui.glass.LocalRootBackdrop
 import com.flow.focus.ui.glass.GlassSurface
 import com.flow.focus.ui.glass.springClick
 import com.flow.focus.ui.theme.Flow
+import com.flow.focus.ui.theme.LocalGlass
 import java.time.LocalDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+
+@Composable
+private fun AnimatedSettingsSection(
+    visible: Boolean,
+    title: String,
+    content: @Composable () -> Unit,
+) {
+    val animations = LocalGlass.current.animations
+    AnimatedVisibility(
+        visible = visible,
+        enter = if (animations) fadeIn(tween(175)) + slideInVertically(tween(210)) { it / 16 } else EnterTransition.None,
+        exit = if (animations) fadeOut(tween(105)) + slideOutVertically(tween(135)) { -it / 18 } else ExitTransition.None,
+    ) {
+        Section(title, content)
+    }
+}
 
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {
@@ -298,7 +323,12 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             .padding(horizontal = 18.dp).padding(top = 8.dp, bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        if (selectedPage == "root") {
+        AnimatedVisibility(
+            visible = selectedPage == "root",
+            enter = if (LocalGlass.current.animations) fadeIn(tween(170)) + slideInVertically(tween(205)) { it / 18 } else EnterTransition.None,
+            exit = if (LocalGlass.current.animations) fadeOut(tween(110)) + slideOutVertically(tween(140)) { -it / 18 } else ExitTransition.None,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             ScreenHeader("تنظیمات")
             Section("شخصی‌سازی") {
                 SettingsDestination(
@@ -343,7 +373,14 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                     FlowIcons.Target, "نسخه ${BuildConfig.VERSION_NAME}",
                 ) { selectedPage = "about" }
             }
-        } else {
+            }
+        }
+        AnimatedVisibility(
+            visible = selectedPage != "root",
+            enter = if (LocalGlass.current.animations) fadeIn(tween(165)) + slideInVertically(tween(200)) { it / 18 } else EnterTransition.None,
+            exit = if (LocalGlass.current.animations) fadeOut(tween(105)) + slideOutVertically(tween(135)) { -it / 18 } else ExitTransition.None,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             val pageTitle = when (selectedPage) {
                 "appearance" -> "ظاهر و نمایش"
                 "wallpaper" -> "پس‌زمینه"
@@ -366,9 +403,10 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                     Text("تنظیمات MatFocus", style = Flow.type.caption, color = Flow.colors.textSecondary)
                 }
             }
+            }
         }
 
-        if (selectedPage == "appearance") Section("ظاهر") {
+        AnimatedSettingsSection(selectedPage == "appearance", "ظاهر") {
             Text("تم", style = Flow.type.body, color = Flow.colors.textPrimary)
             SegmentedControl(listOf("روشن", "تاریک", "سیستم"), listOf(ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM).indexOf(st.theme), {
                 vm.updateSettings { s -> s.copy(theme = listOf(ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM)[it]) }
@@ -378,7 +416,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             SwitchRow("انیمیشن‌ها", st.animations, { v -> vm.updateSettings { it.copy(animations = v) } }, subtitle = "خاموش کردن، مصرف باتری را کم می‌کند")
         }
 
-        if (selectedPage == "wallpaper") Section("پس‌زمینه") {
+        AnimatedSettingsSection(selectedPage == "wallpaper", "پس‌زمینه") {
             Text("انتخاب پس‌زمینه", style = Flow.type.body, color = Flow.colors.textPrimary)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 WallpaperOption("gradient", "اصلی", st.wallpaperId == "gradient", Modifier.weight(1f)) { wallpaperPreviewId = "gradient" }
@@ -433,7 +471,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             GlassButton("بازنشانی پس‌زمینه", { vm.selectWallpaper("gradient") }, Modifier.fillMaxWidth())
         }
 
-        if (selectedPage == "glass") Section("کیفیت Liquid Glass") {
+        AnimatedSettingsSection(selectedPage == "glass", "کیفیت Liquid Glass") {
             SegmentedControl(listOf("کم", "متوسط", "بالا"), st.glassQuality.ordinal, { vm.updateSettings { s -> s.copy(glassQuality = GlassQuality.entries[it]) } })
             Text(
                 when (st.glassQuality) {
@@ -455,7 +493,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             }
         }
 
-        if (selectedPage == "pomodoro") Section("پومودورو") {
+        AnimatedSettingsSection(selectedPage == "pomodoro", "پومودورو") {
             SettingRow("مدت تمرکز") { Stepper(st.focusMin, { v -> vm.updateSettings { it.copy(focusMin = v) } }, 1..180, suffix = "دقیقه") }
             SettingRow("استراحت کوتاه") { Stepper(st.shortBreakMin, { v -> vm.updateSettings { it.copy(shortBreakMin = v) } }, 1..60, suffix = "دقیقه") }
             SettingRow("استراحت بلند") { Stepper(st.longBreakMin, { v -> vm.updateSettings { it.copy(longBreakMin = v) } }, 1..90, suffix = "دقیقه") }
@@ -465,13 +503,13 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             SwitchRow("شروع خودکار جلسه‌ی بعد", st.autoStartFocus, { v -> vm.updateSettings { it.copy(autoStartFocus = v) } })
         }
 
-        if (selectedPage == "notifications") Section("اعلان‌ها") {
+        AnimatedSettingsSection(selectedPage == "notifications", "اعلان‌ها") {
             SwitchRow("اعلان‌ها", st.notifications, { v -> vm.updateSettings { it.copy(notifications = v) } }, subtitle = "پایان جلسه، تایمر در حال اجرا و یادآوری وظایف")
             SwitchRow("صدا", st.sound, { v -> vm.updateSettings { it.copy(sound = v) } })
             SwitchRow("لرزش", st.vibration, { v -> vm.updateSettings { it.copy(vibration = v) } })
         }
 
-        if (selectedPage == "ambient") Section("صدای محیط") {
+        AnimatedSettingsSection(selectedPage == "ambient", "صدای محیط") {
             AmbientPicker(
                 settings = st,
                 playingId = playing,
@@ -487,7 +525,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             )
         }
 
-        if (selectedPage == "music") Section("موسیقی") {
+        AnimatedSettingsSection(selectedPage == "music", "موسیقی") {
             MusicSettings()
             GlassButton(
                 "نمایش سرویس‌های موسیقی آنلاین",
@@ -497,7 +535,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             )
         }
 
-        if (selectedPage == "data") Section("مدیریت داده‌ها") {
+        AnimatedSettingsSection(selectedPage == "data", "مدیریت داده‌ها") {
             Text(
                 num("${data.tasks.size} وظیفه · ${data.sessions.size} جلسه‌ی ثبت‌شده · ${data.routines.size} روتین"),
                 style = Flow.type.caption, color = Flow.colors.textSecondary,
@@ -510,7 +548,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             GlassButton("حذف همه‌ی اطلاعات", { confirmAll = true }, Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 6.dp), icon = FlowIcons.Trash, danger = true)
         }
 
-        if (selectedPage == "about") Section("درباره") {
+        AnimatedSettingsSection(selectedPage == "about", "درباره") {
             SettingRow("MatFocus", subtitle = "تمرکز کن، جریان بساز.") { Text(num("نسخه ${BuildConfig.VERSION_NAME}"), style = Flow.type.caption, color = Flow.colors.textSecondary) }
             Text(
                 "ساخته شده توسط مت زم",
@@ -518,6 +556,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                 style = Flow.type.caption,
                 color = Flow.colors.textSecondary,
             )
+        }
         }
     }
 
