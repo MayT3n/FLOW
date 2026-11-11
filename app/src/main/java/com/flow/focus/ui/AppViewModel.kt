@@ -16,7 +16,7 @@ import com.flow.focus.data.FlowRepository
 import com.flow.focus.music.MusicCatalog
 import com.flow.focus.music.MusicSnapshot
 import com.flow.focus.platform.AmbientSynth
-import com.flow.focus.platform.WallpaperStore
+import com.flow.focus.platform.WallpaperStore\nimport com.flow.focus.platform.MusicPlaybackState\nimport com.flow.focus.remote.NewsItem\nimport com.flow.focus.remote.UpdateManifest\nimport com.flow.focus.remote.UpdateDownloadState
 import com.flow.focus.remote.NewsItem
 import com.flow.focus.remote.UpdateDownloadState
 import com.flow.focus.remote.UpdateManifest
@@ -31,7 +31,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val wallpaperStore = WallpaperStore(app)
 
     val data: StateFlow<AppData> get() = c.repo.data
-    val ambientPlaying: StateFlow<String?> get() = c.ambient.playing
+    val ambientPlaying: StateFlow<String?> get() = c.ambient.playing\n    val remoteItems: StateFlow<List<NewsItem>> get() = c.remote.items\n    val remoteManifest: StateFlow<UpdateManifest?> get() = c.remote.manifest\n    val remoteReadIds: StateFlow<Set<String>> get() = c.remote.readIds\n    val remoteLastSync: StateFlow<Long?> get() = c.remote.lastSync\n    val updateDownloadState: StateFlow<UpdateDownloadState> get() = c.updater.state\n    val musicState: StateFlow<MusicPlaybackState> get() = c.music.state\n    val musicController get() = c.music
 
     // News, updates and persistent read state
     val newsItems: StateFlow<List<NewsItem>> get() = c.remote.items
@@ -120,7 +120,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun toggleGoal(id: String) = c.repo.toggleGoal(id)
     fun deleteGoal(id: String) = c.repo.deleteGoal(id)
 
-    // ---- تنظیمات ----
+    // ---- اخبار، اعلان‌ها و آپدیت ----\n    fun refreshRemote(force: Boolean = false) { viewModelScope.launch { c.remote.refresh(force) } }\n    fun markNewsRead(id: String) { viewModelScope.launch { c.remote.markRead(id) } }\n    fun markNewsUnread(id: String) { viewModelScope.launch { c.remote.markUnread(id) } }\n    fun markAllNewsRead() { viewModelScope.launch { c.remote.markAllRead() } }\n    fun downloadUpdate(manifest: UpdateManifest) { viewModelScope.launch { runCatching { c.updater.download(manifest) } } }\n    fun installUpdate(): Boolean = runCatching { c.updater.installDownloaded() }.getOrDefault(false)\n\n    // ---- تنظیمات ----
     fun updateSettings(block: (Settings) -> Settings) {
         val before = c.repo.current.settings
         c.repo.updateSettings(block)
