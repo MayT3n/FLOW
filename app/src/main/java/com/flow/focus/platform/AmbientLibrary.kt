@@ -36,7 +36,7 @@ object AmbientLibrary {
             "forest", "جنگل", "ضبط فضای جنگلی با پرندگان و باد · ۲:۰۳",
             "https://commons.wikimedia.org/wiki/Special:Redirect/file/20090610_0_ambience.ogg",
             "https://commons.wikimedia.org/wiki/File:20090610_0_ambience.ogg", "nille", "02:03", "Public Domain",
-            "https://creativecommons.org/publicdomain/zero/1.0/",
+            "https://creativecommons.org/publicdomain/mark/1.0/",
         ),
         AmbientRecording(
             "wind", "باد", "ضبط صدای وزش باد در فضای داخلی · ۲:۰۸",
@@ -48,13 +48,13 @@ object AmbientLibrary {
             "waves", "موج‌های دریاچه", "ضبط واقعی امواج کنار دریاچه‌ی انتاریو · ۴:۴۷",
             "https://commons.wikimedia.org/wiki/Special:Redirect/file/Waves.ogg",
             "https://commons.wikimedia.org/wiki/File:Waves.ogg", "Dsw4", "04:47", "Public Domain",
-            "https://creativecommons.org/publicdomain/zero/1.0/",
+            "https://creativecommons.org/publicdomain/mark/1.0/",
         ),
         AmbientRecording(
             "fire", "آتش شومینه", "ضبط واقعی سوختن هیزم در شومینه‌ی روباز · ۲۵ ثانیه؛ لوپ نیازمند آزمون شنیداری",
             "https://commons.wikimedia.org/wiki/Special:Redirect/file/Dry_grass_burning_in_open_fireplace.ogg",
             "https://commons.wikimedia.org/wiki/File:Dry_grass_burning_in_open_fireplace.ogg", "ezwa", "00:25", "Public Domain",
-            "https://creativecommons.org/publicdomain/zero/1.0/",
+            "https://creativecommons.org/publicdomain/mark/1.0/",
         ),
         AmbientRecording(
             "shore", "موج کنار ساحل", "ضبط نزدیک موج و سنگ‌ریزه‌های ساحل · ۲:۰۰",
