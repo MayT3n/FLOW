@@ -37,11 +37,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RenderEffect
+import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.DrawStyle
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
@@ -128,6 +129,17 @@ fun GlassPreviewHost(modifier: Modifier = Modifier, content: @Composable BoxScop
             if (ws != null) drawWallpaper(ws, c, 0f, this.size.width, this.size.height)
         }
         CompositionLocalProvider(LocalRootSize provides size, LocalBackdropOrigin provides origin) { content() }
+    }
+}
+
+private fun DrawScope.drawOutline(outline: Outline, brush: Brush, style: DrawStyle) {
+    when (outline) {
+        is Outline.Rectangle -> drawRect(brush, topLeft = Offset(outline.rect.left, outline.rect.top), size = outline.rect.size, style = style)
+        is Outline.Rounded -> {
+            val rr = outline.roundRect
+            drawRoundRect(brush, topLeft = Offset(rr.left, rr.top), size = androidx.compose.ui.geometry.Size(rr.width, rr.height), cornerRadius = rr.topLeftCornerRadius, style = style)
+        }
+        is Outline.Generic -> drawPath(outline.path, brush, style = style)
     }
 }
 
