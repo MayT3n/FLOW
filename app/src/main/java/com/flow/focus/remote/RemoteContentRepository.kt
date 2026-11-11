@@ -62,6 +62,7 @@ data class UpdateManifest(
     val minimumSupportedVersion: Int = 0,
     val mandatory: Boolean = false,
     val updateAvailable: Boolean = false,
+    val applicationId: String = "com.flow.focus",
 )
 
 class RemoteContentRepository(
@@ -159,7 +160,11 @@ class RemoteContentRepository(
 
     suspend fun markAllRead() {
         store.edit { prefs ->
-            prefs[readIdsKey] = json.encodeToString(_items.value.map { it.id })
+            val ids = _items.value.map { it.id }.toMutableSet()
+            _manifest.value
+                ?.takeIf { it.updateAvailable && it.versionCode > com.flow.focus.BuildConfig.VERSION_CODE }
+                ?.let { ids.add("update:${it.versionCode}") }
+            prefs[readIdsKey] = json.encodeToString(ids.toList())
         }
     }
 
@@ -174,6 +179,9 @@ class RemoteContentRepository(
         value.schemaVersion == 1 &&
             value.versionCode > 0 &&
             value.versionName.isNotBlank() &&
+            value.applicationId == "com.flow.focus" &&
+            value.minimumSupportedVersion >= 0 &&
+            value.minimumSupportedVersion <= value.versionCode &&
             (!value.updateAvailable || (
                 value.downloadUrl.startsWith("https://") &&
                     value.fileSize > 0 &&
