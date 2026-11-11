@@ -2,6 +2,10 @@ package com.flow.focus.ui.screens
 
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
@@ -22,6 +26,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -30,6 +38,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.flow.focus.music.MusicSnapshot
 import com.flow.focus.ui.AppViewModel
@@ -42,6 +51,7 @@ import com.flow.focus.ui.glass.GlassLevel
 import com.flow.focus.ui.glass.GlassSurface
 import com.flow.focus.ui.glass.springClick
 import com.flow.focus.ui.theme.Flow
+import com.flow.focus.ui.theme.LocalGlass
 
 @Composable
 fun MiniMusicPlayer(
@@ -133,13 +143,23 @@ fun MusicShelfRestoreButton(onExpand: () -> Unit) {
 
 @Composable
 fun MusicPlayerDialog(onDismiss: () -> Unit) {
+    val animations = LocalGlass.current.animations
+    var visible by remember { mutableStateOf(true) }
+    val requestDismiss = { if (visible) visible = false }
+    LaunchedEffect(visible) {
+        if (!visible) {
+            if (animations) delay(175)
+            onDismiss()
+        }
+    }
     androidx.compose.ui.window.Dialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = requestDismiss,
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
     ) {
         AnimatedVisibility(
-            visible = true,
-            enter = fadeIn(tween(160)) + scaleIn(initialScale = 0.97f, animationSpec = tween(190)),
+            visible = visible,
+            enter = if (animations) fadeIn(tween(160)) + scaleIn(initialScale = 0.97f, animationSpec = tween(190)) else EnterTransition.None,
+            exit = if (animations) fadeOut(tween(115)) + scaleOut(targetScale = 0.97f, animationSpec = tween(140)) else ExitTransition.None,
         ) {
             GlassSurface(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
@@ -172,7 +192,7 @@ fun MusicPlayerDialog(onDismiss: () -> Unit) {
                         color = Flow.colors.textSecondary,
                         textAlign = TextAlign.Center,
                     )
-                    PrimaryButton("بستن", onDismiss, Modifier.fillMaxWidth())
+                    PrimaryButton("بستن", requestDismiss, Modifier.fillMaxWidth())
                 }
             }
         }
