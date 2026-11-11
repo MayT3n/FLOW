@@ -5,6 +5,14 @@ import com.flow.focus.data.AppData
 import com.flow.focus.data.Priority
 import com.flow.focus.data.Routine
 import com.flow.focus.data.Task
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
+import java.io.File
+import com.flow.focus.data.JsonStore
+import com.flow.focus.data.FlowRepository
+import com.flow.focus.data.Settings
 import com.flow.focus.domain.Planner
 import com.flow.focus.domain.RoutineEntry
 import com.flow.focus.domain.TaskEntry
@@ -12,9 +20,13 @@ import com.flow.focus.domain.TaskFilter
 import com.flow.focus.domain.TaskQuery
 import com.flow.focus.domain.TaskSort
 import com.flow.focus.platform.AmbientSynth
+import com.flow.focus.music.MusicPlaylist
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+import com.flow.focus.platform.AmbientLibrary
 import java.time.LocalDate
 import java.time.LocalDateTime
-import kotlin.math.abs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -104,18 +116,51 @@ class PlannerTest {
         assertEquals(LocalDate.of(2026, 11, 7), JalaliDate.startOfWeek(today))
     }
 
-    @Test fun ambientLoopsAreSeamlessAndBounded() {
-        for (s in AmbientSynth.sounds) {
-            val pcm = AmbientSynth.generate(s.id, seconds = 3)
-            assertEquals(AmbientSynth.RATE * 3, pcm.size)
-            assertTrue("${s.id} پیک", pcm.maxOf { abs(it.toInt()) } < 32768)
-            assertTrue("${s.id} سکوت نیست", pcm.any { it.toInt() != 0 })
-            // اختلاف نمونه‌ی آخر و اول از اختلاف معمول نمونه‌های مجاور بیشتر نباشد (درز شنیدنی نداشته باشیم)
-            val jump = abs(pcm.last() - pcm.first())
-            var maxStep = 0
-            for (i in 1 until pcm.size) maxStep = maxOf(maxStep, abs(pcm[i] - pcm[i - 1]))
-            assertTrue("${s.id} درز حلقه jump=$jump max=$maxStep", jump <= maxStep)
+    @Test fun ambientCatalogContainsRealLicensedRecordings() {
+        val recordings = AmbientLibrary.recordings
+        assertTrue("کتابخانه‌ی ضبط‌ها خالی نباشد", recordings.size >= 5)
+        assertEquals("شناسه‌ها باید یکتا باشند", recordings.size, recordings.map { it.id }.toSet().size)
+        recordings.forEach { recording ->
+            assertTrue("${recording.id} لینک امن", recording.url.startsWith("https://"))
+            assertTrue("${recording.id} صفحه‌ی منبع", recording.sourcePage.startsWith("https://"))
+            assertTrue("${recording.id} مجوز", recording.licenseUrl.startsWith("https://"))
+            assertTrue("${recording.id} خالق اثر", recording.creator.isNotBlank())
         }
-        assertNotNull(AmbientSynth.sounds.firstOrNull { it.id == "cafe" })
+        assertEquals(recordings.map { it.id }.toSet(), AmbientSynth.sounds.map { it.id }.toSet())
+        assertNull("صدای مصنوعی کافه حذف شده", AmbientLibrary.byId("cafe"))
+        assertNull("صدای مصنوعی کتابخانه حذف شده", AmbientLibrary.byId("library"))
     }
+
+    @Test fun customPlaylistsSurviveSerialization() {
+        val playlist = MusicPlaylist(
+            id = "focus-night",
+            name = "تمرکز شبانه",
+            trackIds = listOf("quiet-room", "afterglow-vast"),
+            createdAt = 1_794_355_200_000L,
+        )
+        val codec = Json { encodeDefaults = true }
+        val encoded = codec.encodeToString(playlist)
+        val decoded = codec.decodeFromString<MusicPlaylist>(encoded)
+        assertEquals(playlist, decoded)
+    }
+    @Test fun legacyDataMigratesWithoutLosingUserContent() {
+        val directory = createTempDir(prefix = "matfocus-migration-")
+        val file = File(directory, "flow_data.json")
+        val legacy = AppData(
+            version = 1,
+            tasks = tasks,
+            settings = Settings(ambientSound = "cafe"),
+        )
+        val store = JsonStore(file)
+        store.save(legacy)
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val repository = FlowRepository(JsonStore(file), scope)
+        assertEquals(2, repository.current.version)
+        assertEquals("none", repository.current.settings.ambientSound)
+        assertEquals(legacy.tasks, repository.current.tasks)
+        assertEquals(legacy.sessions, repository.current.sessions)
+        scope.cancel()
+        directory.deleteRecursively()
+    }
+
 }

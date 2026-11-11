@@ -86,6 +86,7 @@ private fun Section(title: String, content: @Composable () -> Unit) {
         "اعلان‌ها" -> FlowIcons.Bell
         "صدای محیط" -> FlowIcons.Music
         "مدیریت داده‌ها" -> FlowIcons.Export
+        "موسیقی" -> FlowIcons.Music
         "شخصی‌سازی" -> FlowIcons.Sun
         "تمرکز" -> FlowIcons.Clock
         "داده و برنامه" -> FlowIcons.Layers
@@ -205,7 +206,7 @@ private fun WallpaperPreviewSurface(
             )
         }
         Text(
-            "FLOW",
+            "MatFocus",
             Modifier.align(Alignment.BottomStart).padding(14.dp),
             style = Flow.type.title.copy(letterSpacing = 2.sp),
             color = Color.White,
@@ -251,11 +252,13 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
     val st = data.settings
     val ctx = LocalContext.current
     val playing by vm.ambientPlaying.collectAsStateWithLifecycle()
+    val ambientProgress by vm.ambientDownloadProgress.collectAsStateWithLifecycle()
     var confirmHistory by remember { mutableStateOf(false) }
     var confirmAll by remember { mutableStateOf(false) }
     var wallpaperPreviewId by remember { mutableStateOf<String?>(null) }
     var pendingWallpaperPath by remember { mutableStateOf<String?>(null) }
     var selectedPage by rememberSaveable { mutableStateOf("root") }
+    var musicOpen by remember { mutableStateOf(false) }
     BackHandler(enabled = selectedPage != "root") { selectedPage = "root" }
 
     // پیش‌شنوایی با خروج از صفحه قطع شود
@@ -323,6 +326,10 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                     "صدای محیط", "انتخاب صدا و تنظیم پخش خودکار",
                     FlowIcons.Music,
                 ) { selectedPage = "ambient" }
+                SettingsDestination(
+                    "موسیقی و پخش‌کننده", "کتابخانه، علاقه‌مندی‌ها و دانلود آفلاین",
+                    FlowIcons.Music,
+                ) { selectedPage = "music" }
             }
             Section("داده و برنامه") {
                 SettingsDestination(
@@ -330,7 +337,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                     FlowIcons.Export, num("${data.tasks.size} وظیفه"),
                 ) { selectedPage = "data" }
                 SettingsDestination(
-                    "درباره‌ی FLOW", "نسخه و اطلاعات سازنده",
+                    "درباره‌ی MatFocus", "نسخه و اطلاعات سازنده",
                     FlowIcons.Target, "نسخه ${BuildConfig.VERSION_NAME}",
                 ) { selectedPage = "about" }
             }
@@ -342,8 +349,9 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                 "pomodoro" -> "پومودورو"
                 "notifications" -> "اعلان‌ها"
                 "ambient" -> "صدای محیط"
+                "music" -> "موسیقی و پخش‌کننده"
                 "data" -> "مدیریت داده‌ها"
-                else -> "درباره‌ی FLOW"
+                else -> "درباره‌ی MatFocus"
             }
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 2.dp),
@@ -353,7 +361,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                 GlassIconButton(FlowIcons.ChevronPrev, { selectedPage = "root" }, size = 40.dp, iconSize = 19.dp, contentDescription = "بازگشت")
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                     Text(pageTitle, style = Flow.type.title, color = Flow.colors.textPrimary)
-                    Text("تنظیمات FLOW", style = Flow.type.caption, color = Flow.colors.textSecondary)
+                    Text("تنظیمات MatFocus", style = Flow.type.caption, color = Flow.colors.textSecondary)
                 }
             }
         }
@@ -448,11 +456,32 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
 
         if (selectedPage == "ambient") Section("صدای محیط") {
             AmbientPicker(
-                st, playing,
+                settings = st,
+                playingId = playing,
                 onSelect = { id -> vm.updateSettings { it.copy(ambientSound = id) } },
                 onPreview = { vm.previewAmbient(it) },
                 onVolume = { v -> vm.updateSettings { it.copy(ambientVolume = v) } },
                 onAuto = { v -> vm.updateSettings { it.copy(ambientAuto = v) } },
+                isDownloaded = vm::isAmbientDownloaded,
+                downloadProgress = ambientProgress,
+                downloadedBytes = vm.downloadedAmbientBytes(),
+                onDownload = vm::downloadAmbient,
+                onDeleteDownload = { id -> vm.deleteAmbientDownload(id) },
+            )
+        }
+
+        if (selectedPage == "music") Section("موسیقی") {
+            Text(
+                "کتابخانه‌ی موسیقی MatFocus شامل قطعه‌های Instrumental دارای مجوز CC0 است. پخش پس‌زمینه و کنترل صفحه‌ی قفل از MediaSession اندروید استفاده می‌کنند.",
+                style = Flow.type.body,
+                color = Flow.colors.textSecondary,
+            )
+            MusicSettings(vm, st)
+            GlassButton(
+                "باز کردن پخش‌کننده و کتابخانه",
+                { musicOpen = true },
+                Modifier.fillMaxWidth(),
+                icon = FlowIcons.Play,
             )
         }
 
@@ -470,7 +499,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
         }
 
         if (selectedPage == "about") Section("درباره") {
-            SettingRow("FLOW", subtitle = "تمرکز کن، جریان بساز.") { Text(num("نسخه ${BuildConfig.VERSION_NAME}"), style = Flow.type.caption, color = Flow.colors.textSecondary) }
+            SettingRow("MatFocus", subtitle = "تمرکز کن، جریان بساز.") { Text(num("نسخه ${BuildConfig.VERSION_NAME}"), style = Flow.type.caption, color = Flow.colors.textSecondary) }
             Text(
                 "ساخته شده توسط مت زم",
                 Modifier.fillMaxWidth().padding(top = 2.dp),
@@ -479,6 +508,8 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             )
         }
     }
+
+    if (musicOpen) MusicPlayerDialog(vm) { musicOpen = false }
 
     wallpaperPreviewId?.let { previewId ->
         FlowDialog(
@@ -498,7 +529,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             )
             Text(
                 when (previewId) {
-                    "gradient" -> "پس‌زمینه‌ی گرادیانی اصلی FLOW"
+                    "gradient" -> "پس‌زمینه‌ی گرادیانی اصلی MatFocus"
                     "aurora" -> "طیف آبی و بنفش با نور نرم"
                     "midnight" -> "رنگ‌های تیره و آرام"
                     "dusk" -> "ترکیب گرم غروب و آبی تیره"

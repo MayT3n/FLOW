@@ -1,4 +1,4 @@
-name: Android APK
+name: MatFocus Android APK
 
 on:
   push:
@@ -8,35 +8,35 @@ on:
   workflow_dispatch:
     inputs:
       version_name:
-        description: 'نسخه‌ی دلخواه (مثلاً 1.2.0). خالی = از version.txt'
+        description: 'Version name (for example 1.2 or 1.3.0). Empty = version.txt'
         required: false
         default: ''
 
 concurrency:
-  group: android-apk-${{ github.ref }}
+  group: matfocus-android-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
-    name: Test and build release APK
+    name: Test and build MatFocus APK
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
-      contents: write   # فقط برای انتشار در GitHub Releases هنگام Tag
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      # Android SDK روی ران‌ر از قبل نصب است؛ فقط لایسنس‌ها را می‌پذیریم (AGP بقیه را خودکار می‌گیرد)
       - name: Accept Android SDK licenses
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
-      # Cache وابستگی‌ها و Gradle
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Resolve version
@@ -53,15 +53,14 @@ jobs:
             NAME="$(tr -d '[:space:]' < version.txt)"
           fi
           if ! [[ "$NAME" =~ ^[0-9]+(\.[0-9]+){1,3}([-+][0-9A-Za-z.]+)?$ ]]; then
-            echo "::error::نام نسخه معتبر نیست: $NAME"; exit 1
+            echo "::error::Invalid version name: $NAME"; exit 1
           fi
           CODE=$((1000 + GITHUB_RUN_NUMBER))
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           echo "code=$CODE" >> "$GITHUB_OUTPUT"
           echo "Version: $NAME ($CODE)"
 
-      # فونت وزیرمتن (مجوز OFL). اگر دریافت نشود برنامه با فونت سیستم ساخته می‌شود.
-      - name: Download Vazirmatn font
+      - name: Download Vazirmatn font (OFL)
         continue-on-error: true
         run: |
           mkdir -p app/src/main/assets/fonts
@@ -84,52 +83,104 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -n "${KS_B64:-}" && -n "${KS_PASS:-}" && -n "${KEY_ALIAS:-}" && -n "${KEY_PASS:-}" ]]; then
-            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/flow-release.jks"
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/matfocus-release.jks"
             {
-              echo "FLOW_KEYSTORE_PATH=$RUNNER_TEMP/flow-release.jks"
+              echo "FLOW_KEYSTORE_PATH=$RUNNER_TEMP/matfocus-release.jks"
               echo "FLOW_KEYSTORE_PASSWORD=$KS_PASS"
               echo "FLOW_KEY_ALIAS=$KEY_ALIAS"
               echo "FLOW_KEY_PASSWORD=$KEY_PASS"
             } >> "$GITHUB_ENV"
             echo "mode=release" >> "$GITHUB_OUTPUT"
           else
+            if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+              echo "::error::A release tag requires the existing production signing keystore. Debug-signed APKs must never be published as updates."
+              exit 1
+            fi
             echo "mode=test" >> "$GITHUB_OUTPUT"
-            echo "::notice::Keystore تنظیم نشده؛ APK با کلید debug (فقط برای تست) امضا می‌شود."
+            echo "::notice::No release keystore configured. This build is debug-signed and is only suitable for testing."
           fi
 
       - name: Build release APK
-        run: >
-          ./gradlew assembleRelease --stacktrace
-          -PversionName=${{ steps.ver.outputs.name }}
-          -PversionCode=${{ steps.ver.outputs.code }}
+        run: |
+          ./gradlew assembleRelease --stacktrace \
+            -PversionName="${{ steps.ver.outputs.name }}" \
+            -PversionCode="${{ steps.ver.outputs.code }}"
 
       - name: Name and verify APK
         id: apk
         run: |
           set -euo pipefail
-          SRC="$(ls app/build/outputs/apk/release/*.apk | head -n 1)"
+          SRC="$(find app/build/outputs/apk/release -name '*.apk' -type f | head -n 1)"
+          test -n "$SRC"
           SUFFIX=""
           if [[ "${{ steps.sign.outputs.mode }}" != "release" ]]; then SUFFIX="-testsigned"; fi
-          OUT="FLOW-${{ steps.ver.outputs.name }}-${{ steps.ver.outputs.code }}${SUFFIX}.apk"
+          OUT="MatFocus-${{ steps.ver.outputs.name }}-${{ steps.ver.outputs.code }}${SUFFIX}.apk"
           mkdir -p dist
           cp "$SRC" "dist/$OUT"
           APKSIGNER="$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)"
+          AAPT="$(ls "$ANDROID_HOME"/build-tools/*/aapt | sort -V | tail -n 1)"
           "$APKSIGNER" verify --verbose --print-certs "dist/$OUT" | tee dist/signature.txt
+          BADGING="$("$AAPT" dump badging "dist/$OUT")"
+          grep -F "name='com.flow.focus'" <<< "$BADGING" >/dev/null
+          grep -F "versionCode='${{ steps.ver.outputs.code }}'" <<< "$BADGING" >/dev/null
+          grep -F "versionName='${{ steps.ver.outputs.name }}'" <<< "$BADGING" >/dev/null
+          SIZE="$(stat -c%s "dist/$OUT")"
+          SHA="$(sha256sum "dist/$OUT" | awk '{print $1}')"
           echo "file=dist/$OUT" >> "$GITHUB_OUTPUT"
+          echo "name=$OUT" >> "$GITHUB_OUTPUT"
+          echo "size=$SIZE" >> "$GITHUB_OUTPUT"
+          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
           {
-            echo "### FLOW ${{ steps.ver.outputs.name }} (${{ steps.ver.outputs.code }})"
-            echo "- فایل: \`$OUT\` ($(du -h "dist/$OUT" | cut -f1))"
+            echo "### MatFocus ${{ steps.ver.outputs.name }} (${{ steps.ver.outputs.code }})"
+            echo "- APK: $OUT ($(du -h "dist/$OUT" | cut -f1))"
+            echo "- SHA-256: $SHA"
             if [[ "$SUFFIX" == "" ]]; then
-              echo "- امضا: Keystore نسخه‌ی انتشار (Secrets)"
+              echo "- Signing: release keystore from Actions Secrets"
             else
-              echo "- امضا: کلید debug؛ قابل نصب برای تست، **نه** برای انتشار در فروشگاه. برای امضای واقعی Secrets زیر را تنظیم کن: ANDROID_KEYSTORE_BASE64، ANDROID_KEYSTORE_PASSWORD، ANDROID_KEY_ALIAS، ANDROID_KEY_PASSWORD"
+              echo "- Signing: debug key (test-only; cannot update a production-signed install)"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload APK artifact
+      - name: Prepare release manifest
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          VERSION_NAME: ${{ steps.ver.outputs.name }}
+          VERSION_CODE: ${{ steps.ver.outputs.code }}
+          APK_NAME: ${{ steps.apk.outputs.name }}
+          APK_SIZE: ${{ steps.apk.outputs.size }}
+          APK_SHA256: ${{ steps.apk.outputs.sha256 }}
+          REPOSITORY: ${{ github.repository }}
+          TAG_NAME: ${{ github.ref_name }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, datetime
+          repo = os.environ["REPOSITORY"]
+          tag = os.environ["TAG_NAME"]
+          manifest = {
+            "schemaVersion": 1,
+            "versionName": os.environ["VERSION_NAME"],
+            "versionCode": int(os.environ["VERSION_CODE"]),
+            "releaseDate": datetime.datetime.now(datetime.timezone.utc).date().isoformat(),
+            "changelog": [os.environ.get("COMMIT_MESSAGE") or f"MatFocus {os.environ['VERSION_NAME']}"],
+            "downloadUrl": f"https://github.com/{repo}/releases/download/{tag}/{os.environ['APK_NAME']}",
+            "fileSize": int(os.environ["APK_SIZE"]),
+            "sha256": os.environ["APK_SHA256"],
+            "minimumSupportedVersion": 1,
+            "mandatory": False,
+            "updateAvailable": True,
+            "applicationId": "com.flow.focus"
+          }
+          with open("dist/latest.json", "w", encoding="utf-8") as f:
+            json.dump(manifest, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+          PY
+
+      - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FLOW-apk-${{ steps.ver.outputs.name }}-${{ steps.ver.outputs.code }}
+          name: MatFocus-apk-${{ steps.ver.outputs.name }}-${{ steps.ver.outputs.code }}
           path: |
             ${{ steps.apk.outputs.file }}
             dist/signature.txt
@@ -148,6 +199,36 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ steps.apk.outputs.file }}
+          files: |
+            ${{ steps.apk.outputs.file }}
+            dist/latest.json
+            dist/signature.txt
           generate_release_notes: true
-          prerelease: ${{ steps.sign.outputs.mode != 'release' }}
+          prerelease: false
+
+      - name: Publish latest.json to the default branch
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/github-script@v7
+        env:
+          MANIFEST_PATH: dist/latest.json
+        with:
+          script: |
+            const fs = require('fs');
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const path = 'updates/latest.json';
+            const branch = 'main';
+            const content = fs.readFileSync(process.env.MANIFEST_PATH, 'utf8');
+            let sha;
+            try {
+              const existing = await github.rest.repos.getContent({ owner, repo, path, ref: branch });
+              sha = existing.data.sha;
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+            await github.rest.repos.createOrUpdateFileContents({
+              owner, repo, path, branch,
+              message: `Publish MatFocus ${context.ref_name} update manifest`,
+              content: Buffer.from(content).toString('base64'),
+              sha
+            });

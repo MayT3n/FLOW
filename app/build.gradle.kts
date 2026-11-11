@@ -5,15 +5,17 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
-// نسخه از خارج Gradle تزریق می‌شود: -PversionName=1.2.3 -PversionCode=42
-val appVersionName: String = (findProperty("versionName") as String?) ?: "1.0.0"
-val appVersionCode: Int = (findProperty("versionCode") as String?)?.toIntOrNull() ?: 1
+// نسخه‌ی محلی نیز باید از آخرین کد منتشرشده پایین‌تر نباشد.
+// CI همچنان versionName و versionCode را از ورودی build تزریق می‌کند.
+val appVersionName: String = (findProperty("versionName") as String?) ?: "1.2"
+val appVersionCode: Int = (findProperty("versionCode") as String?)?.toIntOrNull() ?: 1027
 
 android {
     namespace = "com.flow.focus"
     compileSdk = 35
 
     defaultConfig {
+        // عمداً ثابت نگه داشته شده تا نصب نسخه‌ی جدید روی FLOW فعلی ممکن باشد.
         applicationId = "com.flow.focus"
         minSdk = 26
         targetSdk = 35
@@ -21,7 +23,7 @@ android {
         versionName = appVersionName
     }
 
-    // اطلاعات امضا فقط از متغیرهای محیطی (GitHub Secrets) خوانده می‌شود؛ هیچ رازی در مخزن نیست.
+    // اطلاعات امضا فقط از متغیرهای محیطی (GitHub Secrets) خوانده می‌شود.
     val keystorePath: String? = System.getenv("FLOW_KEYSTORE_PATH")
     val hasReleaseKeystore = !keystorePath.isNullOrBlank() && file(keystorePath).exists()
 
@@ -41,7 +43,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // بدون Keystore: با کلید debug امضا می‌شود تا APK قابل نصب برای تست باشد.
+            // بدون کلید انتشار، خروجی فقط برای تست است و نباید به‌عنوان Update منتشر شود.
             signingConfig = if (hasReleaseKeystore) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
         }
     }
@@ -74,6 +76,13 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+
+    // Media3 1.5.1 works with the project's AGP 8.7.3 / compileSdk 35 toolchain.
+    implementation("androidx.media3:media3-exoplayer:1.5.1")
+    implementation("androidx.media3:media3-session:1.5.1")
+
+    implementation("androidx.datastore:datastore-preferences:1.1.7")
+    implementation("androidx.work:work-runtime-ktx:2.10.5")
 
     testImplementation("junit:junit:4.13.2")
 }

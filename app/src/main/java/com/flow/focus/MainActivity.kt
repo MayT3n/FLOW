@@ -22,8 +22,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -46,6 +49,8 @@ import com.flow.focus.ui.components.FlowDock
 import com.flow.focus.ui.components.FlowIcons
 import com.flow.focus.ui.glass.GlassBackdropHost
 import com.flow.focus.ui.screens.HomeScreen
+import com.flow.focus.ui.screens.MiniMusicPlayer
+import com.flow.focus.ui.screens.MusicPlayerDialog
 import com.flow.focus.ui.screens.PlanningScreen
 import com.flow.focus.ui.screens.SettingsScreen
 import com.flow.focus.ui.screens.StatsScreen
@@ -65,6 +70,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // اگر زمان فاز در پس‌زمینه تمام شده، همین‌جا بسته و فاز بعد آماده می‌شود.
         vm.onResume()
+        vm.refreshRemoteContent()
     }
 }
 
@@ -115,7 +121,10 @@ private fun RequestNotificationPermission(wanted: Boolean) {
 @Composable
 private fun AppScaffold(vm: AppViewModel, data: AppData) {
     var tab by rememberSaveable { mutableStateOf(0) }
+    var musicOpen by rememberSaveable { mutableStateOf(false) }
+    val music by vm.musicSnapshot.collectAsStateWithLifecycle()
     val animations = data.settings.animations
+    BackHandler(enabled = musicOpen) { musicOpen = false }
     BackHandler(enabled = tab != 0) { tab = 0 }
 
     Box(Modifier.fillMaxSize()) {
@@ -141,9 +150,17 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
                 else -> SettingsScreen(vm, data)
             }
         }
-        FlowDock(
-            dockItems, tab, { tab = it },
-            Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(horizontal = 18.dp, vertical = 12.dp),
-        )
+        Column(
+            Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                .navigationBarsPadding().padding(horizontal = 18.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            if (music.connected && music.currentTrackId != null) {
+                MiniMusicPlayer(vm, music, onOpen = { musicOpen = true })
+            }
+            FlowDock(dockItems, tab, { tab = it }, Modifier.fillMaxWidth())
+        }
+        if (musicOpen) MusicPlayerDialog(vm) { musicOpen = false }
     }
 }

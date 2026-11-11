@@ -4,71 +4,96 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
-import android.media.AudioAttributes
-import android.media.AudioFormat
-import android.media.AudioTrack
+import android.net.Uri
 import android.os.IBinder
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
 import com.flow.focus.FlowApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.io.File
 
-/** پخش حلقه‌ای صدای تولیدشده با AudioTrack (حالت ایستا؛ حافظه‌ی کم و CPU ناچیز). */
-class AmbientPlayer(private val ctx: Context, private val scope: CoroutineScope) {
-    private var track: AudioTrack? = null
-    private var job: Job? = null
+/** Ambient recordings use Media3, repeat-one playback and a private offline audio cache. */
+class AmbientPlayer(
+    private val ctx: Context,
+    private val scope: CoroutineScope,
+    private val assets: AmbientAssetStore = AmbientAssetStore(ctx),
+) {
+    private var player: ExoPlayer? = null
     private var currentId: String? = null
     private val _playing = MutableStateFlow<String?>(null)
     val playing: StateFlow<String?> = _playing.asStateFlow()
+    val downloadProgress: StateFlow<Map<String, Float>> get() = assets.progress
 
     @Synchronized
     fun play(id: String, volume: Float) {
         if (id == AmbientSynth.NONE) { stop(); return }
-        if (currentId == id && track != null) { track?.setVolume(volume); return }
+        val recording = AmbientLibrary.byId(id) ?: return
+        if (currentId == id && player != null) {
+            player?.volume = volume.coerceIn(0f, 1f)
+            return
+        }
         stopInternal()
         currentId = id
-        pendingVolume = volume
         _playing.value = id
         startService()
-        job = scope.launch(Dispatchers.Default) {
-            val pcm = AmbientSynth.generate(id)
-            synchronized(this@AmbientPlayer) {
-                if (currentId != id) return@launch
-                val t = AudioTrack.Builder()
-                    .setAudioAttributes(
-                        AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_MEDIA)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build(),
-                    )
-                    .setAudioFormat(
-                        AudioFormat.Builder().setSampleRate(AmbientSynth.RATE)
-                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build(),
-                    )
-                    .setBufferSizeInBytes(pcm.size * 2)
-                    .setTransferMode(AudioTrack.MODE_STATIC)
-                    .build()
-                t.write(pcm, 0, pcm.size)
-                t.setLoopPoints(0, pcm.size, -1)
-                t.setVolume(pendingVolume)
-                t.play()
-                track = t
-            }
+
+        val audioAttributes = AudioAttributes.Builder()
+            .setUsage(C.USAGE_MEDIA)
+            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+            .build()
+        val uri = assets.localFile(id)?.let { Uri.fromFile(it) } ?: Uri.parse(recording.url)
+        player = ExoPlayer.Builder(ctx).build().apply {
+            setAudioAttributes(audioAttributes, false) // music player owns audio focus; ambient can be mixed
+            setHandleAudioBecomingNoisy(true)
+            repeatMode = Player.REPEAT_MODE_ONE
+            this.volume = volume.coerceIn(0f, 1f)
+            setMediaItem(MediaItem.fromUri(uri))
+            prepare()
+            playWhenReady = true
         }
     }
 
-    @Volatile private var pendingVolume = 0.5f
-
     @Synchronized
-    fun setVolume(v: Float) {
-        pendingVolume = v
-        track?.setVolume(v)
+    fun setVolume(value: Float) {
+        player?.volume = value.coerceIn(0f, 1f)
+    }
+
+    suspend fun downloadAsset(id: String): File {
+        val file = assets.download(id)
+        synchronized(this) {
+            if (currentId == id && player != null) {
+                val volume = player?.volume ?: 0.5f
+                player?.setMediaItem(MediaItem.fromUri(Uri.fromFile(file)))
+                player?.prepare()
+                player?.volume = volume
+                player?.playWhenReady = true
+            }
+        }
+        return file
+    }
+
+    fun isDownloaded(id: String): Boolean = assets.isDownloaded(id)
+    fun downloadedBytes(): Long = assets.totalBytes()
+    fun deleteDownload(id: String): Boolean {
+        if (currentId == id && player != null) {
+            val recording = AmbientLibrary.byId(id)
+            if (recording != null) {
+                player?.setMediaItem(MediaItem.fromUri(recording.url))
+                player?.prepare()
+                player?.playWhenReady = true
+            }
+        }
+        return assets.delete(id)
     }
 
     @Synchronized
@@ -78,11 +103,11 @@ class AmbientPlayer(private val ctx: Context, private val scope: CoroutineScope)
     }
 
     private fun stopInternal() {
-        job?.cancel(); job = null
         currentId = null
         _playing.value = null
-        track?.let { runCatching { it.stop() }; runCatching { it.release() } }
-        track = null
+        player?.runCatching { stop() }
+        player?.release()
+        player = null
     }
 
     private fun startService() {
@@ -94,7 +119,7 @@ class AmbientPlayer(private val ctx: Context, private val scope: CoroutineScope)
     }
 }
 
-/** سرویس پیش‌زمینه‌ی سبک تا پخش صدا هنگام کار در پس‌زمینه قطع نشود. */
+/** Foreground notification keeps ambient playback alive while the app is backgrounded. */
 class AmbientService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
