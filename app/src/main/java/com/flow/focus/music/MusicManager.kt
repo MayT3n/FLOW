@@ -136,8 +136,15 @@ class MusicManager(
 
     fun togglePlayPause() {
         val player = controller ?: return
-        if (player.isPlaying) player.pause() else {
-            if (player.mediaItemCount == 0) play(MusicCatalog.tracks.first().id) else player.play()
+        if (player.isPlaying) {
+            player.pause()
+        } else {
+            if (player.mediaItemCount == 0) {
+                play(MusicCatalog.tracks.first().id)
+            } else {
+                if (player.playbackState == Player.STATE_IDLE) player.prepare()
+                player.play()
+            }
         }
         publish()
     }
