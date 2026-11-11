@@ -190,6 +190,14 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
             }
         }
 
+        if (musicSnapshot.currentTrackId != null) {
+            MiniMusicPlayer(
+                vm = vm,
+                snapshot = musicSnapshot,
+                onOpen = { musicOpen = true },
+            )
+        }
+
         // ---- حلقه‌ی تایمر ----
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             TimerRing(timer, now, settings.rounds, Modifier.size(260.dp))
