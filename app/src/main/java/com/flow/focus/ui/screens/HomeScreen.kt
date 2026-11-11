@@ -157,11 +157,6 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
             }
         }
 
-        Text(
-            greeting(dateTime.hour) + "، تمرکز کن، جریان بساز.",
-            style = Flow.type.body, color = c.textSecondary, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
-        )
-
         // ---- حلقه‌ی تایمر ----
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             TimerRing(timer, now, settings.rounds, Modifier.size(260.dp))

@@ -218,5 +218,6 @@ private fun TaskRow(
                 }
             }
         }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(c.track.copy(alpha = 0.8f)))
     }
 }
