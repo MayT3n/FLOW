@@ -37,7 +37,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
-            _offlineCalendarOccasions.value = IranianCalendarData.load(app, JalaliDate.today().year)
+            _offlineCalendarOccasions.value = IranianCalendarData.loadAll(app)
         }
     }
 
