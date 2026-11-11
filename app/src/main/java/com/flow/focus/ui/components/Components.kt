@@ -544,7 +544,7 @@ data class DockItem(val label: String, val icon: ImageVector)
 fun FlowDock(items: List<DockItem>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
     val c = Flow.colors
     GlassSurface(
-        modifier.widthIn(max = 440.dp).fillMaxWidth().height(68.dp),
+        Modifier.widthIn(max = 440.dp).then(modifier).fillMaxWidth().height(68.dp),
         shape = RoundedCornerShape(34.dp),
         level = GlassLevel.Strong,
         elevated = true,
