@@ -274,12 +274,23 @@ fun GlassSurface(
     }
     var origin by remember { mutableStateOf(Offset.Zero) }
 
+    val wallpaperTone = rootBackdrop?.tone?.value
+    val wallpaperLuminance = wallpaperTone?.let { tone ->
+        0.2126f * tone.red + 0.7152f * tone.green + 0.0722f * tone.blue
+    }
+    // Bright wallpaper needs a slightly stronger dark surface, while dark wallpaper
+    // needs a little more light glass. Only the difficult extremes receive this boost.
+    val contrastBoost = when {
+        c.isDark && wallpaperLuminance != null && wallpaperLuminance > 0.58f -> 0.14f
+        !c.isDark && wallpaperLuminance != null && wallpaperLuminance < 0.32f -> 0.12f
+        else -> 0f
+    }
     val baseFill = when {
         g.quality == GlassQuality.LOW -> c.glassFillStrong
         level == GlassLevel.Strong -> c.glassFillStrong
         level == GlassLevel.Subtle -> c.glassFill.copy(alpha = c.glassFill.alpha * 0.6f)
         else -> c.glassFill
-    }
+    }.let { surface -> surface.copy(alpha = (surface.alpha + contrastBoost).coerceAtMost(0.76f)) }
     val fill = baseFill.copy(alpha = (baseFill.alpha * g.opacity).coerceIn(0f, 1f))
     val shine = if (g.quality == GlassQuality.LOW) 0.15f else g.shine
 
