@@ -53,6 +53,10 @@ object MusicCatalog {
             "https://raw.githubusercontent.com/farmmer938-lgtm/aeris-cc0-music/main/tracks/the-long-walk-signal-lost.mp3"),
     )
 
+    /** Resolves playlist IDs in saved order, dropping stale IDs and duplicate entries safely. */
+    fun resolveTracks(trackIds: List<String>): List<MusicTrack> =
+        trackIds.distinct().mapNotNull { id -> tracks.firstOrNull { it.id == id } }
+
     fun mediaItem(track: MusicTrack, localFile: java.io.File? = null): MediaItem {
         val uri = localFile?.takeIf { it.isFile && it.length() > 0L }?.let { Uri.fromFile(it) }
             ?: Uri.parse(track.url)
