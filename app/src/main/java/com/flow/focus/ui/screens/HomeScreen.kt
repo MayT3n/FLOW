@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -86,6 +87,7 @@ import com.flow.focus.ui.components.num
 import com.flow.focus.ui.glass.GlassLevel
 import com.flow.focus.ui.glass.GlassSurface
 import com.flow.focus.ui.glass.springClick
+import com.flow.focus.ui.theme.LocalDockContentPadding
 import com.flow.focus.ui.theme.Flow
 import com.flow.focus.ui.theme.LocalGlass
 import java.time.Instant
@@ -138,7 +140,7 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
 
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding()
-            .padding(horizontal = 18.dp).padding(top = 8.dp, bottom = 120.dp),
+            .padding(horizontal = 18.dp).padding(top = 8.dp, bottom = LocalDockContentPadding.current),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // ---- سربرگ ----
@@ -274,7 +276,14 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
                 if (next != null) {
                     val (entry, day) = next
                     val whenText = relativeDay(day.toEpochDay(), today) + (entry.minute?.let { " · " + DateFormats.clock(it) } ?: "")
-                    Text(num(whenText), style = Flow.type.label, color = c.textSecondary)
+                    Text(
+                        num(whenText),
+                        style = Flow.type.label,
+                        color = c.textSecondary,
+                        modifier = Modifier.widthIn(max = 92.dp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
                 FlowIcon(FlowIcons.ChevronNext, tint = c.textSecondary, size = 20.dp)
             }
