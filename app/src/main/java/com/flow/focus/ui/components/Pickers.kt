@@ -68,6 +68,7 @@ fun JalaliMonthView(
     onSelect: (LocalDate) -> Unit,
     onPrev: () -> Unit,
     onNext: () -> Unit,
+    eventColors: Map<Long, List<Color>> = emptyMap(),
     modifier: Modifier = Modifier,
 ) {
     val c = Flow.colors
@@ -181,15 +182,20 @@ fun JalaliMonthView(
                                         style = Flow.type.label,
                                         color = if (selected) c.textOnAccent else c.textPrimary,
                                     )
-                                    if (epochDay in marked) {
-                                        Box(
-                                            Modifier
-                                                .align(Alignment.BottomCenter)
-                                                .padding(bottom = 4.dp)
-                                                .size(4.dp)
-                                                .clip(CircleShape)
-                                                .background(if (selected) c.textOnAccent else c.accent),
-                                        )
+                                    val dayDots = eventColors[epochDay].orEmpty().take(3)
+                                    if (epochDay in marked || dayDots.isNotEmpty()) {
+                                        Row(
+                                            Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                        ) {
+                                            val dots = dayDots.ifEmpty { listOf(c.accent) }
+                                            dots.forEach { dotColor ->
+                                                Box(
+                                                    Modifier.size(4.dp).clip(CircleShape)
+                                                        .background(if (selected) c.textOnAccent else dotColor),
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }

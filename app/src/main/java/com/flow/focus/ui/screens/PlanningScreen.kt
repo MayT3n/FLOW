@@ -108,6 +108,18 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                     val first = LocalDate.ofEpochDay(monthAnchor)
                     val last = first.plusDays((a.lengthOfMonth() - 1).toLong())
                     val marked = remember(data.tasks, data.routines, monthAnchor) { Planner.markedDays(data, first, last) }
+                    val eventColors = remember(data.tasks, data.routines, data.routineChecks, monthAnchor) {
+                        buildMap<Long, List<Color>> {
+                            for (dayOfMonth in 1..a.lengthOfMonth()) {
+                                val date = JalaliDate(a.year, a.month, dayOfMonth).toLocalDate()
+                                val colors = Planner.entriesFor(data, date)
+                                    .map { Color(Categories.byId(it.categoryId).color) }
+                                    .distinct()
+                                    .take(3)
+                                if (colors.isNotEmpty()) put(date.toEpochDay(), colors)
+                            }
+                        }
+                    }
                     GlassSurface(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(14.dp)) {
                             JalaliMonthView(
@@ -115,9 +127,14 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                                 onSelect = { selected = it.toEpochDay() },
                                 onPrev = { monthAnchor = JalaliDate(a.year, a.month, 1).plusMonths(-1).toLocalDate().toEpochDay() },
                                 onNext = { monthAnchor = JalaliDate(a.year, a.month, 1).plusMonths(1).toLocalDate().toEpochDay() },
+                                eventColors = eventColors,
                             )
                         }
                     }
+                    if (selDate != today) GlassButton("رفتن به امروز", {
+                        selected = today.toEpochDay()
+                        monthAnchor = firstOfMonth(today).toEpochDay()
+                    }, Modifier.fillMaxWidth())
                     SectionTitle(num(DateFormats.full(selDate)))
                     EntryList(vm, data, selDate, onEdit = { editing = it }, onMove = { moveTask = it })
                 }
