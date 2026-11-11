@@ -371,8 +371,6 @@ fun ambientIcon(id: String) = when (id) {
     "rain" -> FlowIcons.Rain
     "wind" -> FlowIcons.Wind
     "forest" -> FlowIcons.Leaf
-    "wind" -> FlowIcons.Wind
-    "rain" -> FlowIcons.Rain
     "fire" -> FlowIcons.Flame
     AmbientSynth.NONE -> FlowIcons.Close
     else -> FlowIcons.Wave
