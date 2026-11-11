@@ -65,9 +65,9 @@ fun relativeDay(epochDay: Long, today: LocalDate): String {
 fun dueLabel(t: Task, today: LocalDate): String? {
     val day = t.dueDay ?: return null
     val base = relativeDay(day, today)
-    return if (t.dueMinute != null) "$base · ${DateFormats.clock(t.dueMinute)}" else base
+    val minute = t.dueMinute?.takeIf { it in 0 until 24 * 60 }
+    return if (minute != null) "$base · ${DateFormats.clock(minute)}" else base
 }
 
 fun isOverdue(t: Task, today: LocalDate): Boolean = !t.done && t.dueDay != null && t.dueDay < today.toEpochDay()
 
-    LocalDate.ofEpochDay(day).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
