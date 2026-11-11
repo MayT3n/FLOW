@@ -331,7 +331,6 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
 
 @Composable
 private fun UnreadNoticeBadge(count: Int) {
-    if (count <= 0) return
     Box {
         AnimatedVisibility(
             visible = count > 0,
