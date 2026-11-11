@@ -17,15 +17,9 @@ object AmbientSynth {
     const val RATE = 22050
     const val NONE = "none"
 
-    val sounds = listOf(
-        AmbientSoundInfo("rain", "باران", "بارش نرم با قطره‌های پراکنده"),
-        AmbientSoundInfo("wind", "طبیعت", "باد و خش‌خش برگ‌ها"),
-        AmbientSoundInfo("white", "نویز سفید", "یکنواخت و روشن"),
-        AmbientSoundInfo("pink", "نویز صورتی", "متعادل و ملایم"),
-        AmbientSoundInfo("brown", "نویز قهوه‌ای", "عمیق و گرم"),
-        AmbientSoundInfo("cafe", "محیط کافه", "زمزمه‌ی دور و صدای فنجان (سنتزی)"),
-        AmbientSoundInfo("library", "کتابخانه", "سکوت اتاق و ورق زدن آرام (سنتزی)"),
-    )
+    val sounds = AmbientLibrary.recordings.map { recording ->
+        AmbientSoundInfo(recording.id, recording.title, recording.hint)
+    }
 
     private const val XFADE = RATE / 2
 
