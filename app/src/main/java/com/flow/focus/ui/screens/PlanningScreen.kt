@@ -40,6 +40,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.flow.focus.core.CalendarOccasion
 import com.flow.focus.core.DateFormats
 import com.flow.focus.core.JalaliDate
 import com.flow.focus.data.AppData
@@ -76,6 +78,7 @@ import java.time.LocalDate
 @Composable
 fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifier) {
     val today = rememberToday()
+    val offlineOccasions by vm.offlineCalendarOccasions.collectAsStateWithLifecycle()
     val animations = Flow.glass.animations
     var mode by rememberSaveable { mutableStateOf(0) } // ۰ روزانه، ۱ هفتگی، ۲ ماهانه
     var selected by rememberSaveable { mutableStateOf(today.toEpochDay()) }
@@ -88,6 +91,13 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
     var moveTask by remember { mutableStateOf<Task?>(null) }
 
     val selDate = LocalDate.ofEpochDay(selected)
+    val selectedYear = JalaliDate.of(selDate).year
+    val selectedOccasions = remember(offlineOccasions, selected) {
+        offlineOccasions.filter { it.epochDay == selected }
+    }
+    val hasOfflineYearData = remember(offlineOccasions, selectedYear) {
+        offlineOccasions.any { JalaliDate.of(LocalDate.ofEpochDay(it.epochDay)).year == selectedYear }
+    }
 
     Box(modifier.fillMaxSize()) {
         Column(
@@ -96,6 +106,12 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             ScreenHeader("برنامه‌ریزی")
+            Text(
+                if (hasOfflineYearData) "مناسبت‌ها و تعطیلات آفلاین سال $selectedYear"
+                else "داده‌ی مناسبت آفلاین برای سال $selectedYear در این نسخه موجود نیست",
+                style = Flow.type.caption,
+                color = Flow.colors.textSecondary,
+            )
             SegmentedControl(listOf("روزانه", "هفتگی", "ماهانه"), mode, { mode = it })
 
             AnimatedContent(
@@ -132,16 +148,28 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                     val a = JalaliDate.of(LocalDate.ofEpochDay(monthAnchor))
                     val first = LocalDate.ofEpochDay(monthAnchor)
                     val last = first.plusDays((a.lengthOfMonth() - 1).toLong())
-                    val marked = remember(data.tasks, data.routines, monthAnchor) { Planner.markedDays(data, first, last) }
-                    val eventColors = remember(data.tasks, data.routines, data.routineChecks, monthAnchor) {
+                    val monthOccasions = remember(offlineOccasions, a.year, a.month) {
+                        offlineOccasions.filter { occasion ->
+                            val date = LocalDate.ofEpochDay(occasion.epochDay)
+                            val jalali = JalaliDate.of(date)
+                            jalali.year == a.year && jalali.month == a.month
+                        }
+                    }
+                    val marked = remember(data.tasks, data.routines, monthAnchor, monthOccasions) {
+                        Planner.markedDays(data, first, last) + monthOccasions.map { it.epochDay }
+                    }
+                    val eventColors = remember(data.tasks, data.routines, data.routineChecks, monthAnchor, monthOccasions) {
                         buildMap<Long, List<Color>> {
                             for (dayOfMonth in 1..a.lengthOfMonth()) {
                                 val date = JalaliDate(a.year, a.month, dayOfMonth).toLocalDate()
-                                val colors = Planner.entriesFor(data, date)
+                                val day = date.toEpochDay()
+                                val taskColors = Planner.entriesFor(data, date)
                                     .map { Color(Categories.byId(it.categoryId).color) }
-                                    .distinct()
-                                    .take(3)
-                                if (colors.isNotEmpty()) put(date.toEpochDay(), colors)
+                                val occasionColors = monthOccasions.filter { it.epochDay == day }.map {
+                                    if (it.isHoliday) Flow.colors.danger else Flow.colors.accent
+                                }
+                                val colors = (taskColors + occasionColors).distinct().take(3)
+                                if (colors.isNotEmpty()) put(day, colors)
                             }
                         }
                     }
@@ -164,6 +192,10 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                     EntryList(vm, data, selDate, onEdit = { editing = it }, onMove = { moveTask = it })
                 }
                 }
+            }
+
+            if (selectedOccasions.isNotEmpty()) {
+                OfflineCalendarOccasions(selectedOccasions)
             }
         }
         Fab({ creating = true }, Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 108.dp).navigationBarsPadding())
@@ -200,6 +232,44 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
 private fun firstOfMonth(d: LocalDate): LocalDate {
     val j = JalaliDate.of(d)
     return JalaliDate(j.year, j.month, 1).toLocalDate()
+}
+
+@Composable
+private fun OfflineCalendarOccasions(items: List<CalendarOccasion>) {
+    GlassSurface(
+        Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        level = GlassLevel.Subtle,
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(13.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp),
+        ) {
+            SectionTitle("مناسبت‌های این روز")
+            items.forEach { occasion ->
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(9.dp),
+                ) {
+                    FlowIcon(
+                        if (occasion.isHoliday) FlowIcons.CalendarCheck else FlowIcons.Info,
+                        tint = if (occasion.isHoliday) Flow.colors.danger else Flow.colors.accent,
+                        size = 20.dp,
+                    )
+                    Text(
+                        occasion.titleFa,
+                        Modifier.weight(1f),
+                        style = Flow.type.body,
+                        color = Flow.colors.textPrimary,
+                    )
+                    if (occasion.isHoliday) {
+                        Text("تعطیل رسمی", style = Flow.type.caption, color = Flow.colors.danger)
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
