@@ -6,6 +6,7 @@ import com.flow.focus.data.FocusSession
 import com.flow.focus.data.PhaseType
 import com.flow.focus.data.TimerState
 import com.flow.focus.data.TimerStatus
+import com.flow.focus.music.MusicManager
 import com.flow.focus.domain.PomodoroEngine
 
 /**
@@ -17,6 +18,7 @@ class TimerController(
     private val alarms: AlarmScheduler,
     private val notifier: NotificationHelper,
     private val ambient: AmbientPlayer,
+    private val music: MusicManager? = null,
 ) {
     private class Outcome(val finished: List<PhaseType>)
 
@@ -113,6 +115,13 @@ class TimerController(
             // فقط صدایی را خاموش می‌کنیم که خودِ تایمر روشن کرده؛ پیش‌شنوایی تنظیمات دست‌نخورده می‌ماند.
             ambient.stop()
             ambientByTimer = false
+        }
+        when (t.status) {
+            TimerStatus.RUNNING -> when (t.phase) {
+                PhaseType.FOCUS -> if (s.musicAutoFocus) music?.play(s.musicTrackId)
+                PhaseType.SHORT_BREAK, PhaseType.LONG_BREAK -> if (s.musicSwitchOnBreak) music?.play(s.breakMusicTrackId)
+            }
+            TimerStatus.PAUSED, TimerStatus.IDLE -> if (s.musicPauseWithTimer) music?.pause()
         }
         if (finished.isNotEmpty()) notifier.showFinished(finished.last(), t.phase, s)
     }
