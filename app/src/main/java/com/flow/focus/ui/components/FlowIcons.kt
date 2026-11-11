@@ -78,7 +78,7 @@ object FlowIcons {
     val Book by lazy { build("book", listOf("M12 6.5C10.5 5.3 8 5 4.5 5.2V18c3.5-.2 6 .1 7.5 1.3 1.5-1.2 4-1.5 7.5-1.3V5.2C16 5 13.5 5.3 12 6.5z", "M12 6.5v12.8")) }
     val Music by lazy { build("music", listOf("M9 17.5V6l9-1.8v11.3", "M9 17.5a2.3 2.3 0 1 1-4.6 0 2.3 2.3 0 0 1 4.6 0z", "M18 15.5a2.3 2.3 0 1 1-4.6 0 2.3 2.3 0 0 1 4.6 0z")) }
     val Minus by lazy { build("minus", listOf("M5 12h14"), width = 1.9f) }
-    val Plus by lazy { build("plus", listOf("M12 5v14", "M5 12h14"), width = 2.2f) }
+    val Plus by lazy { build("plus", listOf("M12 5v14", "M5 12h14"), width = 1.9f) }
     val Search by lazy { build("search", listOf("M11 4.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13z", "M16 16l4 4")) }
     val ChevronNext by lazy { build("chevronNext", listOf("M9.5 6l6 6-6 6"), mirror = true) }
     val ChevronPrev by lazy { build("chevronPrev", listOf("M14.5 6l-6 6 6 6"), mirror = true) }
