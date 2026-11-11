@@ -190,19 +190,7 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             TimerRing(timer, now, settings.rounds, Modifier.size(276.dp))
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                val totalRounds = settings.rounds.coerceAtLeast(1)
-                repeat(totalRounds) { index ->
-                    val roundIndex = index + 1
-                    val done = roundIndex < timer.round
-                    val current = roundIndex == timer.round
-                    Box(
-                        Modifier.size(if (current) 9.dp else 7.dp).clip(CircleShape)
-                            .background(if (done) c.textSecondary else if (current) c.accent else c.track),
-                    )
-                }
-                Text(num("دور ${timer.round} از $totalRounds"), style = Flow.type.caption, color = c.textSecondary)
-            }
+            TimerStatusPill(timer, settings.rounds)
         }
 
         // ---- کنترل‌ها ----
@@ -326,7 +314,7 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
     }
 
     if (notificationsOpen) MatFocusNotificationsDialog(vm) { notificationsOpen = false }
-    if (musicOpen) MusicPlayerDialog(vm) { musicOpen = false }
+    if (musicOpen) MusicPlayerDialog { musicOpen = false }
 }
 
 @Composable
@@ -395,6 +383,67 @@ private fun MainControl(running: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
+private fun TimerStatusPill(timer: TimerState, rounds: Int) {
+    val c = Flow.colors
+    val totalRounds = rounds.coerceAtLeast(1)
+    val currentRound = timer.round.coerceIn(1, totalRounds)
+    val statusLabel = when (timer.status) {
+        TimerStatus.IDLE -> "آماده‌ی شروع"
+        TimerStatus.PAUSED -> "متوقف شده"
+        TimerStatus.RUNNING -> "در حال اجرا"
+    }
+    val statusColor = when (timer.status) {
+        TimerStatus.IDLE -> c.textSecondary
+        TimerStatus.PAUSED -> c.accentAlt
+        TimerStatus.RUNNING -> c.success
+    }
+
+    GlassSurface(
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+        shape = RoundedCornerShape(18.dp),
+        level = GlassLevel.Subtle,
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                repeat(totalRounds) { index ->
+                    val round = index + 1
+                    val color = when {
+                        round < currentRound -> c.success
+                        round == currentRound -> c.accent
+                        else -> c.track
+                    }
+                    Box(
+                        Modifier.size(if (round == currentRound) 8.dp else 6.dp)
+                            .clip(CircleShape)
+                            .background(color),
+                    )
+                }
+                Text(
+                    num("دور $currentRound از $totalRounds"),
+                    style = Flow.type.label,
+                    color = c.textPrimary,
+                    maxLines = 1,
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            Text(
+                num(statusLabel),
+                style = Flow.type.caption,
+                color = statusColor,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+@Composable
 private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier: Modifier) {
     val c = Flow.colors
     val glass = LocalGlass.current
@@ -451,21 +500,6 @@ private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(num(formatClock(seconds)), style = Flow.type.display, color = c.textPrimary, maxLines = 1)
-                Text(
-                    when (timer.status) {
-                        TimerStatus.IDLE -> "آماده‌ی شروع"
-                        TimerStatus.PAUSED -> "متوقف شده"
-                        TimerStatus.RUNNING -> "زمان باقی‌مانده"
-                    },
-                    Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(c.track.copy(alpha = if (c.isDark) 0.72f else 0.9f))
-                        .padding(horizontal = 10.dp, vertical = 3.dp),
-                    style = Flow.type.caption,
-                    color = c.textSecondary,
-                    maxLines = 1,
-                )
-                Spacer(Modifier.height(5.dp))
             }
         }
     }

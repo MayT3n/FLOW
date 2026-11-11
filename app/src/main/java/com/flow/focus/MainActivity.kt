@@ -55,6 +55,7 @@ import com.flow.focus.ui.components.FlowIcons
 import com.flow.focus.ui.glass.GlassBackdropHost
 import com.flow.focus.ui.screens.HomeScreen
 import com.flow.focus.ui.screens.MiniMusicPlayer
+import com.flow.focus.ui.screens.MusicShelfRestoreButton
 import com.flow.focus.ui.screens.MusicPlayerDialog
 import com.flow.focus.ui.screens.PlanningScreen
 import com.flow.focus.ui.screens.SettingsScreen
@@ -186,8 +187,15 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
                     onCollapse = { musicShelfExpanded = false },
                 )
             }
+            AnimatedVisibility(
+                visible = !musicShelfExpanded,
+                enter = fadeIn(tween(140)) + slideInVertically(tween(180)) { it / 2 },
+                exit = fadeOut(tween(100)) + slideOutVertically(tween(140)) { it / 2 },
+            ) {
+                MusicShelfRestoreButton { musicShelfExpanded = true }
+            }
             FlowDock(dockItems, tab, { tab = it }, Modifier.fillMaxWidth())
         }
-        if (musicOpen) MusicPlayerDialog(vm) { musicOpen = false }
+        if (musicOpen) MusicPlayerDialog { musicOpen = false }
     }
 }

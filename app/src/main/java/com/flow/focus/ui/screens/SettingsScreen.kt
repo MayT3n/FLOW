@@ -488,7 +488,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
         }
 
         if (selectedPage == "music") Section("موسیقی") {
-            MusicSettings(vm, st)
+            MusicSettings()
             GlassButton(
                 "نمایش سرویس‌های موسیقی آنلاین",
                 { musicOpen = true },
@@ -521,7 +521,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
         }
     }
 
-    if (musicOpen) MusicPlayerDialog(vm) { musicOpen = false }
+    if (musicOpen) MusicPlayerDialog { musicOpen = false }
 
     wallpaperPreviewId?.let { previewId ->
         FlowDialog(
