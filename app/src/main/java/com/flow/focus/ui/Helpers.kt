@@ -58,7 +58,8 @@ fun greeting(hour: Int): String = when (hour) {
 }
 
 fun relativeDay(epochDay: Long, today: LocalDate): String {
-    val d = LocalDate.ofEpochDay(epochDay)
+    val d = runCatching { LocalDate.ofEpochDay(epochDay) }.getOrNull()
+        ?: return "تاریخ نامعتبر"
     return when (epochDay - today.toEpochDay()) {
         0L -> "امروز"
         1L -> "فردا"
