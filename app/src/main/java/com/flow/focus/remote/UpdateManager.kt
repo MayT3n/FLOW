@@ -37,6 +37,10 @@ class UpdateManager(private val context: Context) {
     suspend fun download(manifest: UpdateManifest): File = withContext(Dispatchers.IO) {
         require(manifest.schemaVersion == 1 && manifest.updateAvailable) { "نسخه‌ی قابل دریافت اعلام نشده است." }
         require(manifest.versionCode > BuildConfig.VERSION_CODE) { "این نسخه از برنامه جدیدتر نیست." }
+        require(manifest.applicationId == context.packageName) { "شناسه‌ی برنامه با نسخه‌ی نصب‌شده یکسان نیست." }
+        require(manifest.minimumSupportedVersion >= 0 && manifest.minimumSupportedVersion <= manifest.versionCode) {
+            "حداقل نسخه‌ی پشتیبانی‌شده در Manifest معتبر نیست."
+        }
         require(manifest.downloadUrl.startsWith("https://")) { "لینک دانلود باید HTTPS باشد." }
         require(manifest.fileSize > 0L) { "حجم فایل در Manifest معتبر نیست." }
         require(manifest.sha256.matches(Regex("(?i)^[0-9a-f]{64}$"))) { "SHA-256 در Manifest معتبر نیست." }
