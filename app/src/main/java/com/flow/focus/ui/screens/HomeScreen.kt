@@ -159,24 +159,7 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
                     notificationsOpen = true
                     vm.refreshRemoteContent()
                 }, contentDescription = "اعلان‌ها")
-                AnimatedVisibility(
-                    visible = unreadNotices > 0,
-                    enter = fadeIn(tween(140)) + scaleIn(initialScale = 0.55f, animationSpec = tween(190)),
-                    exit = fadeOut(tween(90)) + scaleOut(targetScale = 0.65f, animationSpec = tween(110)),
-                ) {
-                    Box(
-                        Modifier.align(Alignment.TopEnd).padding(top = 1.dp, end = 1.dp)
-                            .size(17.dp).clip(CircleShape).background(c.danger),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            num(unreadNotices.coerceAtMost(9)),
-                            style = Flow.type.caption.copy(fontSize = 9.sp),
-                            color = Color.White,
-                            maxLines = 1,
-                        )
-                    }
-                }
+                UnreadNoticeBadge(unreadNotices)
             }
             GlassIconButton(
                 if (c.isDark) FlowIcons.Sun else FlowIcons.Moon,
@@ -344,6 +327,31 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
 
     if (notificationsOpen) MatFocusNotificationsDialog(vm) { notificationsOpen = false }
     if (musicOpen) MusicPlayerDialog(vm) { musicOpen = false }
+}
+
+@Composable
+private fun UnreadNoticeBadge(count: Int) {
+    if (count <= 0) return
+    Box {
+        AnimatedVisibility(
+            visible = count > 0,
+            enter = fadeIn(tween(140)) + scaleIn(initialScale = 0.55f, animationSpec = tween(190)),
+            exit = fadeOut(tween(90)) + scaleOut(targetScale = 0.65f, animationSpec = tween(110)),
+        ) {
+            Box(
+                Modifier.align(Alignment.TopEnd).padding(top = 1.dp, end = 1.dp)
+                    .size(17.dp).clip(CircleShape).background(Flow.colors.danger),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    num(count.coerceAtMost(9)),
+                    style = Flow.type.caption.copy(fontSize = 9.sp),
+                    color = Color.White,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
 }
 
 @Composable
