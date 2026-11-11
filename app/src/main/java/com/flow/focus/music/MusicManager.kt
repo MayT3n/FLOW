@@ -109,7 +109,7 @@ class MusicManager(
         }
         scope.launch {
             while (true) {
-                publish()
+                withContext(Dispatchers.Main.immediate) { publish() }
                 delay(if (_snapshot.value.isPlaying) 500L else 2_000L)
             }
         }
