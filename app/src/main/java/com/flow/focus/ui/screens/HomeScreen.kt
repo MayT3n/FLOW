@@ -104,7 +104,6 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
     val newsItems by vm.newsItems.collectAsStateWithLifecycle()
     val newsReadIds by vm.newsReadIds.collectAsStateWithLifecycle()
     val remoteUpdate by vm.updateManifest.collectAsStateWithLifecycle()
-    val musicSnapshot by vm.musicSnapshot.collectAsStateWithLifecycle()
     val updateNoticeUnread = remoteUpdate?.let {
         it.updateAvailable && it.versionCode > com.flow.focus.BuildConfig.VERSION_CODE && "update:${it.versionCode}" !in newsReadIds
     } == true
@@ -188,14 +187,6 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
                     ),
                 )
             }
-        }
-
-        if (musicSnapshot.currentTrackId != null) {
-            MiniMusicPlayer(
-                vm = vm,
-                snapshot = musicSnapshot,
-                onOpen = { musicOpen = true },
-            )
         }
 
         // ---- حلقه‌ی تایمر ----
