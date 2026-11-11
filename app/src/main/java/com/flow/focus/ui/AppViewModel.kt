@@ -5,6 +5,9 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.flow.focus.FlowApp
+import com.flow.focus.core.CalendarOccasion
+import com.flow.focus.core.IranianCalendarData
+import com.flow.focus.core.JalaliDate
 import com.flow.focus.data.AppData
 import com.flow.focus.data.Goal
 import com.flow.focus.data.GoalPeriod
@@ -21,6 +24,7 @@ import com.flow.focus.remote.NewsItem
 import com.flow.focus.remote.UpdateDownloadState
 import com.flow.focus.remote.UpdateManifest
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -29,8 +33,16 @@ import kotlinx.coroutines.withContext
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val c = (app as FlowApp).container
     private val wallpaperStore = WallpaperStore(app)
+    private val _offlineCalendarOccasions = MutableStateFlow<List<CalendarOccasion>>(emptyList())
+
+    init {
+        viewModelScope.launch(Dispatchers.IO) {
+            _offlineCalendarOccasions.value = IranianCalendarData.load(app, JalaliDate.today().year)
+        }
+    }
 
     val data: StateFlow<AppData> get() = c.repo.data
+    val offlineCalendarOccasions: StateFlow<List<CalendarOccasion>> get() = _offlineCalendarOccasions
     val ambientPlaying: StateFlow<String?> get() = c.ambient.playing
     val ambientDownloadProgress get() = c.ambient.downloadProgress
     // News, updates and persistent read state
