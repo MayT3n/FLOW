@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -73,6 +72,7 @@ import com.flow.focus.ui.glass.springClick
 import com.flow.focus.ui.glass.floatSpring
 import com.flow.focus.ui.isOverdue
 import com.flow.focus.ui.rememberToday
+import com.flow.focus.ui.theme.LocalDockContentPadding
 import com.flow.focus.ui.theme.Flow
 import com.flow.focus.ui.theme.LocalGlass
 
@@ -96,7 +96,7 @@ fun TasksScreen(vm: AppViewModel, data: AppData, onStartFocus: () -> Unit, modif
     Box(modifier.fillMaxSize()) {
         LazyColumn(
             Modifier.fillMaxSize().statusBarsPadding(),
-            contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 130.dp),
+            contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 8.dp, bottom = LocalDockContentPadding.current),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item(key = "header") { ScreenHeader("وظایف") }
@@ -138,7 +138,7 @@ fun TasksScreen(vm: AppViewModel, data: AppData, onStartFocus: () -> Unit, modif
                 }
             }
         }
-        Fab({ creating = true }, Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 108.dp).navigationBarsPadding())
+        Fab({ creating = true }, Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = LocalDockContentPadding.current - 8.dp))
     }
 
     if (creating) {
