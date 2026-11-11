@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "FLOW"
+rootProject.name = "MatFocus"
 include(":app")
