@@ -2,6 +2,7 @@ package com.flow.focus.ui.screens
 
 import android.content.Context
 import android.graphics.BitmapFactory
+import android.os.Build
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -32,12 +33,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -114,6 +117,7 @@ private fun WallpaperPreviewSurface(
     path: String?,
     fit: WallpaperFit,
     dim: Float,
+    blurDp: Int,
 ) {
     val bitmap = remember(path) { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(path) {
@@ -133,17 +137,27 @@ private fun WallpaperPreviewSurface(
         Modifier.fillMaxWidth().height(176.dp).clip(RoundedCornerShape(22.dp))
             .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(22.dp)),
     ) {
-        if (id == "custom" && bitmap.value != null) {
-            Image(
-                bitmap = bitmap.value!!,
-                contentDescription = "پیش‌نمایش تصویر پس‌زمینه",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = if (fit == WallpaperFit.CROP) ContentScale.Crop else ContentScale.Fit,
-            )
-        } else {
+        Box(
+            Modifier.fillMaxSize().graphicsLayer {
+                renderEffect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && blurDp > 0) {
+                    val radius = blurDp.dp.toPx()
+                    BlurEffect(radius, radius)
+                } else null
+            },
+        ) {
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(palette)))
+            if (id == "custom" && bitmap.value != null) {
+                Image(
+                    bitmap = bitmap.value!!,
+                    contentDescription = "پیش‌نمایش تصویر پس‌زمینه",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = if (fit == WallpaperFit.CROP) ContentScale.Crop else ContentScale.Fit,
+                )
+            }
+            if (id != "gradient" && dim > 0f) {
+                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = dim.coerceIn(0f, 0.65f))))
+            }
         }
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = dim.coerceIn(0f, 0.65f))))
         if (id == "custom" && bitmap.value == null) {
             Text(
                 "در حال آماده‌سازی پیش‌نمایش…",
@@ -335,6 +349,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                 if (previewId == "custom") pendingWallpaperPath else null,
                 st.wallpaperFit,
                 st.wallpaperDim,
+                st.wallpaperBlurDp,
             )
             Text(
                 when (previewId) {
