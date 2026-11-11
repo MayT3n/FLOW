@@ -69,12 +69,15 @@ object IranianCalendarData {
         if (feed.schemaVersion != 1 || feed.year != expectedYear) return emptyList()
 
         return feed.items.mapNotNull { item ->
+            if (item.id.isBlank() || item.title.fa.isBlank()) return@mapNotNull null
             val parts = item.date.split('-')
             if (parts.size != 3) return@mapNotNull null
             val year = parts[0].toIntOrNull() ?: return@mapNotNull null
             val month = parts[1].toIntOrNull() ?: return@mapNotNull null
             val day = parts[2].toIntOrNull() ?: return@mapNotNull null
             if (year != expectedYear || month !in 1..12) return@mapNotNull null
+            // Reject impossible Jalali dates (for example, Esfand 30 in a non-leap year).
+            if (day !in 1..JalaliDate.monthLength(year, month)) return@mapNotNull null
 
             val epochDay = runCatching { JalaliDate(year, month, day).toLocalDate().toEpochDay() }.getOrNull()
                 ?: return@mapNotNull null
@@ -85,6 +88,6 @@ object IranianCalendarData {
                 isHoliday = item.isHoliday,
                 categories = item.categories,
             )
-        }
+        }.distinctBy { it.id }
     }
 }
