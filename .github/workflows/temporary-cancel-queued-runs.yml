@@ -1,0 +1,51 @@
+name: Temporary cleanup of queued Android builds
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/temporary-cancel-queued-runs.yml'
+
+permissions:
+  actions: write
+
+jobs:
+  cancel-old-runs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel MatFocus Android runs except #189
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          KEEP_RUN_NUMBER: "189"
+          CURRENT_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          cancelled=0
+          for page in $(seq 1 10); do
+            response="$(curl -fsS \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/$REPOSITORY/actions/runs?per_page=100&page=$page")"
+            count="$(jq '.workflow_runs | length' <<< "$response")"
+            while IFS=$'\t' read -r run_id run_number run_status run_name; do
+              [ -n "$run_id" ] || continue
+              if [ "$run_name" = "MatFocus Android APK" ] && [ "$run_number" != "$KEEP_RUN_NUMBER" ] && [ "$run_id" != "$CURRENT_RUN_ID" ] && { [ "$run_status" = "queued" ] || [ "$run_status" = "in_progress" ]; }; then
+                code="$(curl -sS -o /tmp/cancel-response -w '%{http_code}' -X POST \
+                  -H "Accept: application/vnd.github+json" \
+                  -H "Authorization: Bearer $GH_TOKEN" \
+                  -H "X-GitHub-Api-Version: 2022-11-28" \
+                  "https://api.github.com/repos/$REPOSITORY/actions/runs/$run_id/cancel")"
+                echo "Run #$run_number ($run_id): HTTP $code"
+                if [ "$code" = "202" ] || [ "$code" = "409" ]; then
+                  cancelled=$((cancelled + 1))
+                else
+                  cat /tmp/cancel-response
+                  echo "::warning::Could not cancel run #$run_number"
+                fi
+              fi
+            done < <(jq -r '.workflow_runs[] | [.id, .run_number, .status, .name] | @tsv' <<< "$response")
+            [ "$count" -lt 100 ] && break
+          done
+          echo "Cancellation requests accepted or already transitioning: $cancelled"
