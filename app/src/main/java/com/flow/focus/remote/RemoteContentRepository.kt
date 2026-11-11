@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -105,8 +106,9 @@ class RemoteContentRepository(
 
     /** Fresh network data is pulled at launch/open and by WorkManager; failures preserve cached content. */
     suspend fun refresh(force: Boolean = false): Boolean {
-        val prefs = store.data.catch { emit(androidx.datastore.preferences.core.emptyPreferences()) }
-            .let { flow -> kotlinx.coroutines.flow.first(flow) }
+        val prefs = store.data
+            .catch { emit(androidx.datastore.preferences.core.emptyPreferences()) }
+            .first()
         val last = prefs[lastSyncKey] ?: 0L
         val now = System.currentTimeMillis()
         if (!force && now - last < MIN_REFRESH_INTERVAL_MS) return true
@@ -119,18 +121,24 @@ class RemoteContentRepository(
             val parsed = runCatching { json.decodeFromString<NewsFeed>(feedText) }.getOrNull()
             if (parsed != null && parsed.schemaVersion == 1) {
                 val normalized = parsed.copy(items = parsed.items.filter { it.id.isNotBlank() && it.title.isNotBlank() && isActive(it) })
-                store.edit { it[feedKey] = json.encodeToString(normalized) }
+                val normalizedJson = json.encodeToString(normalized)
+                if (prefs[feedKey] != normalizedJson) {
+                    store.edit { it[feedKey] = normalizedJson }
+                    changed = true
+                }
                 _items.value = normalized.items.sortedByDescending { it.publishedAt }
-                changed = true
             }
         }
 
         if (manifestText != null) {
             val parsed = runCatching { json.decodeFromString<UpdateManifest>(manifestText) }.getOrNull()
             if (parsed != null && isValidManifest(parsed)) {
-                store.edit { it[manifestKey] = json.encodeToString(parsed) }
+                val manifestJson = json.encodeToString(parsed)
+                if (prefs[manifestKey] != manifestJson) {
+                    store.edit { it[manifestKey] = manifestJson }
+                    changed = true
+                }
                 _manifest.value = parsed
-                changed = true
             }
         }
 
@@ -178,6 +186,7 @@ class RemoteContentRepository(
     private fun isValidManifest(value: UpdateManifest): Boolean =
         value.schemaVersion == 1 &&
             value.versionCode > 0 &&
+            value.minimumSupportedVersion >= 0 &&
             value.versionName.isNotBlank() &&
             value.applicationId == "com.flow.focus" &&
             value.minimumSupportedVersion >= 0 &&
