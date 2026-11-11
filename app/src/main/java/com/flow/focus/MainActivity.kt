@@ -13,6 +13,11 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -29,6 +34,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -38,6 +44,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -122,6 +129,7 @@ private fun RequestNotificationPermission(wanted: Boolean) {
 private fun AppScaffold(vm: AppViewModel, data: AppData) {
     var tab by rememberSaveable { mutableStateOf(0) }
     var musicOpen by rememberSaveable { mutableStateOf(false) }
+    var musicShelfExpanded by rememberSaveable { mutableStateOf(true) }
     val music by vm.musicSnapshot.collectAsStateWithLifecycle()
     val animations = data.settings.animations
     BackHandler(enabled = musicOpen) { musicOpen = false }
@@ -152,12 +160,33 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
         }
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                .navigationBarsPadding().padding(horizontal = 18.dp, vertical = 12.dp),
+                .navigationBarsPadding().padding(horizontal = 18.dp, vertical = 12.dp)
+                .pointerInput(musicShelfExpanded) {
+                    var dragDistance = 0f
+                    detectVerticalDragGestures(
+                        onVerticalDrag = { _, amount -> dragDistance += amount },
+                        onDragEnd = {
+                            if (dragDistance > 42f) musicShelfExpanded = false
+                            if (dragDistance < -42f) musicShelfExpanded = true
+                            dragDistance = 0f
+                        },
+                        onDragCancel = { dragDistance = 0f },
+                    )
+                },
             verticalArrangement = Arrangement.spacedBy(9.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            if (music.connected && music.currentTrackId != null) {
-                MiniMusicPlayer(vm, music, onOpen = { musicOpen = true })
+            AnimatedVisibility(
+                visible = music.connected && music.currentTrackId != null && musicShelfExpanded,
+                enter = fadeIn(tween(160)) + slideInVertically(tween(220)) { it / 2 },
+                exit = fadeOut(tween(110)) + slideOutVertically(tween(170)) { it / 2 },
+            ) {
+                MiniMusicPlayer(
+                    vm,
+                    music,
+                    onOpen = { musicOpen = true },
+                    onCollapse = { musicShelfExpanded = false },
+                )
             }
             FlowDock(dockItems, tab, { tab = it }, Modifier.fillMaxWidth())
         }

@@ -84,20 +84,6 @@ class MusicManager(
     }
 
     init {
-        if (MusicCatalog.tracks.isEmpty()) {
-            scope.launch(Dispatchers.IO) {
-                File(context.filesDir, "audio/music").listFiles()
-                    ?.filter { it.isFile && (it.extension.equals("mp3", true) || it.name.endsWith(".part")) }
-                    ?.forEach { it.delete() }
-                store.edit { prefs ->
-                    prefs[favoritesKey] = json.encodeToString(emptyList<String>())
-                    val saved = prefs[playlistsKey]?.let {
-                        runCatching { json.decodeFromString<List<MusicPlaylist>>(it) }.getOrNull()
-                    }.orEmpty()
-                    prefs[playlistsKey] = json.encodeToString(saved.map { it.copy(trackIds = emptyList()) })
-                }
-            }
-        }
         val token = SessionToken(context, ComponentName(context, MusicPlaybackService::class.java))
         controllerFuture = MediaController.Builder(context, token).buildAsync().also { future ->
             future.addListener({
@@ -105,10 +91,7 @@ class MusicManager(
                     controller = future.get().also { player ->
                         player.volume = pendingVolume.coerceIn(0f, 1f)
                         player.addListener(playerListener)
-                        if (MusicCatalog.tracks.isEmpty()) {
-                            player.pause()
-                            player.clearMediaItems()
-                        } else if (player.mediaItemCount == 0) {
+                        if (player.mediaItemCount == 0) {
                             player.setMediaItems(MusicCatalog.tracks.map { track -> MusicCatalog.mediaItem(track, downloadedFile(track)) })
                         }
                     }
@@ -180,8 +163,7 @@ class MusicManager(
             player.pause()
         } else {
             if (player.mediaItemCount == 0) {
-                val firstTrack = MusicCatalog.tracks.firstOrNull() ?: return
-                play(firstTrack.id)
+                play(MusicCatalog.tracks.first().id)
             } else {
                 if (player.playbackState == Player.STATE_IDLE) player.prepare()
                 player.play()

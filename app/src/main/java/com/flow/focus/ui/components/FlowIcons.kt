@@ -41,6 +41,17 @@ object FlowIcons {
         return b.build()
     }
 
+    val MatFocus by lazy {
+        build(
+            "matFocus",
+            listOf(
+                "M12 3.8a8.2 8.2 0 1 0 0 16.4 8.2 8.2 0 0 0 0-16.4z",
+                "M12 7.8v4.6l3.1 1.9",
+                "M12 2v1.6",
+            ),
+            width = 1.9f,
+        )
+    }
     val Home by lazy { build("home", listOf("M4.5 11 12 4.5 19.5 11", "M6.5 9.8V19h4v-5h3v5h4V9.8")) }
     val Calendar by lazy {
         build(
@@ -76,7 +87,17 @@ object FlowIcons {
     }
     val Cup by lazy { build("cup", listOf("M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z", "M16 10.5h1.5a2 2 0 0 1 0 4H16", "M8 4.5v2", "M12 4.5v2")) }
     val Book by lazy { build("book", listOf("M12 6.5C10.5 5.3 8 5 4.5 5.2V18c3.5-.2 6 .1 7.5 1.3 1.5-1.2 4-1.5 7.5-1.3V5.2C16 5 13.5 5.3 12 6.5z", "M12 6.5v12.8")) }
-    val Music by lazy { build("music", listOf("M9 17.5V6l9-1.8v11.3", "M9 17.5a2.3 2.3 0 1 1-4.6 0 2.3 2.3 0 0 1 4.6 0z", "M18 15.5a2.3 2.3 0 1 1-4.6 0 2.3 2.3 0 0 1 4.6 0z")) }
+    val Music by lazy {
+        build(
+            "music",
+            listOf(
+                "M4 13v-1.2a8 8 0 0 1 16 0V13",
+                "M4 12.5h3v6H6a2 2 0 0 1-2-2z",
+                "M20 12.5h-3v6h1a2 2 0 0 0 2-2z",
+                "M10 19.5h4",
+            ),
+        )
+    }
     val Minus by lazy { build("minus", listOf("M5 12h14"), width = 1.8f) }
     val Plus by lazy { build("plus", listOf("M12 5v14", "M5 12h14"), width = 1.8f) }
     val Search by lazy { build("search", listOf("M11 4.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13z", "M16 16l4 4")) }
