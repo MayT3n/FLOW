@@ -101,7 +101,7 @@ fun MatFocusNotificationsDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                                 Text("MatFocus ${update.versionName}", style = Flow.type.heading, color = Flow.colors.textPrimary)
                                 Text("نسخه‌ی جدید · کد ${update.versionCode}", style = Flow.type.caption, color = Flow.colors.textSecondary)
                             }
-                            if (id !in readIds) Text("جدید", style = Flow.type.caption, color = Flow.colors.accent)
+                            if (id !in readIds) Text("جدید", Modifier.springClick(onClick = { vm.markUpdateRead(update.versionCode) }).padding(4.dp), style = Flow.type.caption, color = Flow.colors.accent)
                         }
                         update.changelog.forEach { line ->
                             Text("• $line", style = Flow.type.caption, color = Flow.colors.textSecondary)
@@ -133,7 +133,6 @@ fun MatFocusNotificationsDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                         )
                     }
                 }
-                if (id !in readIds) vm.markUpdateRead(update.versionCode)
             } ?: run {
                 val latest = manifest
                 if (latest != null) {
@@ -195,7 +194,7 @@ private fun categoryLabel(category: String): String = when (category.lowercase()
 }
 
 private fun categoryIcon(category: String) = when (category.lowercase()) {
-    "update" -> FlowIcons.Download
+    "update" -> FlowIcons.Export
     "feature" -> FlowIcons.Sparkles
     "maintenance" -> FlowIcons.Settings
     "important" -> FlowIcons.Flag
