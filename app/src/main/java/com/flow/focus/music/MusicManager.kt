@@ -69,7 +69,12 @@ class MusicManager(
         controllerFuture = MediaController.Builder(context, token).buildAsync().also { future ->
             future.addListener({
                 runCatching {
-                    controller = future.get().also { it.addListener(playerListener) }
+                    controller = future.get().also { player ->
+                        player.addListener(playerListener)
+                        if (player.mediaItemCount == 0) {
+                            player.setMediaItems(MusicCatalog.tracks.map { track -> MusicCatalog.mediaItem(track, downloadedFile(track)) })
+                        }
+                    }
                     publish()
                 }
             }, ContextCompat.getMainExecutor(context))
