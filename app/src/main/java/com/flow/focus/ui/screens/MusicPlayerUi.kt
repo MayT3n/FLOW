@@ -177,7 +177,7 @@ fun MusicPlayerDialog(onDismiss: () -> Unit) {
                         }
                         GlassIconButton(
                             FlowIcons.Close,
-                            onDismiss,
+                            requestDismiss,
                             size = 38.dp,
                             iconSize = 18.dp,
                             contentDescription = "بستن پخش‌کننده",
