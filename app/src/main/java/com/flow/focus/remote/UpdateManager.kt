@@ -124,46 +124,61 @@ class UpdateManager(private val context: Context) {
         }
     }
 
-    /** Revalidates the private file and the installed signer immediately before opening Android's installer. */
-    fun installDownloaded(): Boolean {
-        val file = (state.value as? UpdateDownloadState.Ready)?.file
-            ?: throw IllegalStateException("ابتدا باید فایل آپدیت با موفقیت دانلود شود.")
-        val manifest = readyManifest
-            ?: throw IllegalStateException("اطلاعات اعتبارسنجی آپدیت در دسترس نیست.")
-        check(file.isFile && file.length() == manifest.fileSize) { "فایل آپدیت پیدا نشد یا ناقص است." }
+    /** Revalidates the APK on IO, then opens Android's installer on the main thread. */
+    suspend fun installDownloaded(): Boolean {
+        try {
+            val file = (state.value as? UpdateDownloadState.Ready)?.file
+                ?: throw IllegalStateException("ابتدا باید فایل آپدیت با موفقیت دانلود شود.")
+            val manifest = readyManifest
+                ?: throw IllegalStateException("اطلاعات اعتبارسنجی آپدیت در دسترس نیست.")
 
-        validateManifestForInstalledApp(manifest)
-        verifyPackageAndSignature(file, manifest.versionCode, manifest.versionName)
-        val actualHash = file.inputStream().use { input ->
-            val digest = MessageDigest.getInstance("SHA-256")
-            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-            while (true) {
-                val count = input.read(buffer)
-                if (count < 0) break
-                digest.update(buffer, 0, count)
+            withContext(Dispatchers.IO) {
+                check(file.isFile && file.length() == manifest.fileSize) {
+                    "فایل آپدیت پیدا نشد یا ناقص است."
+                }
+                validateManifestForInstalledApp(manifest)
+                verifyPackageAndSignature(file, manifest.versionCode, manifest.versionName)
+                val actualHash = file.inputStream().use { input ->
+                    val digest = MessageDigest.getInstance("SHA-256")
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        digest.update(buffer, 0, count)
+                    }
+                    digest.digest()
+                }
+                val expectedHash = manifest.sha256.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+                check(MessageDigest.isEqual(actualHash, expectedHash)) {
+                    "فایل آپدیت پس از دانلود تغییر کرده است."
+                }
             }
-            digest.digest()
-        }
-        val expectedHash = manifest.sha256.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
-        check(MessageDigest.isEqual(actualHash, expectedHash)) { "فایل آپدیت پس از دانلود تغییر کرده است." }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
-            val settingsIntent = Intent(
-                Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                Uri.parse("package:${context.packageName}"),
-            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(settingsIntent)
-            return false
-        }
+            return withContext(Dispatchers.Main.immediate) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
+                    val settingsIntent = Intent(
+                        Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        Uri.parse("package:${context.packageName}"),
+                    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(settingsIntent)
+                    return@withContext false
+                }
 
-        val contentUri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-        val installIntent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
-            data = contentUri
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-            putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
+                val contentUri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                val installIntent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
+                    data = contentUri
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                    putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
+                }
+                context.startActivity(installIntent)
+                true
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            _state.value = UpdateDownloadState.Failed(error.message ?: "اعتبارسنجی یا شروع نصب ناموفق بود.")
+            throw error
         }
-        context.startActivity(installIntent)
-        return true
     }
 
     private fun validateManifestForInstalledApp(manifest: UpdateManifest) {
