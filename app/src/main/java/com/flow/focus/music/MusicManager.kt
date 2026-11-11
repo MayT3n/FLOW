@@ -110,7 +110,7 @@ class MusicManager(
         scope.launch {
             while (true) {
                 publish()
-                delay(500L)
+                delay(if (_snapshot.value.isPlaying) 500L else 2_000L)
             }
         }
     }
@@ -120,6 +120,11 @@ class MusicManager(
         if (player == null) { pendingPlayTrackId = trackId; return }
         val index = MusicCatalog.tracks.indexOfFirst { it.id == trackId }
         if (index < 0) return
+        if (player.currentMediaItem?.mediaId == trackId) {
+            if (!player.isPlaying) player.play()
+            publish()
+            return
+        }
         val items = MusicCatalog.tracks.map { track ->
             MusicCatalog.mediaItem(track, downloadedFile(track))
         }
