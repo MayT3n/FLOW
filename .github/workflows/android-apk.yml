@@ -2,7 +2,7 @@ name: MatFocus Android APK
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, matfocus-1.2]
     tags: ['v*']
   pull_request:
   workflow_dispatch:
@@ -164,7 +164,8 @@ jobs:
             "sha256": os.environ["APK_SHA256"],
             "minimumSupportedVersion": 1,
             "mandatory": False,
-            "updateAvailable": True
+            "updateAvailable": True,
+            "applicationId": "com.flow.focus"
           }
           with open("dist/latest.json", "w", encoding="utf-8") as f:
             json.dump(manifest, f, ensure_ascii=False, indent=2)
