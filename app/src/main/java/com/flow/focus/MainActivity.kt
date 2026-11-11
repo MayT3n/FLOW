@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,7 +44,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -63,6 +66,7 @@ import com.flow.focus.ui.screens.StatsScreen
 import com.flow.focus.ui.screens.TasksScreen
 import com.flow.focus.ui.theme.Flow
 import com.flow.focus.ui.theme.FlowTheme
+import com.flow.focus.ui.theme.LocalDockContentPadding
 
 class MainActivity : ComponentActivity() {
     private val vm: AppViewModel by viewModels()
@@ -129,12 +133,17 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
     var tab by rememberSaveable { mutableStateOf(0) }
     var musicOpen by rememberSaveable { mutableStateOf(false) }
     var musicShelfExpanded by rememberSaveable { mutableStateOf(true) }
+    var dockAreaHeightPx by rememberSaveable { mutableStateOf(0) }
+    val contentBottomPadding = with(LocalDensity.current) {
+        if (dockAreaHeightPx > 0) dockAreaHeightPx.toDp() + 20.dp else 140.dp
+    }
     val music by vm.musicSnapshot.collectAsStateWithLifecycle()
     val animations = data.settings.animations
     BackHandler(enabled = musicOpen) { musicOpen = false }
     BackHandler(enabled = tab != 0) { tab = 0 }
 
     Box(Modifier.fillMaxSize()) {
+        CompositionLocalProvider(LocalDockContentPadding provides contentBottomPadding) {
         AnimatedContent(
             targetState = tab,
             modifier = Modifier.fillMaxSize(),
@@ -160,6 +169,7 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                 .navigationBarsPadding().padding(horizontal = 18.dp, vertical = 12.dp)
+                .onSizeChanged { dockAreaHeightPx = it.height }
                 .pointerInput(musicShelfExpanded) {
                     var dragDistance = 0f
                     detectVerticalDragGestures(
@@ -197,5 +207,6 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
             FlowDock(dockItems, tab, { tab = it }, Modifier.fillMaxWidth())
         }
         if (musicOpen) MusicPlayerDialog { musicOpen = false }
+        }
     }
 }
