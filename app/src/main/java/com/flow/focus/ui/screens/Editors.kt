@@ -76,8 +76,12 @@ fun TaskEditorDialog(
     val base = initial ?: template
     var title by remember { mutableStateOf(base?.title ?: "") }
     var notes by remember { mutableStateOf(base?.notes ?: "") }
-    var dueDay by remember { mutableStateOf(base?.dueDay) }
-    var minute by remember { mutableStateOf(base?.dueMinute) }
+    var dueDay by remember {
+        mutableStateOf(
+            base?.dueDay?.takeIf { epoch -> runCatching { LocalDate.ofEpochDay(epoch) }.isSuccess },
+        )
+    }
+    var minute by remember { mutableStateOf(base?.dueMinute?.takeIf { it in 0 until 24 * 60 }) }
     var priority by remember { mutableStateOf(base?.priority ?: Priority.MEDIUM) }
     var category by remember { mutableStateOf(base?.categoryId ?: "study") }
     var pomodoros by remember { mutableStateOf(base?.estimatedPomodoros ?: 1) }
