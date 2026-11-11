@@ -68,6 +68,7 @@ import com.flow.focus.ui.components.num
 import com.flow.focus.ui.glass.GlassLevel
 import com.flow.focus.ui.glass.GlassSurface
 import com.flow.focus.ui.rememberToday
+import com.flow.focus.ui.theme.LocalDockContentPadding
 import com.flow.focus.ui.theme.Flow
 import com.flow.focus.ui.theme.LocalGlass
 
@@ -87,7 +88,7 @@ fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
             .verticalScroll(rememberScrollState())
             .statusBarsPadding()
             .padding(horizontal = 18.dp)
-            .padding(top = 8.dp, bottom = 126.dp),
+            .padding(top = 8.dp, bottom = LocalDockContentPadding.current),
         verticalArrangement = Arrangement.spacedBy(17.dp),
     ) {
         ScreenHeader("آمار و تحلیل")
