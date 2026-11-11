@@ -121,4 +121,18 @@ class PlannerTest {
         assertEquals(recordings.map { it.id }.toSet(), AmbientSynth.sounds.map { it.id }.toSet())
         assertNull("صدای مصنوعی کافه حذف شده", AmbientLibrary.byId("cafe"))
         assertNull("صدای مصنوعی کتابخانه حذف شده", AmbientLibrary.byId("library"))
-    }}
+    }
+
+    @Test fun customPlaylistsSurviveSerialization() {
+        val playlist = MusicPlaylist(
+            id = "focus-night",
+            name = "تمرکز شبانه",
+            trackIds = listOf("quiet-room", "afterglow-vast"),
+            createdAt = 1_794_355_200_000L,
+        )
+        val codec = Json { encodeDefaults = true }
+        val encoded = codec.encodeToString(playlist)
+        val decoded = codec.decodeFromString<MusicPlaylist>(encoded)
+        assertEquals(playlist, decoded)
+    }
+}
