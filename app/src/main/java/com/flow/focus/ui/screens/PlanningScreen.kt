@@ -80,6 +80,7 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
     val today = rememberToday()
     val offlineOccasions by vm.offlineCalendarOccasions.collectAsStateWithLifecycle()
     val animations = Flow.glass.animations
+    val calendarColors = Flow.colors
     var mode by rememberSaveable { mutableStateOf(0) } // ۰ روزانه، ۱ هفتگی، ۲ ماهانه
     var selected by rememberSaveable { mutableStateOf(today.toEpochDay()) }
     var monthAnchor by rememberSaveable { mutableStateOf(firstOfMonth(today).toEpochDay()) }
@@ -166,7 +167,7 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                                 val taskColors = Planner.entriesFor(data, date)
                                     .map { Color(Categories.byId(it.categoryId).color) }
                                 val occasionColors = monthOccasions.filter { it.epochDay == day }.map {
-                                    if (it.isHoliday) Flow.colors.danger else Flow.colors.accent
+                                    if (it.isHoliday) calendarColors.danger else calendarColors.accent
                                 }
                                 val colors = (taskColors + occasionColors).distinct().take(3)
                                 if (colors.isNotEmpty()) put(day, colors)
