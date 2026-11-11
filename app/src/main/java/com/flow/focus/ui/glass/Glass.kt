@@ -209,15 +209,19 @@ fun GlassBackdropHost(settings: Settings, content: @Composable BoxScope.() -> Un
 
     LaunchedEffect(settings.wallpaperId, settings.wallpaperPath) {
         val path = settings.wallpaperPath
-        val decoded = if (settings.wallpaperId == "custom" && !path.isNullOrBlank()) {
+        val (decoded, sampledTone) = if (settings.wallpaperId == "custom" && !path.isNullOrBlank()) {
+            // Decode and sample on IO: scanning a user-selected bitmap on the UI thread can hitch transitions.
             withContext(Dispatchers.IO) {
                 runCatching {
-                    if (java.io.File(path).isFile) BitmapFactory.decodeFile(path) else null
-                }.getOrNull()
+                    val bitmap = if (java.io.File(path).isFile) BitmapFactory.decodeFile(path) else null
+                    bitmap to bitmap?.sampledAverageColor()
+                }.getOrDefault(null to null)
             }
-        } else null
+        } else {
+            null to builtinWallpaperTone(settings.wallpaperId)
+        }
         image.value = decoded?.asImageBitmap()
-        tone.value = decoded?.sampledAverageColor() ?: builtinWallpaperTone(settings.wallpaperId)
+        tone.value = sampledTone ?: builtinWallpaperTone(settings.wallpaperId)
     }
 
     // The phase is read by drawing, not by the composition on every frame.
