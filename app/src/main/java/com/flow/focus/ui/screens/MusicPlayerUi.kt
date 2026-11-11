@@ -32,10 +32,14 @@ import com.flow.focus.ui.components.FlowProgressBar
 import com.flow.focus.ui.components.FlowSlider
 import com.flow.focus.ui.components.GlassIconButton
 import com.flow.focus.ui.components.PrimaryButton
+import com.flow.focus.ui.components.SectionTitle
+import com.flow.focus.ui.components.SettingRow
+import com.flow.focus.ui.components.SwitchRow
 import com.flow.focus.ui.components.num
 import com.flow.focus.ui.glass.GlassSurface
 import com.flow.focus.ui.glass.springClick
 import com.flow.focus.ui.theme.Flow
+import com.flow.focus.data.Settings
 import androidx.compose.ui.text.style.TextOverflow
 
 @Composable
@@ -177,6 +181,92 @@ fun MusicPlayerDialog(vm: AppViewModel, onDismiss: () -> Unit) {
             color = Flow.colors.textSecondary,
         )
         PrimaryButton("بستن", onDismiss, Modifier.fillMaxWidth())
+    }
+}
+
+@Composable
+fun MusicSettings(vm: AppViewModel, settings: Settings) {
+    val snapshot by vm.musicSnapshot.collectAsStateWithLifecycle()
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("موسیقی تمرکز", style = Flow.type.label, color = Flow.colors.textPrimary)
+        MusicTrackChoice(
+            selectedId = settings.musicTrackId,
+            onSelect = { id -> vm.updateSettings { it.copy(musicTrackId = id) } },
+            onPreview = vm::playMusic,
+        )
+        Text("موسیقی استراحت", style = Flow.type.label, color = Flow.colors.textPrimary)
+        MusicTrackChoice(
+            selectedId = settings.breakMusicTrackId,
+            onSelect = { id -> vm.updateSettings { it.copy(breakMusicTrackId = id) } },
+            onPreview = vm::playMusic,
+        )
+        SettingRow("بلندی موسیقی") {
+            Text(num("${(settings.musicVolume * 100).toInt()}٪"), style = Flow.type.caption, color = Flow.colors.textSecondary)
+        }
+        FlowSlider(
+            value = settings.musicVolume,
+            onChange = { value -> vm.updateSettings { it.copy(musicVolume = value) } },
+            range = 0f..1f,
+        )
+        SwitchRow(
+            "پخش خودکار هنگام شروع Focus",
+            settings.musicAutoFocus,
+            { value -> vm.updateSettings { it.copy(musicAutoFocus = value) } },
+            subtitle = "آهنگ انتخاب‌شده‌ی تمرکز را شروع می‌کند",
+        )
+        SwitchRow(
+            "تغییر موسیقی در Break",
+            settings.musicSwitchOnBreak,
+            { value -> vm.updateSettings { it.copy(musicSwitchOnBreak = value) } },
+            subtitle = "هنگام ورود به استراحت، آهنگ استراحت پخش می‌شود",
+        )
+        SwitchRow(
+            "مکث موسیقی همراه تایمر",
+            settings.musicPauseWithTimer,
+            { value -> vm.updateSettings { it.copy(musicPauseWithTimer = value) } },
+            subtitle = "با مکث یا پایان تایمر، پخش موسیقی نیز متوقف می‌شود",
+        )
+        Text(
+            if (snapshot.connected) "MediaSession متصل است · پخش پس‌زمینه فعال" else "در حال اتصال به پخش‌کننده…",
+            style = Flow.type.caption,
+            color = if (snapshot.connected) Flow.colors.success else Flow.colors.textSecondary,
+        )
+    }
+}
+
+@Composable
+private fun MusicTrackChoice(
+    selectedId: String,
+    onSelect: (String) -> Unit,
+    onPreview: (String) -> Unit,
+) {
+    MusicCatalog.tracks.forEach { track ->
+        val selected = selectedId == track.id
+        GlassSurface(
+            Modifier.fillMaxWidth().springClick(onClick = { onSelect(track.id) }),
+            shape = RoundedCornerShape(15.dp),
+            level = com.flow.focus.ui.glass.GlassLevel.Subtle,
+            tint = if (selected) Flow.colors.accent else null,
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                MusicCover(track, Modifier.size(34.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Text(track.title, style = Flow.type.label, color = if (selected) Flow.colors.accent else Flow.colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(track.mood, style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 1)
+                }
+                GlassIconButton(
+                    FlowIcons.Play,
+                    { onPreview(track.id) },
+                    size = 32.dp,
+                    iconSize = 15.dp,
+                    contentDescription = "پیش‌شنوایی آهنگ",
+                )
+            }
+        }
     }
 }
 
