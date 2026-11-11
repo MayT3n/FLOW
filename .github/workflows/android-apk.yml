@@ -32,7 +32,9 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
+      # Android SDK روی ران‌ر از قبل نصب است؛ فقط لایسنس‌ها را می‌پذیریم (AGP بقیه را خودکار می‌گیرد)
+      - name: Accept Android SDK licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
       # Cache وابستگی‌ها و Gradle
       - uses: gradle/actions/setup-gradle@v4
