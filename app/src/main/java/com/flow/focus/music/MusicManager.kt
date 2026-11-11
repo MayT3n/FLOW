@@ -375,12 +375,13 @@ class MusicManager(
 
     fun removeDownload(trackId: String): Boolean {
         val track = MusicCatalog.tracks.firstOrNull { it.id == trackId } ?: return false
+        // Only catalog-owned names are used; corrupt and partial cache files can be cleaned too.
         val file = File(context.filesDir, "audio/music/${track.fileName}")
-        if (!file.exists()) return true
+        val partial = File(file.parentFile, file.name + ".part")
 
         // Switch an active local item back to its HTTPS source before deleting the cache file.
         val player = controller
-        if (player?.currentMediaItem?.mediaId == trackId) {
+        if (file.exists() && player?.currentMediaItem?.mediaId == trackId) {
             val index = player.currentMediaItemIndex
             val position = player.currentPosition.coerceAtLeast(0L)
             val shouldResume = player.isPlaying || player.playWhenReady
@@ -388,7 +389,9 @@ class MusicManager(
             player.seekTo(index, position)
             if (shouldResume) player.play() else player.pause()
         }
-        return file.delete()
+        val fileDeleted = !file.exists() || file.delete()
+        val partialDeleted = !partial.exists() || partial.delete()
+        return fileDeleted && partialDeleted
     }
 
     fun downloadedFile(track: MusicTrack): File? =
