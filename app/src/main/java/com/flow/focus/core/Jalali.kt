@@ -54,10 +54,13 @@ data class JalaliDate(val year: Int, val month: Int, val day: Int) : Comparable<
             return gregorianToJalali(g[0], g[1], g[2]).let { it[0] == year && it[1] == 12 && it[2] == 30 }
         }
 
-        fun monthLength(year: Int, month: Int): Int = when {
-            month <= 6 -> 31
-            month <= 11 -> 30
-            else -> if (isLeap(year)) 30 else 29
+        fun monthLength(year: Int, month: Int): Int {
+            require(month in 1..12) { "Jalali month must be between 1 and 12" }
+            return when {
+                month <= 6 -> 31
+                month <= 11 -> 30
+                else -> if (isLeap(year)) 30 else 29
+            }
         }
 
         /** ایندکس روز هفته با شروع از شنبه (۰) تا جمعه (۶). */
