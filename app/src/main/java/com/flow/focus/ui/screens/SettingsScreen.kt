@@ -466,7 +466,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                 downloadProgress = ambientProgress,
                 downloadedBytes = vm.downloadedAmbientBytes(),
                 onDownload = vm::downloadAmbient,
-                onDeleteDownload = vm::deleteAmbientDownload,
+                onDeleteDownload = { id -> vm.deleteAmbientDownload(id) },
             )
         }
 
