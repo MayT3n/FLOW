@@ -70,11 +70,11 @@ import kotlin.math.sin
  * شفافیت، Blur، نور و کیفیت از یک نقطه (تنظیمات) کنترل می‌شود.
  *
  *  - LOW:    سطح تخت و کم‌شفاف (کم‌مصرف‌ترین)
- *  - MEDIUM: شیشه‌ی نیمه‌شفاف با درخشش و لبه‌ی نورانی
- *  - HIGH:   MEDIUM + تاری واقعی پس‌زمینه (RenderEffect، اندروید ۱۲+)
+ *  - MEDIUM: تاری ملایم پس‌زمینه + Tint، Highlight و لبه‌ی نورانی
+ *  - HIGH:   تاری قوی‌تر و عمق بیشتر (RenderEffect، اندروید ۱۲+)
  *
- * پس‌زمینه یک بار در ریشه رسم می‌شود و پنل‌های HIGH همان را (با جابه‌جایی هم‌ترازشده) محو می‌کنند؛
- * بنابراین هنگام اسکرول و تغییر صفحه جدا شدن یا پرش دیده نمی‌شود.
+ * پس‌زمینه یک بار در ریشه رسم می‌شود و هر سطح فقط ناحیه‌ی هم‌اندازه‌ی خودش را از همان
+ * فریم رسم می‌کند؛ بنابراین اسکرول و تغییر صفحه باعث جداافتادگی تصویر پس‌زمینه نمی‌شود.
  */
 enum class GlassLevel { Subtle, Regular, Strong }
 
@@ -220,9 +220,14 @@ fun GlassSurface(
     val g = LocalGlass.current
     val rootSize = LocalRootSize.current
     val rootBackdrop = LocalRootBackdrop.current
-    // High quality applies a shared-backdrop blur to every surface. Subtle surfaces
-    // receive a gentler radius rather than being excluded from the Liquid Glass system.
-    val blurOn = g.quality == GlassQuality.HIGH && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+    // LOW avoids RenderEffect, MEDIUM uses a restrained blur, HIGH uses the full requested blur.
+    // The exact same root backdrop is sampled by every surface to keep glass coherent while scrolling.
+    val blurStrength = when (g.quality) {
+        GlassQuality.LOW -> 0f
+        GlassQuality.MEDIUM -> 0.48f
+        GlassQuality.HIGH -> 1f
+    }
+    val blurOn = blurStrength > 0f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
         rootSize != null && rootBackdrop != null && g.blurDp > 0
     val levelBlur = when (level) {
         GlassLevel.Subtle -> 0.55f
@@ -253,8 +258,9 @@ fun GlassSurface(
                     .graphicsLayer {
                         val extra = rootBackdrop!!.settings.wallpaperBlurDp.dp.toPx() * 0.35f
                         // Prevent extreme settings from turning each surface into an expensive full-screen blur pass.
-                        val requested = g.blurDp.dp.toPx() * levelBlur + extra
-                        val radius = requested.coerceAtMost(36.dp.toPx())
+                        val requested = g.blurDp.dp.toPx() * blurStrength * levelBlur + extra * blurStrength
+                        val maxRadius = if (g.quality == GlassQuality.MEDIUM) 20.dp.toPx() else 36.dp.toPx()
+                        val radius = requested.coerceAtMost(maxRadius)
                         renderEffect = BlurEffect(radius, radius)
                     }
                     .drawBehind {
