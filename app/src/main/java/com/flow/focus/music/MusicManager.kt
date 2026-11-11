@@ -278,7 +278,7 @@ class MusicManager(
 
     fun playPlaylist(playlistId: String) {
         val ids = _playlists.value.firstOrNull { it.id == playlistId }?.trackIds.orEmpty()
-        val trackIds = ids.filter { id -> MusicCatalog.tracks.any { it.id == id } }.distinct()
+        val trackIds = MusicCatalog.resolveTracks(ids).map { it.id }
         if (trackIds.isEmpty()) return
         val player = controller
         if (player == null) {
