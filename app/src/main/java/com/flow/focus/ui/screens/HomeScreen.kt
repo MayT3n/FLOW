@@ -1,6 +1,10 @@
 package com.flow.focus.ui.screens
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -384,6 +388,7 @@ private fun MainControl(running: Boolean, onClick: () -> Unit) {
 
 @Composable
 private fun TimerStatusPill(timer: TimerState, rounds: Int) {
+    val animations = LocalGlass.current.animations
     val c = Flow.colors
     val totalRounds = rounds.coerceAtLeast(1)
     val currentRound = timer.round.coerceIn(1, totalRounds)
@@ -433,12 +438,20 @@ private fun TimerStatusPill(timer: TimerState, rounds: Int) {
                 )
             }
             Spacer(Modifier.weight(1f))
-            Text(
-                num(statusLabel),
-                style = Flow.type.caption,
-                color = statusColor,
-                maxLines = 1,
-            )
+            if (animations) {
+                AnimatedContent(
+                    targetState = num(statusLabel),
+                    transitionSpec = {
+                        (fadeIn(tween(130)) + slideInVertically(tween(150)) { it / 4 }) togetherWith
+                            (fadeOut(tween(100)) + slideOutVertically(tween(120)) { -it / 4 })
+                    },
+                    label = "timer-status",
+                ) { label ->
+                    Text(label, style = Flow.type.caption, color = statusColor, maxLines = 1)
+                }
+            } else {
+                Text(num(statusLabel), style = Flow.type.caption, color = statusColor, maxLines = 1)
+            }
         }
     }
 }
@@ -499,7 +512,20 @@ private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier
                     color = c1,
                 )
                 Spacer(Modifier.height(2.dp))
-                Text(num(formatClock(seconds)), style = Flow.type.display, color = c.textPrimary, maxLines = 1)
+                if (glass.animations) {
+                    AnimatedContent(
+                        targetState = num(formatClock(seconds)),
+                        transitionSpec = {
+                            (fadeIn(tween(120)) + slideInVertically(tween(145)) { it / 3 }) togetherWith
+                                (fadeOut(tween(90)) + slideOutVertically(tween(115)) { -it / 3 })
+                        },
+                        label = "timer-digits",
+                    ) { value ->
+                        Text(value, style = Flow.type.display, color = c.textPrimary, maxLines = 1)
+                    }
+                } else {
+                    Text(num(formatClock(seconds)), style = Flow.type.display, color = c.textPrimary, maxLines = 1)
+                }
             }
         }
     }

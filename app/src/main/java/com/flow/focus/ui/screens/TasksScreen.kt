@@ -1,6 +1,11 @@
 package com.flow.focus.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -69,6 +74,7 @@ import com.flow.focus.ui.glass.floatSpring
 import com.flow.focus.ui.isOverdue
 import com.flow.focus.ui.rememberToday
 import com.flow.focus.ui.theme.Flow
+import com.flow.focus.ui.theme.LocalGlass
 
 @Composable
 fun TasksScreen(vm: AppViewModel, data: AppData, onStartFocus: () -> Unit, modifier: Modifier = Modifier) {
@@ -117,13 +123,19 @@ fun TasksScreen(vm: AppViewModel, data: AppData, onStartFocus: () -> Unit, modif
                 }
             }
             items(list, key = { it.id }) { t ->
-                TaskRow(
-                    t, today, Stats.pomodorosDone(data.sessions, t.id),
-                    active = data.timer.taskId == t.id,
-                    onToggle = { vm.setTaskDone(t.id, !t.done) },
-                    onEdit = { editing = t },
-                    onFocus = { vm.selectTask(t.id); onStartFocus() },
-                )
+                val animations = LocalGlass.current.animations
+                AnimatedVisibility(
+                    visible = true,
+                    enter = if (animations) fadeIn(tween(190)) + slideInVertically(tween(220)) { it / 12 } else androidx.compose.animation.EnterTransition.None,
+                ) {
+                    TaskRow(
+                        t, today, Stats.pomodorosDone(data.sessions, t.id),
+                        active = data.timer.taskId == t.id,
+                        onToggle = { vm.setTaskDone(t.id, !t.done) },
+                        onEdit = { editing = t },
+                        onFocus = { vm.selectTask(t.id); onStartFocus() },
+                    )
+                }
             }
         }
         Fab({ creating = true }, Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 108.dp).navigationBarsPadding())
@@ -186,6 +198,11 @@ private fun TaskRow(
     val cat = Categories.byId(t.categoryId)
     val due = dueLabel(t, today)
     val overdue = isOverdue(t, today)
+    val titleColor by animateColorAsState(
+        targetValue = if (t.done) c.textSecondary else c.textPrimary,
+        animationSpec = if (LocalGlass.current.animations) tween(180) else androidx.compose.animation.core.snap(),
+        label = "task-title-color",
+    )
     GlassSurface(
         Modifier.fillMaxWidth().springClick(scaleDown = 0.99f, onClick = onEdit),
         shape = RoundedCornerShape(19.dp),
@@ -201,7 +218,7 @@ private fun TaskRow(
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         t.title, style = Flow.type.bodyStrong,
-                        color = if (t.done) c.textSecondary else c.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                        color = titleColor, maxLines = 2, overflow = TextOverflow.Ellipsis,
                     )
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Box(Modifier.size(7.dp).clip(CircleShape).background(Color(cat.color)))
