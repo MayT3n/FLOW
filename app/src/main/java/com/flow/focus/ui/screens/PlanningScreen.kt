@@ -1,5 +1,15 @@
 package com.flow.focus.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -86,7 +96,20 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             ScreenHeader("برنامه‌ریزی")
             SegmentedControl(listOf("روزانه", "هفتگی", "ماهانه"), mode, { mode = it })
 
-            when (mode) {
+            AnimatedContent(
+                targetState = mode,
+                transitionSpec = {
+                    if (Flow.glass.animations) {
+                        val direction = if (targetState > initialState) 1 else -1
+                        (fadeIn(tween(180)) + slideInVertically(tween(220)) { it / 18 * direction }) togetherWith
+                            (fadeOut(tween(140)) + slideOutVertically(tween(180)) { -it / 18 * direction })
+                    } else {
+                        ContentTransform(EnterTransition.None, ExitTransition.None)
+                    }
+                },
+                label = "planning-mode",
+            ) { activeMode ->
+                when (activeMode) {
                 0 -> DailyView(
                     vm, data, selDate, today,
                     onDay = { selected = it.toEpochDay() },
@@ -137,6 +160,7 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                     }, Modifier.fillMaxWidth())
                     SectionTitle(num(DateFormats.full(selDate)))
                     EntryList(vm, data, selDate, onEdit = { editing = it }, onMove = { moveTask = it })
+                }
                 }
             }
         }

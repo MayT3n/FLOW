@@ -44,7 +44,8 @@ class WallpaperStore(context: Context) {
 
     fun isStored(path: String): Boolean {
         val file = runCatching { File(path).canonicalFile }.getOrNull() ?: return false
-        return file.parentFile == directory.canonicalFile && file.isFile && file.name.startsWith("wallpaper-")
+        val parent = runCatching { directory.canonicalFile }.getOrNull() ?: return false
+        return file.parentFile == parent && file.isFile && file.name.startsWith("wallpaper-")
     }
 
     fun delete(path: String) {
