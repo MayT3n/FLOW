@@ -63,6 +63,7 @@ import com.flow.focus.ui.components.SegmentedControl
 import com.flow.focus.ui.components.num
 import com.flow.focus.ui.dueLabel
 import com.flow.focus.ui.glass.GlassSurface
+import com.flow.focus.ui.glass.GlassLevel
 import com.flow.focus.ui.glass.springClick
 import com.flow.focus.ui.glass.floatSpring
 import com.flow.focus.ui.isOverdue
@@ -185,15 +186,16 @@ private fun TaskRow(
     val cat = Categories.byId(t.categoryId)
     val due = dueLabel(t, today)
     val overdue = isOverdue(t, today)
-    Column(
-        Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(if (active) c.accentSoft.copy(alpha = 0.55f) else Color.Transparent)
-            .springClick(scaleDown = 0.99f, onClick = onEdit)
-            .padding(horizontal = 8.dp, vertical = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(9.dp),
+    GlassSurface(
+        Modifier.fillMaxWidth().springClick(scaleDown = 0.99f, onClick = onEdit),
+        shape = RoundedCornerShape(19.dp),
+        level = GlassLevel.Subtle,
+        tint = if (active) c.accent else null,
     ) {
-        Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(
+            Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 CheckCircle(t.done, onToggle, size = 28.dp, color = Color(cat.color))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -219,6 +221,5 @@ private fun TaskRow(
                 }
             }
         }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(c.track.copy(alpha = 0.8f)))
     }
 }
