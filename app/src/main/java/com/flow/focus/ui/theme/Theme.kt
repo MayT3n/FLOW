@@ -17,7 +17,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalLayoutDirection
 import com.flow.focus.data.GlassQuality
@@ -94,6 +96,9 @@ val LocalFlowColors = compositionLocalOf { DarkColors }
 val LocalGlass = compositionLocalOf { GlassConfig() }
 val LocalPersianDigits = compositionLocalOf { true }
 
+/** Measured safe space reserved for the floating dock and optional mini-player. */
+val LocalDockContentPadding = compositionLocalOf<Dp> { 140.dp }
+
 /** فونت: اگر Vazirmatn در assets/fonts باشد (CI دانلودش می‌کند) استفاده می‌شود، وگرنه فونت سیستم. */
 fun loadFontFamily(ctx: Context): FontFamily {
     return try {
@@ -102,9 +107,13 @@ fun loadFontFamily(ctx: Context): FontFamily {
         if (has("Vazirmatn-Regular.ttf")) {
             val list = mutableListOf(Font(assetManager = am, path = "fonts/Vazirmatn-Regular.ttf", weight = FontWeight.Normal))
             if (has("Vazirmatn-Medium.ttf")) list += Font(assetManager = am, path = "fonts/Vazirmatn-Medium.ttf", weight = FontWeight.Medium)
+            if (has("Vazirmatn-SemiBold.ttf")) {
+                list += Font(assetManager = am, path = "fonts/Vazirmatn-SemiBold.ttf", weight = FontWeight.SemiBold)
+            } else if (has("Vazirmatn-Bold.ttf")) {
+                list += Font(assetManager = am, path = "fonts/Vazirmatn-Bold.ttf", weight = FontWeight.SemiBold)
+            }
             if (has("Vazirmatn-Bold.ttf")) {
                 list += Font(assetManager = am, path = "fonts/Vazirmatn-Bold.ttf", weight = FontWeight.Bold)
-                list += Font(assetManager = am, path = "fonts/Vazirmatn-Bold.ttf", weight = FontWeight.SemiBold)
             }
             FontFamily(list)
         } else FontFamily.Default
