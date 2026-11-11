@@ -305,11 +305,29 @@ fun FlowSlider(value: Float, onChange: (Float) -> Unit, range: ClosedFloatingPoi
 fun Stepper(value: Int, onChange: (Int) -> Unit, range: IntRange, modifier: Modifier = Modifier, step: Int = 1, suffix: String = "") {
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         GlassIconButton(FlowIcons.Minus, { onChange((value - step).coerceIn(range)) }, size = 36.dp, iconSize = 18.dp, enabled = value > range.first)
-        Text(
-            num(value) + if (suffix.isNotEmpty()) " $suffix" else "",
-            style = Flow.type.bodyStrong, color = Flow.colors.textPrimary,
-            modifier = Modifier.widthIn(min = 56.dp), textAlign = TextAlign.Center, maxLines = 1,
-        )
+        val displayValue = num(value) + if (suffix.isNotEmpty()) " $suffix" else ""
+        if (LocalGlass.current.animations) {
+            AnimatedContent(
+                targetState = displayValue,
+                transitionSpec = {
+                    (fadeIn(tween(120)) + slideInVertically(tween(145)) { it / 4 }) togetherWith
+                        (fadeOut(tween(90)) + slideOutVertically(tween(115)) { -it / 4 })
+                },
+                label = "stepper-value",
+            ) { shownValue ->
+                Text(
+                    shownValue,
+                    style = Flow.type.bodyStrong, color = Flow.colors.textPrimary,
+                    modifier = Modifier.widthIn(min = 56.dp), textAlign = TextAlign.Center, maxLines = 1,
+                )
+            }
+        } else {
+            Text(
+                displayValue,
+                style = Flow.type.bodyStrong, color = Flow.colors.textPrimary,
+                modifier = Modifier.widthIn(min = 56.dp), textAlign = TextAlign.Center, maxLines = 1,
+            )
+        }
         GlassIconButton(FlowIcons.Plus, { onChange((value + step).coerceIn(range)) }, size = 36.dp, iconSize = 18.dp, enabled = value < range.last)
     }
 }

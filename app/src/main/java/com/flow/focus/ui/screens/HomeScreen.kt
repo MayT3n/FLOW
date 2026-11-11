@@ -397,11 +397,16 @@ private fun TimerStatusPill(timer: TimerState, rounds: Int) {
         TimerStatus.PAUSED -> "متوقف شده"
         TimerStatus.RUNNING -> "در حال اجرا"
     }
-    val statusColor = when (timer.status) {
+    val targetStatusColor = when (timer.status) {
         TimerStatus.IDLE -> c.textSecondary
         TimerStatus.PAUSED -> c.accentAlt
         TimerStatus.RUNNING -> c.success
     }
+    val statusColor by animateColorAsState(
+        targetValue = targetStatusColor,
+        animationSpec = if (animations) tween(180) else snap(),
+        label = "timer-status-color",
+    )
 
     GlassSurface(
         Modifier.fillMaxWidth().padding(horizontal = 12.dp),
@@ -419,15 +424,20 @@ private fun TimerStatusPill(timer: TimerState, rounds: Int) {
             ) {
                 repeat(totalRounds) { index ->
                     val round = index + 1
-                    val color = when {
+                    val targetColor = when {
                         round < currentRound -> c.success
                         round == currentRound -> c.accent
                         else -> c.track
                     }
+                    val dotColor by animateColorAsState(
+                        targetValue = targetColor,
+                        animationSpec = if (animations) tween(180) else snap(),
+                        label = "timer-round-marker-$index",
+                    )
                     Box(
                         Modifier.size(if (round == currentRound) 8.dp else 6.dp)
                             .clip(CircleShape)
-                            .background(color),
+                            .background(dotColor),
                     )
                 }
                 Text(
