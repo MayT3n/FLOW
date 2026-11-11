@@ -7,7 +7,6 @@ import androidx.lifecycle.viewModelScope
 import com.flow.focus.FlowApp
 import com.flow.focus.core.CalendarOccasion
 import com.flow.focus.core.IranianCalendarData
-import com.flow.focus.core.JalaliDate
 import com.flow.focus.data.AppData
 import com.flow.focus.data.Goal
 import com.flow.focus.data.GoalPeriod
