@@ -58,6 +58,7 @@ class MusicManager(
     private var controller: MediaController? = null
     private var controllerFuture: ListenableFuture<MediaController>? = null
     @Volatile private var pendingPlayTrackId: String? = null
+    @Volatile private var pendingVolume: Float = 0.8f
     private val playerListener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) = publish()
     }
@@ -68,6 +69,7 @@ class MusicManager(
             future.addListener({
                 runCatching {
                     controller = future.get().also { player ->
+                        player.volume = pendingVolume.coerceIn(0f, 1f)
                         player.addListener(playerListener)
                         if (player.mediaItemCount == 0) {
                             player.setMediaItems(MusicCatalog.tracks.map { track -> MusicCatalog.mediaItem(track, downloadedFile(track)) })
@@ -120,7 +122,11 @@ class MusicManager(
     fun next() { controller?.seekToNextMediaItem(); publish() }
     fun previous() { controller?.seekToPreviousMediaItem(); publish() }
     fun seekTo(positionMs: Long) { controller?.seekTo(positionMs); publish() }
-    fun setVolume(value: Float) { controller?.volume = value.coerceIn(0f, 1f); publish() }
+    fun setVolume(value: Float) {
+        pendingVolume = value.coerceIn(0f, 1f)
+        controller?.volume = pendingVolume
+        publish()
+    }
 
     fun toggleShuffle() {
         val player = controller ?: return
