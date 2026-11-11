@@ -390,19 +390,17 @@ private fun TrackPlaylistPickerDialog(
 @Composable
 fun MusicSettings(vm: AppViewModel, settings: Settings) {
     val snapshot by vm.musicSnapshot.collectAsStateWithLifecycle()
+    var selectingFocus by remember { mutableStateOf(false) }
+    var selectingBreak by remember { mutableStateOf(false) }
+    val focusTrack = MusicCatalog.tracks.firstOrNull { it.id == settings.musicTrackId } ?: MusicCatalog.tracks.first()
+    val breakTrack = MusicCatalog.tracks.firstOrNull { it.id == settings.breakMusicTrackId } ?: MusicCatalog.tracks[1]
+
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("موسیقی تمرکز", style = Flow.type.label, color = Flow.colors.textPrimary)
-        MusicTrackChoice(
-            selectedId = settings.musicTrackId,
-            onSelect = { id -> vm.updateSettings { it.copy(musicTrackId = id) } },
-            onPreview = vm::playMusic,
-        )
+        SelectedMusicSetting(focusTrack) { selectingFocus = true }
         Text("موسیقی استراحت", style = Flow.type.label, color = Flow.colors.textPrimary)
-        MusicTrackChoice(
-            selectedId = settings.breakMusicTrackId,
-            onSelect = { id -> vm.updateSettings { it.copy(breakMusicTrackId = id) } },
-            onPreview = vm::playMusic,
-        )
+        SelectedMusicSetting(breakTrack) { selectingBreak = true }
+
         SettingRow("بلندی موسیقی") {
             Text(num("${(settings.musicVolume * 100).toInt()}٪"), style = Flow.type.caption, color = Flow.colors.textSecondary)
         }
@@ -434,6 +432,43 @@ fun MusicSettings(vm: AppViewModel, settings: Settings) {
             style = Flow.type.caption,
             color = if (snapshot.connected) Flow.colors.success else Flow.colors.textSecondary,
         )
+    }
+
+    if (selectingFocus) {
+        FlowDialog({ selectingFocus = false }, "انتخاب موسیقی تمرکز") {
+            MusicTrackChoice(
+                selectedId = settings.musicTrackId,
+                onSelect = { id -> vm.updateSettings { it.copy(musicTrackId = id) }; selectingFocus = false },
+                onPreview = vm::playMusic,
+            )
+        }
+    }
+    if (selectingBreak) {
+        FlowDialog({ selectingBreak = false }, "انتخاب موسیقی استراحت") {
+            MusicTrackChoice(
+                selectedId = settings.breakMusicTrackId,
+                onSelect = { id -> vm.updateSettings { it.copy(breakMusicTrackId = id) }; selectingBreak = false },
+                onPreview = vm::playMusic,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SelectedMusicSetting(track: MusicTrack, onChoose: () -> Unit) {
+    GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(17.dp)) {
+        Row(
+            Modifier.fillMaxWidth().padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            MusicCover(track, Modifier.size(42.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(track.title, style = Flow.type.label, color = Flow.colors.textPrimary, maxLines = 1)
+                Text(track.mood, style = Flow.type.caption, color = Flow.colors.textSecondary)
+            }
+            GlassButton("انتخاب", onChoose, icon = FlowIcons.ChevronNext)
+        }
     }
 }
 
