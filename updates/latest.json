@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "versionName": "1.2",
+  "versionCode": 1027,
+  "releaseDate": "2026-11-11",
+  "changelog": [
+    "MatFocus branding and core update infrastructure."
+  ],
+  "downloadUrl": "",
+  "fileSize": 0,
+  "sha256": "",
+  "minimumSupportedVersion": 1,
+  "mandatory": false,
+  "updateAvailable": false
+}
