@@ -15,12 +15,16 @@ import kotlinx.coroutines.launch
  */
 class FlowRepository(private val store: JsonStore, scope: CoroutineScope) {
     private val lock = Any()
-    private val _data = MutableStateFlow(store.load())
+    private val loadedData = store.load()
+    private val initialData = migrateLegacySettings(loadedData)
+    private val _data = MutableStateFlow(initialData)
     val data: StateFlow<AppData> = _data.asStateFlow()
 
     private val saveSignal = Channel<Unit>(Channel.CONFLATED)
 
     init {
+        // Keep all existing tasks/sessions/timer/settings; only retire ambient IDs that no longer exist.
+        if (initialData != loadedData) saveSignal.trySend(Unit)
         scope.launch(Dispatchers.IO) {
             for (ignored in saveSignal) {
                 runCatching { store.save(_data.value) }
@@ -101,8 +105,15 @@ class FlowRepository(private val store: JsonStore, scope: CoroutineScope) {
     /** بازیابی نسخه‌ی پشتیبان؛ در صورت معتبر نبودن فایل false برمی‌گرداند و چیزی تغییر نمی‌کند. */
     fun importJson(text: String): Boolean {
         val parsed = store.decodeOrNull(text) ?: return false
-        update { parsed.copy(timer = TimerState()) }
+        update { migrateLegacySettings(parsed).copy(timer = TimerState()) }
         return true
+    }
+
+    private fun migrateLegacySettings(data: AppData): AppData {
+        val supportedAmbientIds = setOf("none", "rain", "forest", "wind", "waves", "fire", "shore")
+        val selected = data.settings.ambientSound
+        if (selected in supportedAmbientIds) return data
+        return data.copy(settings = data.settings.copy(ambientSound = "none"))
     }
 
     companion object {
