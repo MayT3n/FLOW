@@ -115,18 +115,18 @@ class RemoteContentRepository(
 
         val feedText = fetchText(NEWS_URL)
         val manifestText = fetchText(UPDATE_URL)
-        var changed = false
-        var validResponse = false
+        var anyValidResponse = false
 
         if (feedText != null) {
             val parsed = runCatching { json.decodeFromString<NewsFeed>(feedText) }.getOrNull()
             if (parsed != null && parsed.schemaVersion == 1) {
-                validResponse = true
-                val normalized = parsed.copy(items = parsed.items.filter { it.id.isNotBlank() && it.title.isNotBlank() && isActive(it) })
+                anyValidResponse = true
+                val normalized = parsed.copy(items = parsed.items.filter {
+                    it.id.isNotBlank() && it.title.isNotBlank() && isActive(it)
+                })
                 val normalizedJson = json.encodeToString(normalized)
                 if (prefs[feedKey] != normalizedJson) {
                     store.edit { it[feedKey] = normalizedJson }
-                    changed = true
                 }
                 _items.value = normalized.items.sortedByDescending { it.publishedAt }
             }
@@ -135,22 +135,21 @@ class RemoteContentRepository(
         if (manifestText != null) {
             val parsed = runCatching { json.decodeFromString<UpdateManifest>(manifestText) }.getOrNull()
             if (parsed != null && isValidManifest(parsed)) {
-                validResponse = true
+                anyValidResponse = true
                 val manifestJson = json.encodeToString(parsed)
                 if (prefs[manifestKey] != manifestJson) {
                     store.edit { it[manifestKey] = manifestJson }
-                    changed = true
                 }
                 _manifest.value = parsed
             }
         }
 
-        // Keep the last successful check timestamp. A failed request is retried on the next app open/worker run.
-        if (validResponse) {
+        // Record every valid successful check, even when the JSON is unchanged.
+        if (anyValidResponse) {
             store.edit { it[lastSyncKey] = now }
             _lastSync.value = now
         }
-        return changed || (_items.value.isNotEmpty() || _manifest.value != null)
+        return anyValidResponse || _items.value.isNotEmpty() || _manifest.value != null
     }
 
     suspend fun markRead(id: String) {
