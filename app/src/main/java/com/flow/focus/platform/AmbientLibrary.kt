@@ -30,7 +30,7 @@ object AmbientLibrary {
             "rain", "باران واقعی", "ضبط میدانی بارش باران · حدود ۴۵ ثانیه",
             "https://commons.wikimedia.org/wiki/Special:Redirect/file/Rain_%281%29.ogg",
             "https://commons.wikimedia.org/wiki/File:Rain_(1).ogg", "ezwa", "00:45", "Public Domain",
-            "https://creativecommons.org/publicdomain/zero/1.0/",
+            "https://creativecommons.org/publicdomain/mark/1.0/",
         ),
         AmbientRecording(
             "forest", "جنگل", "ضبط فضای جنگلی با پرندگان و باد · ۲:۰۳",
@@ -75,7 +75,12 @@ class AmbientAssetStore(private val context: Context) {
 
     fun localFile(id: String): File? {
         val recording = AmbientLibrary.byId(id) ?: return null
-        return File(folder, "${recording.id}.ogg").takeIf { it.isFile && it.length() > 1024L }
+        return File(folder, "${recording.id}.ogg").takeIf { file ->
+            file.isFile && file.length() > 1024L && file.inputStream().use { input ->
+                val signature = ByteArray(4)
+                input.read(signature) == 4 && signature.contentEquals(byteArrayOf(0x4f, 0x67, 0x67, 0x53))
+            }
+        }
     }
 
     fun isDownloaded(id: String): Boolean = localFile(id) != null
@@ -98,11 +103,23 @@ class AmbientAssetStore(private val context: Context) {
             require(connection.responseCode in 200..299 && connection.url.protocol == "https") {
                 "سرور فایل صوتی پاسخ HTTPS معتبر نداد."
             }
+            val contentType = connection.contentType?.substringBefore(';')?.trim()?.lowercase().orEmpty()
+            require(contentType.isEmpty() || contentType.startsWith("audio/") ||
+                contentType == "application/ogg" || contentType == "application/octet-stream") {
+                "پاسخ سرور فایل صوتی OGG نیست."
+            }
             val expected = connection.contentLengthLong
             require(expected <= 0L || expected <= MAX_AUDIO_BYTES) { "حجم فایل صوتی بیش از حد مجاز است." }
             var written = 0L
             connection.inputStream.use { input ->
                 part.outputStream().buffered().use { output ->
+                    val signature = ByteArray(4)
+                    val signatureCount = input.read(signature)
+                    require(signatureCount == 4 && signature.contentEquals(byteArrayOf(0x4f, 0x67, 0x67, 0x53))) {
+                        "فایل دریافتی ساختار OGG معتبر ندارد."
+                    }
+                    output.write(signature)
+                    written = 4L
                     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                     while (true) {
                         val count = input.read(buffer)
