@@ -136,6 +136,7 @@ class UpdateManager(private val context: Context) {
         require(archive.packageName == context.packageName) { "این APK متعلق به برنامه‌ی دیگری است." }
         require(versionCode(archive) == expectedVersionCode.toLong()) { "شماره‌ی نسخه‌ی APK با Manifest تطابق ندارد." }
         require(archive.versionName == expectedVersionName) { "نام نسخه‌ی APK با Manifest تطابق ندارد." }
+        require(archive.versionName == expectedVersionName) { "نام نسخه‌ی APK با Manifest تطابق ندارد." }
         val minimumSdk = archive.applicationInfo?.minSdkVersion ?: 1
         require(Build.VERSION.SDK_INT >= minimumSdk) { "این APK با نسخه‌ی اندروید دستگاه سازگار نیست." }
 
