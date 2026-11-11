@@ -1,11 +1,13 @@
 package com.flow.focus.ui.screens
 
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,9 +34,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.flow.focus.BuildConfig
 import com.flow.focus.data.AppData
@@ -57,6 +64,8 @@ import com.flow.focus.ui.glass.GlassSurface
 import com.flow.focus.ui.glass.springClick
 import com.flow.focus.ui.theme.Flow
 import java.time.LocalDate
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {
@@ -100,12 +109,67 @@ private fun WallpaperOption(
 }
 
 @Composable
+private fun WallpaperPreviewSurface(
+    id: String,
+    path: String?,
+    fit: WallpaperFit,
+    dim: Float,
+) {
+    val bitmap = remember(path) { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(path) {
+        bitmap.value = if (id == "custom" && !path.isNullOrBlank()) {
+            withContext(Dispatchers.IO) {
+                runCatching { BitmapFactory.decodeFile(path)?.asImageBitmap() }.getOrNull()
+            }
+        } else null
+    }
+    val palette = when (id) {
+        "aurora" -> listOf(Color(0xFF07172B), Color(0xFF173B59), Color(0xFF382B65))
+        "midnight" -> listOf(Color(0xFF070D1B), Color(0xFF172A42), Color(0xFF26364B))
+        "dusk" -> listOf(Color(0xFF241B37), Color(0xFF69435E), Color(0xFF273D5C))
+        else -> listOf(Color(0xFF18233F), Color(0xFF34466B), Color(0xFF242C4D))
+    }
+    Box(
+        Modifier.fillMaxWidth().height(176.dp).clip(RoundedCornerShape(22.dp))
+            .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(22.dp)),
+    ) {
+        if (id == "custom" && bitmap.value != null) {
+            Image(
+                bitmap = bitmap.value!!,
+                contentDescription = "پیش‌نمایش تصویر پس‌زمینه",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = if (fit == WallpaperFit.CROP) ContentScale.Crop else ContentScale.Fit,
+            )
+        } else {
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(palette)))
+        }
+        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = dim.coerceIn(0f, 0.65f))))
+        if (id == "custom" && bitmap.value == null) {
+            Text(
+                "در حال آماده‌سازی پیش‌نمایش…",
+                Modifier.align(Alignment.Center),
+                style = Flow.type.body,
+                color = Color.White,
+            )
+        }
+        Text(
+            "FLOW",
+            Modifier.align(Alignment.BottomStart).padding(14.dp),
+            style = Flow.type.title.copy(letterSpacing = 2.sp),
+            color = Color.White,
+        )
+    }
+}
+
+@Composable
 fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifier) {
     val st = data.settings
     val ctx = LocalContext.current
     val playing by vm.ambientPlaying.collectAsStateWithLifecycle()
     var confirmHistory by remember { mutableStateOf(false) }
     var confirmAll by remember { mutableStateOf(false) }
+    var wallpaperPreviewId by remember { mutableStateOf<String?>(null) }
+    var pendingWallpaperPath by remember { mutableStateOf<String?>(null) }
 
     // پیش‌شنوایی با خروج از صفحه قطع شود
     DisposableEffect(Unit) { onDispose { vm.stopAmbientPreview() } }
@@ -118,8 +182,14 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
     }
     val wallpaperLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
-            vm.importWallpaper(uri) { ok ->
-                Toast.makeText(ctx, if (ok) "تصویر پس‌زمینه ذخیره شد" else "خواندن تصویر ناموفق بود", Toast.LENGTH_SHORT).show()
+            vm.importWallpaper(uri) { path ->
+                if (path != null) {
+                    pendingWallpaperPath?.let(vm::discardWallpaperPreview)
+                    pendingWallpaperPath = path
+                    wallpaperPreviewId = "custom"
+                } else {
+                    Toast.makeText(ctx, "خواندن تصویر ناموفق بود", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -151,10 +221,10 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
         Section("پس‌زمینه") {
             Text("انتخاب پس‌زمینه", style = Flow.type.body, color = Flow.colors.textPrimary)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                WallpaperOption("gradient", "اصلی", st.wallpaperId == "gradient", Modifier.weight(1f)) { vm.selectWallpaper("gradient") }
-                WallpaperOption("aurora", "شفق", st.wallpaperId == "aurora", Modifier.weight(1f)) { vm.selectWallpaper("aurora") }
-                WallpaperOption("midnight", "نیمه‌شب", st.wallpaperId == "midnight", Modifier.weight(1f)) { vm.selectWallpaper("midnight") }
-                WallpaperOption("dusk", "غروب", st.wallpaperId == "dusk", Modifier.weight(1f)) { vm.selectWallpaper("dusk") }
+                WallpaperOption("gradient", "اصلی", st.wallpaperId == "gradient", Modifier.weight(1f)) { wallpaperPreviewId = "gradient" }
+                WallpaperOption("aurora", "شفق", st.wallpaperId == "aurora", Modifier.weight(1f)) { wallpaperPreviewId = "aurora" }
+                WallpaperOption("midnight", "نیمه‌شب", st.wallpaperId == "midnight", Modifier.weight(1f)) { wallpaperPreviewId = "midnight" }
+                WallpaperOption("dusk", "غروب", st.wallpaperId == "dusk", Modifier.weight(1f)) { wallpaperPreviewId = "dusk" }
             }
             GlassButton(
                 "انتخاب تصویر از گالری",
@@ -248,6 +318,66 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
 
         Section("درباره") {
             SettingRow("FLOW", subtitle = "تمرکز کن، جریان بساز.") { Text(num("نسخه ${BuildConfig.VERSION_NAME}"), style = Flow.type.caption, color = Flow.colors.textSecondary) }
+        }
+    }
+
+    wallpaperPreviewId?.let { previewId ->
+        FlowDialog(
+            onDismiss = {
+                if (previewId == "custom") pendingWallpaperPath?.let(vm::discardWallpaperPreview)
+                pendingWallpaperPath = null
+                wallpaperPreviewId = null
+            },
+            title = "پیش‌نمایش پس‌زمینه",
+        ) {
+            WallpaperPreviewSurface(
+                previewId,
+                if (previewId == "custom") pendingWallpaperPath else null,
+                st.wallpaperFit,
+                st.wallpaperDim,
+            )
+            Text(
+                when (previewId) {
+                    "gradient" -> "پس‌زمینه‌ی گرادیانی اصلی FLOW"
+                    "aurora" -> "طیف آبی و بنفش با نور نرم"
+                    "midnight" -> "رنگ‌های تیره و آرام"
+                    "dusk" -> "ترکیب گرم غروب و آبی تیره"
+                    else -> "تصویر انتخاب‌شده از گالری"
+                },
+                style = Flow.type.caption,
+                color = Flow.colors.textSecondary,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                PrimaryButton(
+                    "اعمال پس‌زمینه",
+                    {
+                        val applied = if (previewId == "custom") {
+                            pendingWallpaperPath?.let(vm::applyCustomWallpaper) == true
+                        } else {
+                            vm.selectWallpaper(previewId)
+                            true
+                        }
+                        if (applied) {
+                            Toast.makeText(ctx, "پس‌زمینه اعمال شد", Toast.LENGTH_SHORT).show()
+                            pendingWallpaperPath = null
+                            wallpaperPreviewId = null
+                        } else {
+                            Toast.makeText(ctx, "اعمال تصویر ناموفق بود؛ فایل در دسترس نیست", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    Modifier.weight(1f),
+                    enabled = previewId != "custom" || pendingWallpaperPath != null,
+                )
+                GlassButton(
+                    "انصراف",
+                    {
+                        if (previewId == "custom") pendingWallpaperPath?.let(vm::discardWallpaperPreview)
+                        pendingWallpaperPath = null
+                        wallpaperPreviewId = null
+                    },
+                    Modifier.weight(1f),
+                )
+            }
         }
     }
 
