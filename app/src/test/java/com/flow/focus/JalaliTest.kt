@@ -63,4 +63,10 @@ class JalaliTest {
         assertEquals("۲۴:۳۸", "24:38".withDigits(true))
         assertEquals("24:38", "۲۴:۳۸".withDigits(false))
     }
+    @Test fun official1405CalendarDatesRoundTrip() {
+        assertEquals(LocalDate.of(2026, 3, 21), JalaliDate(1405, 1, 1).toLocalDate())
+        assertEquals(LocalDate.of(2026, 11, 13), JalaliDate(1405, 8, 22).toLocalDate())
+        assertEquals(LocalDate.of(2027, 3, 10), JalaliDate(1405, 12, 19).toLocalDate())
+    }
+
 }
