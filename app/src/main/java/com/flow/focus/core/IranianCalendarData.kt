@@ -54,10 +54,27 @@ object IranianCalendarData {
         val eventPath = "calendar/$jalaliYear-events.json"
         val holidays = readFeed(context, holidayPath, jalaliYear)
         val events = readFeed(context, eventPath, jalaliYear)
-        return (holidays + events)
-            .distinctBy { it.id }
-            .sortedWith(compareBy<CalendarOccasion>({ it.epochDay }, { !it.isHoliday }, { it.titleFa }))
+        return sortOccasions(holidays + events)
     }
+
+    /** Loads only year feeds bundled in the APK; no network is used. */
+    fun loadAll(context: Context): List<CalendarOccasion> {
+        val years = runCatching { context.assets.list("calendar").orEmpty() }
+            .getOrDefault(emptyArray())
+            .mapNotNull { name ->
+                val parts = name.split('-')
+                if (parts.size == 2 && (parts[1] == "holidays.json" || parts[1] == "events.json")) {
+                    parts[0].toIntOrNull()
+                } else null
+            }
+            .distinct()
+            .sorted()
+        return sortOccasions(years.flatMap { load(context, it) })
+    }
+
+    private fun sortOccasions(items: List<CalendarOccasion>): List<CalendarOccasion> =
+        items.distinctBy { it.id }
+            .sortedWith(compareBy<CalendarOccasion>({ it.epochDay }, { !it.isHoliday }, { it.titleFa }))
 
     private fun readFeed(context: Context, assetPath: String, expectedYear: Int): List<CalendarOccasion> {
         val raw = runCatching {
