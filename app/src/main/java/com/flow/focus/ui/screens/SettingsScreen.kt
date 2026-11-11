@@ -239,6 +239,9 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                 WallpaperOption("aurora", "شفق", st.wallpaperId == "aurora", Modifier.weight(1f)) { wallpaperPreviewId = "aurora" }
                 WallpaperOption("midnight", "نیمه‌شب", st.wallpaperId == "midnight", Modifier.weight(1f)) { wallpaperPreviewId = "midnight" }
                 WallpaperOption("dusk", "غروب", st.wallpaperId == "dusk", Modifier.weight(1f)) { wallpaperPreviewId = "dusk" }
+                if (!st.wallpaperPath.isNullOrBlank()) {
+                    WallpaperOption("custom", "شخصی", st.wallpaperId == "custom", Modifier.weight(1f)) { wallpaperPreviewId = "custom" }
+                }
             }
             GlassButton(
                 "انتخاب تصویر از گالری",
@@ -346,7 +349,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
         ) {
             WallpaperPreviewSurface(
                 previewId,
-                if (previewId == "custom") pendingWallpaperPath else null,
+                if (previewId == "custom") pendingWallpaperPath ?: st.wallpaperPath else null,
                 st.wallpaperFit,
                 st.wallpaperDim,
                 st.wallpaperBlurDp,
@@ -367,7 +370,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                     "اعمال پس‌زمینه",
                     {
                         val applied = if (previewId == "custom") {
-                            pendingWallpaperPath?.let(vm::applyCustomWallpaper) == true
+                            (pendingWallpaperPath ?: st.wallpaperPath)?.let(vm::applyCustomWallpaper) == true
                         } else {
                             vm.selectWallpaper(previewId)
                             true
@@ -381,7 +384,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                         }
                     },
                     Modifier.weight(1f),
-                    enabled = previewId != "custom" || pendingWallpaperPath != null,
+                    enabled = previewId != "custom" || pendingWallpaperPath != null || !st.wallpaperPath.isNullOrBlank(),
                 )
                 GlassButton(
                     "انصراف",
