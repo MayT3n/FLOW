@@ -1,0 +1,114 @@
+package com.flow.focus.ui
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import com.flow.focus.FlowApp
+import com.flow.focus.data.AppData
+import com.flow.focus.data.Goal
+import com.flow.focus.data.GoalPeriod
+import com.flow.focus.data.PhaseType
+import com.flow.focus.data.Routine
+import com.flow.focus.data.Settings
+import com.flow.focus.data.Task
+import com.flow.focus.data.FlowRepository
+import com.flow.focus.platform.AmbientSynth
+import kotlinx.coroutines.flow.StateFlow
+
+/** تنها نقطه‌ی تماس رابط کاربری با منطق؛ UI هیچ‌جا مستقیم به مخزن یا سرویس‌ها دست نمی‌زند. */
+class AppViewModel(app: Application) : AndroidViewModel(app) {
+    private val c = (app as FlowApp).container
+
+    val data: StateFlow<AppData> get() = c.repo.data
+    val ambientPlaying: StateFlow<String?> get() = c.ambient.playing
+
+    // ---- تایمر ----
+    fun start() = c.timer.start()
+    fun pause() = c.timer.pause()
+    fun skip() = c.timer.skip()
+    fun reset() = c.timer.reset()
+    fun selectPhase(p: PhaseType) = c.timer.selectPhase(p)
+    fun selectTask(id: String?) = c.timer.selectTask(id)
+    fun onTimerEnd() = c.timer.catchUp()
+    fun onResume() = c.timer.catchUp()
+
+    // ---- وظایف ----
+    fun saveTask(t: Task) {
+        c.repo.upsertTask(t)
+        c.alarms.syncReminder(t, c.repo.current.settings.notifications)
+    }
+
+    fun deleteTask(id: String) {
+        c.repo.deleteTask(id)
+        c.alarms.cancelReminder(id)
+        c.timer.refresh()
+    }
+
+    fun setTaskDone(id: String, done: Boolean) {
+        c.repo.setTaskDone(id, done, System.currentTimeMillis())
+        c.repo.current.tasks.firstOrNull { it.id == id }?.let { c.alarms.syncReminder(it, c.repo.current.settings.notifications) }
+    }
+
+    fun moveTask(id: String, epochDay: Long) {
+        val t = c.repo.current.tasks.firstOrNull { it.id == id } ?: return
+        saveTask(t.copy(dueDay = epochDay))
+    }
+
+    // ---- روتین و هدف ----
+    fun saveRoutine(r: Routine) = c.repo.upsertRoutine(r)
+    fun deleteRoutine(id: String) = c.repo.deleteRoutine(id)
+    fun toggleRoutine(routineId: String, epochDay: Long) = c.repo.toggleRoutineCheck(routineId, epochDay)
+
+    fun addGoal(title: String, period: GoalPeriod, periodStartDay: Long) {
+        if (title.isBlank()) return
+        c.repo.addGoal(Goal(FlowRepository.newId(), title.trim(), period, periodStartDay))
+    }
+
+    fun toggleGoal(id: String) = c.repo.toggleGoal(id)
+    fun deleteGoal(id: String) = c.repo.deleteGoal(id)
+
+    // ---- تنظیمات ----
+    fun updateSettings(block: (Settings) -> Settings) {
+        val before = c.repo.current.settings
+        c.repo.updateSettings(block)
+        val after = c.repo.current.settings
+        val durationsChanged = before.focusMin != after.focusMin || before.shortBreakMin != after.shortBreakMin ||
+            before.longBreakMin != after.longBreakMin || before.rounds != after.rounds
+        val effectsChanged = before.notifications != after.notifications || before.ambientSound != after.ambientSound ||
+            before.ambientAuto != after.ambientAuto
+        if (durationsChanged) c.timer.syncIdle() else if (effectsChanged) c.timer.refresh()
+        if (before.notifications != after.notifications) c.alarms.rescheduleAllReminders(c.repo.current)
+        if (before.ambientVolume != after.ambientVolume) c.ambient.setVolume(after.ambientVolume)
+    }
+
+    /** پیش‌شنوایی صدای محیط در تنظیمات (جدا از پخش خودکار تایمر) */
+    fun previewAmbient(id: String) {
+        val s = c.repo.current.settings
+        if (c.ambient.playing.value == id) c.ambient.stop() else c.ambient.play(id, s.ambientVolume)
+    }
+
+    fun stopAmbientPreview() {
+        val d = c.repo.current
+        val timerOwnsAmbient = d.timer.status == com.flow.focus.data.TimerStatus.RUNNING &&
+            d.timer.phase == PhaseType.FOCUS && d.settings.ambientAuto && d.settings.ambientSound != AmbientSynth.NONE
+        if (!timerOwnsAmbient) c.ambient.stop()
+    }
+
+    // ---- داده‌ها ----
+    fun exportJson(): String = c.repo.exportJson()
+
+    fun importJson(text: String): Boolean {
+        val ok = c.repo.importJson(text)
+        if (ok) {
+            c.timer.syncIdle()
+            c.alarms.rescheduleAllReminders(c.repo.current)
+        }
+        return ok
+    }
+
+    fun clearHistory() = c.repo.clearHistory()
+
+    fun clearAll() {
+        c.repo.update { AppData(settings = it.settings) }
+        c.timer.syncIdle()
+    }
+}
