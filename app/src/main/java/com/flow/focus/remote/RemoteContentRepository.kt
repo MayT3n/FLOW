@@ -96,7 +96,7 @@ internal object RemoteContentValidation {
         item.enabled &&
             item.id.isNotBlank() &&
             item.id.length <= 96 &&
-            item.id.none(Char::isISOControl) &&
+            item.id.none { Character.isISOControl(it.code) } &&
             item.title.isNotBlank() &&
             item.title.length <= 180 &&
             item.body.isNotBlank() &&
