@@ -1,5 +1,6 @@
 package com.flow.focus.ui.glass
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.compose.animation.core.LinearEasing
@@ -83,6 +84,7 @@ val LocalRootSize = compositionLocalOf<State<IntSize>?> { null }
 data class RootBackdropFrame(
     val image: State<ImageBitmap?>,
     val phase: State<Float>,
+    val tone: State<Color?>,
     val settings: Settings,
 )
 
@@ -163,6 +165,39 @@ private fun DrawScope.drawBackdrop(
     }
 }
 
+/** Samples a compact grid once per wallpaper change to give glass a subtle matching tint. */
+private fun Bitmap.sampledAverageColor(): Color {
+    var red = 0L
+    var green = 0L
+    var blue = 0L
+    var samples = 0
+    val stepX = (width / 6).coerceAtLeast(1)
+    val stepY = (height / 6).coerceAtLeast(1)
+    for (y in stepY until height step stepY) {
+        for (x in stepX until width step stepX) {
+            val pixel = getPixel(x, y)
+            red += android.graphics.Color.red(pixel)
+            green += android.graphics.Color.green(pixel)
+            blue += android.graphics.Color.blue(pixel)
+            samples++
+        }
+    }
+    if (samples == 0) return Color.Transparent
+    return Color(
+        red = red.toFloat() / samples / 255f,
+        green = green.toFloat() / samples / 255f,
+        blue = blue.toFloat() / samples / 255f,
+    )
+}
+
+private fun builtinWallpaperTone(id: String): Color? = when (id) {
+    "aurora" -> Color(0xFF24556D)
+    "midnight" -> Color(0xFF263A55)
+    "dusk" -> Color(0xFF765268)
+    "gradient" -> Color(0xFF77899D)
+    else -> null
+}
+
 /** Shared wallpaper renderer. The decoded image is loaded once and reused by glass sampling. */
 @Composable
 fun GlassBackdropHost(settings: Settings, content: @Composable BoxScope.() -> Unit) {
@@ -170,16 +205,19 @@ fun GlassBackdropHost(settings: Settings, content: @Composable BoxScope.() -> Un
     val g = LocalGlass.current
     val size = remember { mutableStateOf(IntSize.Zero) }
     val image = remember { mutableStateOf<ImageBitmap?>(null) }
+    val tone = remember { mutableStateOf<Color?>(null) }
 
     LaunchedEffect(settings.wallpaperId, settings.wallpaperPath) {
         val path = settings.wallpaperPath
-        image.value = if (settings.wallpaperId == "custom" && !path.isNullOrBlank()) {
+        val decoded = if (settings.wallpaperId == "custom" && !path.isNullOrBlank()) {
             withContext(Dispatchers.IO) {
                 runCatching {
-                    if (java.io.File(path).isFile) BitmapFactory.decodeFile(path)?.asImageBitmap() else null
+                    if (java.io.File(path).isFile) BitmapFactory.decodeFile(path) else null
                 }.getOrNull()
             }
         } else null
+        image.value = decoded?.asImageBitmap()
+        tone.value = decoded?.sampledAverageColor() ?: builtinWallpaperTone(settings.wallpaperId)
     }
 
     // The phase is read by drawing, not by the composition on every frame.
@@ -188,7 +226,7 @@ fun GlassBackdropHost(settings: Settings, content: @Composable BoxScope.() -> Un
             .animateFloat(0f, 1f, infiniteRepeatable(tween(60_000, easing = LinearEasing), RepeatMode.Restart), label = "bgPhase")
     } else remember { mutableStateOf(0f) }
 
-    val frame = RootBackdropFrame(image, phase, settings)
+    val frame = RootBackdropFrame(image, phase, tone, settings)
     Box(Modifier.fillMaxSize().onSizeChanged { size.value = it }) {
         Canvas(
             Modifier.fillMaxSize().graphicsLayer {
@@ -275,6 +313,10 @@ fun GlassSurface(
         Box(
             Modifier.matchParentSize().drawBehind {
                 drawRect(fill)
+                // A restrained average-wallpaper tint makes glass feel connected to the image beneath it.
+                rootBackdrop?.tone?.value?.let { wallpaperTone ->
+                    drawRect(wallpaperTone.copy(alpha = if (c.isDark) 0.075f else 0.105f))
+                }
                 if (tint != null) drawRect(tint.copy(alpha = 0.16f))
                 if (g.quality != GlassQuality.LOW) {
                     drawRect(
