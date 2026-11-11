@@ -197,7 +197,7 @@ fun TaskPickerDialog(
 fun RoutineEditorDialog(initial: Routine?, onSave: (Routine) -> Unit, onDelete: ((Routine) -> Unit)?, onDismiss: () -> Unit) {
     var title by remember { mutableStateOf(initial?.title ?: "") }
     var days by remember { mutableStateOf(initial?.weekdays?.toSet() ?: setOf(0, 1, 2, 3, 4, 5, 6)) }
-    var minute by remember { mutableStateOf(initial?.minute) }
+    var minute by remember { mutableStateOf(initial?.minute?.takeIf { it in 0 until 24 * 60 }) }
     var category by remember { mutableStateOf(initial?.categoryId ?: "personal") }
     FlowDialog(onDismiss, if (initial == null) "روتین جدید" else "ویرایش روتین") {
         FlowTextField(title, { title = it }, "نام روتین (مثلاً ورزش صبحگاهی)")
