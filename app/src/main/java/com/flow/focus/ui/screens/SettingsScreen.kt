@@ -1,6 +1,7 @@
 package com.flow.focus.ui.screens
 
 import android.content.Context
+import androidx.activity.compose.BackHandler
 import android.graphics.BitmapFactory
 import android.os.Build
 import android.net.Uri
@@ -32,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.BlurEffect
@@ -83,6 +85,9 @@ private fun Section(title: String, content: @Composable () -> Unit) {
         "اعلان‌ها" -> FlowIcons.Bell
         "صدای محیط" -> FlowIcons.Music
         "مدیریت داده‌ها" -> FlowIcons.Export
+        "شخصی‌سازی" -> FlowIcons.Sun
+        "تمرکز" -> FlowIcons.Clock
+        "داده و برنامه" -> FlowIcons.Layers
         else -> FlowIcons.Target
     }
     Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -207,6 +212,39 @@ private fun WallpaperPreviewSurface(
     }
 }
 
+
+@Composable
+private fun SettingsDestination(
+    title: String,
+    subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    value: String? = null,
+    onClick: () -> Unit,
+) {
+    Row(
+        Modifier.fillMaxWidth()
+            .springClick(scaleDown = 0.985f, onClick = onClick)
+            .padding(horizontal = 2.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(11.dp),
+    ) {
+        Box(
+            Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(Flow.colors.accentSoft),
+            contentAlignment = Alignment.Center,
+        ) {
+            FlowIcon(icon, tint = Flow.colors.accent, size = 19.dp)
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(title, style = Flow.type.bodyStrong, color = Flow.colors.textPrimary)
+            Text(subtitle, style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 1)
+        }
+        if (!value.isNullOrBlank()) {
+            Text(value, style = Flow.type.caption, color = Flow.colors.textSecondary)
+        }
+        FlowIcon(FlowIcons.ChevronNext, tint = Flow.colors.textSecondary, size = 17.dp)
+    }
+}
+
 @Composable
 fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifier) {
     val st = data.settings
@@ -216,6 +254,8 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
     var confirmAll by remember { mutableStateOf(false) }
     var wallpaperPreviewId by remember { mutableStateOf<String?>(null) }
     var pendingWallpaperPath by remember { mutableStateOf<String?>(null) }
+    var selectedPage by rememberSaveable { mutableStateOf("root") }
+    BackHandler(enabled = selectedPage != "root") { selectedPage = "root" }
 
     // پیش‌شنوایی با خروج از صفحه قطع شود
     DisposableEffect(Unit) { onDispose { vm.stopAmbientPreview() } }
@@ -252,9 +292,72 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             .padding(horizontal = 18.dp).padding(top = 8.dp, bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        ScreenHeader("تنظیمات")
+        if (selectedPage == "root") {
+            ScreenHeader("تنظیمات")
+            Section("شخصی‌سازی") {
+                SettingsDestination(
+                    "ظاهر و نمایش", "تم روشن، تاریک و شیوه‌ی نمایش اعداد",
+                    FlowIcons.Sun,
+                    when (st.theme) { ThemeMode.LIGHT -> "روشن"; ThemeMode.DARK -> "تاریک"; ThemeMode.SYSTEM -> "سیستم" },
+                ) { selectedPage = "appearance" }
+                SettingsDestination(
+                    "پس‌زمینه", "تصویر، جای‌گیری و تنظیمات والپیپر",
+                    FlowIcons.Layers, if (st.wallpaperId == "custom") "شخصی" else "آماده",
+                ) { selectedPage = "wallpaper" }
+                SettingsDestination(
+                    "Liquid Glass", "کیفیت، شفافیت، تاری و درخشش",
+                    FlowIcons.Layers, when (st.glassQuality) { GlassQuality.LOW -> "کم"; GlassQuality.MEDIUM -> "متوسط"; GlassQuality.HIGH -> "بالا" },
+                ) { selectedPage = "glass" }
+            }
+            Section("تمرکز") {
+                SettingsDestination(
+                    "پومودورو", "مدت تمرکز، استراحت و هدف روزانه",
+                    FlowIcons.Clock, num("${st.focusMin} دقیقه"),
+                ) { selectedPage = "pomodoro" }
+                SettingsDestination(
+                    "اعلان‌ها", "یادآوری‌ها، صدا و لرزش",
+                    FlowIcons.Bell, if (st.notifications) "روشن" else "خاموش",
+                ) { selectedPage = "notifications" }
+                SettingsDestination(
+                    "صدای محیط", "انتخاب صدا و تنظیم پخش خودکار",
+                    FlowIcons.Music,
+                ) { selectedPage = "ambient" }
+            }
+            Section("داده و برنامه") {
+                SettingsDestination(
+                    "مدیریت داده‌ها", "پشتیبان‌گیری، بازیابی و پاک‌سازی",
+                    FlowIcons.Export, num("${data.tasks.size} وظیفه"),
+                ) { selectedPage = "data" }
+                SettingsDestination(
+                    "درباره‌ی FLOW", "نسخه و اطلاعات سازنده",
+                    FlowIcons.Target, "نسخه ${BuildConfig.VERSION_NAME}",
+                ) { selectedPage = "about" }
+            }
+        } else {
+            val pageTitle = when (selectedPage) {
+                "appearance" -> "ظاهر و نمایش"
+                "wallpaper" -> "پس‌زمینه"
+                "glass" -> "Liquid Glass"
+                "pomodoro" -> "پومودورو"
+                "notifications" -> "اعلان‌ها"
+                "ambient" -> "صدای محیط"
+                "data" -> "مدیریت داده‌ها"
+                else -> "درباره‌ی FLOW"
+            }
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                GlassIconButton(FlowIcons.ChevronPrev, { selectedPage = "root" }, size = 40.dp, iconSize = 19.dp, contentDescription = "بازگشت")
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Text(pageTitle, style = Flow.type.title, color = Flow.colors.textPrimary)
+                    Text("تنظیمات FLOW", style = Flow.type.caption, color = Flow.colors.textSecondary)
+                }
+            }
+        }
 
-        Section("ظاهر") {
+        if (selectedPage == "appearance") Section("ظاهر") {
             Text("تم", style = Flow.type.body, color = Flow.colors.textPrimary)
             SegmentedControl(listOf("روشن", "تاریک", "سیستم"), listOf(ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM).indexOf(st.theme), {
                 vm.updateSettings { s -> s.copy(theme = listOf(ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM)[it]) }
@@ -264,7 +367,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             SwitchRow("انیمیشن‌ها", st.animations, { v -> vm.updateSettings { it.copy(animations = v) } }, subtitle = "خاموش کردن، مصرف باتری را کم می‌کند")
         }
 
-        Section("پس‌زمینه") {
+        if (selectedPage == "wallpaper") Section("پس‌زمینه") {
             Text("انتخاب پس‌زمینه", style = Flow.type.body, color = Flow.colors.textPrimary)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 WallpaperOption("gradient", "اصلی", st.wallpaperId == "gradient", Modifier.weight(1f)) { wallpaperPreviewId = "gradient" }
@@ -304,7 +407,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             GlassButton("بازنشانی پس‌زمینه", { vm.selectWallpaper("gradient") }, Modifier.fillMaxWidth())
         }
 
-        Section("کیفیت Liquid Glass") {
+        if (selectedPage == "glass") Section("کیفیت Liquid Glass") {
             SegmentedControl(listOf("کم", "متوسط", "بالا"), st.glassQuality.ordinal, { vm.updateSettings { s -> s.copy(glassQuality = GlassQuality.entries[it]) } })
             Text(
                 when (st.glassQuality) {
@@ -326,7 +429,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             }
         }
 
-        Section("پومودورو") {
+        if (selectedPage == "pomodoro") Section("پومودورو") {
             SettingRow("مدت تمرکز") { Stepper(st.focusMin, { v -> vm.updateSettings { it.copy(focusMin = v) } }, 1..180, suffix = "دقیقه") }
             SettingRow("استراحت کوتاه") { Stepper(st.shortBreakMin, { v -> vm.updateSettings { it.copy(shortBreakMin = v) } }, 1..60, suffix = "دقیقه") }
             SettingRow("استراحت بلند") { Stepper(st.longBreakMin, { v -> vm.updateSettings { it.copy(longBreakMin = v) } }, 1..90, suffix = "دقیقه") }
@@ -336,13 +439,13 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             SwitchRow("شروع خودکار جلسه‌ی بعد", st.autoStartFocus, { v -> vm.updateSettings { it.copy(autoStartFocus = v) } })
         }
 
-        Section("اعلان‌ها") {
+        if (selectedPage == "notifications") Section("اعلان‌ها") {
             SwitchRow("اعلان‌ها", st.notifications, { v -> vm.updateSettings { it.copy(notifications = v) } }, subtitle = "پایان جلسه، تایمر در حال اجرا و یادآوری وظایف")
             SwitchRow("صدا", st.sound, { v -> vm.updateSettings { it.copy(sound = v) } })
             SwitchRow("لرزش", st.vibration, { v -> vm.updateSettings { it.copy(vibration = v) } })
         }
 
-        Section("صدای محیط") {
+        if (selectedPage == "ambient") Section("صدای محیط") {
             AmbientPicker(
                 st, playing,
                 onSelect = { id -> vm.updateSettings { it.copy(ambientSound = id) } },
@@ -352,7 +455,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             )
         }
 
-        Section("مدیریت داده‌ها") {
+        if (selectedPage == "data") Section("مدیریت داده‌ها") {
             Text(
                 num("${data.tasks.size} وظیفه · ${data.sessions.size} جلسه‌ی ثبت‌شده · ${data.routines.size} روتین"),
                 style = Flow.type.caption, color = Flow.colors.textSecondary,
@@ -365,7 +468,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             GlassButton("حذف همه‌ی اطلاعات", { confirmAll = true }, Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 6.dp), icon = FlowIcons.Trash, danger = true)
         }
 
-        Section("درباره") {
+        if (selectedPage == "about") Section("درباره") {
             SettingRow("FLOW", subtitle = "تمرکز کن، جریان بساز.") { Text(num("نسخه ${BuildConfig.VERSION_NAME}"), style = Flow.type.caption, color = Flow.colors.textSecondary) }
             Text(
                 "ساخته شده توسط مت زم",
