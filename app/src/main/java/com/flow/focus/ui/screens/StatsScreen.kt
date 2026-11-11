@@ -88,16 +88,26 @@ fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
             }
         }
 
-        // ---- کاشی‌های خلاصه ----
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Tile(FlowIcons.Clock, if (s.focusMinutes == 0L) num("۰ دقیقه") else num(formatMinutes(s.focusMinutes)), "زمان تمرکز", c.accent, Modifier.weight(1f))
-            Tile(FlowIcons.Target, num(s.completedSessions), "جلسه‌ی کامل‌شده", c.success, Modifier.weight(1f))
+        // ---- خلاصه‌ی شاخص‌ها ----
+        GlassSurface(
+            Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            level = com.flow.focus.ui.glass.GlassLevel.Subtle,
+        ) {
+            Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Tile(FlowIcons.Clock, if (s.focusMinutes == 0L) num("۰ دقیقه") else num(formatMinutes(s.focusMinutes)), "زمان تمرکز", c.accent, Modifier.weight(1f))
+                    Tile(FlowIcons.Target, num(s.completedSessions), "جلسه‌ی کامل‌شده", c.success, Modifier.weight(1f))
+                }
+                Box(Modifier.fillMaxWidth().height(1.dp).background(c.track))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Tile(FlowIcons.Hourglass, num("${s.avgSessionMinutes} دقیقه"), "میانگین هر جلسه", c.accentAlt, Modifier.weight(1f))
+                    Tile(FlowIcons.Calendar, num(s.activeDays), "روز فعال", c.warning, Modifier.weight(1f))
+                }
+                Box(Modifier.fillMaxWidth().height(1.dp).background(c.track))
+                Tile(FlowIcons.Tasks, num(s.tasksDone), "وظیفه‌ی تکمیل‌شده", c.success, Modifier.fillMaxWidth())
+            }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Tile(FlowIcons.Hourglass, num("${s.avgSessionMinutes} دقیقه"), "میانگین هر جلسه", c.accentAlt, Modifier.weight(1f))
-            Tile(FlowIcons.Calendar, num(s.activeDays), "روز فعال", c.warning, Modifier.weight(1f))
-        }
-        Tile(FlowIcons.Tasks, num(s.tasksDone), "وظیفه‌ی تکمیل‌شده", c.success, Modifier.fillMaxWidth())
 
         // ---- نمودار میله‌ای ----
         SectionTitle(
@@ -156,11 +166,20 @@ fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
 
 @Composable
 private fun Tile(icon: androidx.compose.ui.graphics.vector.ImageVector, value: String, caption: String, tint: Color, modifier: Modifier) {
-    GlassSurface(modifier, shape = RoundedCornerShape(18.dp), level = com.flow.focus.ui.glass.GlassLevel.Subtle) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            FlowIcon(icon, tint = tint, size = 24.dp)
+    Row(
+        modifier.padding(horizontal = 7.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(9.dp),
+    ) {
+        Box(
+            Modifier.size(31.dp).clip(RoundedCornerShape(10.dp)).background(tint.copy(alpha = 0.13f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            FlowIcon(icon, tint = tint, size = 17.dp)
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(value, style = Flow.type.heading, color = Flow.colors.textPrimary, maxLines = 1)
-            Text(caption, style = Flow.type.caption, color = Flow.colors.textSecondary)
+            Text(caption, style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 1)
         }
     }
 }

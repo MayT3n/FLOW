@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -266,18 +267,35 @@ private fun EntryList(vm: AppViewModel, data: AppData, day: LocalDate, onEdit: (
         EmptyState(FlowIcons.Calendar, "برنامه‌ای برای این روز نیست", "با دکمه‌ی + یک وظیفه اضافه کن.")
         return
     }
-    entries.forEach { e -> EntryRow(vm, e, day, onEdit, onMove) }
+    val c = Flow.colors
+    GlassSurface(
+        Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        level = GlassLevel.Subtle,
+    ) {
+        Column(Modifier.padding(horizontal = 9.dp, vertical = 4.dp)) {
+            entries.forEachIndexed { index, entry ->
+                EntryRow(vm, entry, day, onEdit, onMove)
+                if (index < entries.lastIndex) {
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(c.track))
+                }
+            }
+        }
+    }
 }
 
 @Composable
 private fun EntryRow(vm: AppViewModel, e: PlanEntry, day: LocalDate, onEdit: (Task) -> Unit, onMove: (Task) -> Unit) {
     val c = Flow.colors
     val cat = Categories.byId(e.categoryId)
-    GlassSurface(
-        Modifier.fillMaxWidth().springClick(scaleDown = 0.985f, onClick = { if (e is TaskEntry) onEdit(e.task) }),
-        shape = RoundedCornerShape(20.dp),
+    Row(
+        Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(13.dp))
+            .springClick(scaleDown = 0.99f, onClick = { if (e is TaskEntry) onEdit(e.task) })
+            .padding(horizontal = 7.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             CheckCircle(
                 e.done,
                 { if (e is TaskEntry) vm.setTaskDone(e.task.id, !e.task.done) else if (e is RoutineEntry) vm.toggleRoutine(e.routine.id, day.toEpochDay()) },
@@ -300,8 +318,6 @@ private fun EntryRow(vm: AppViewModel, e: PlanEntry, day: LocalDate, onEdit: (Ta
             if (e is TaskEntry && !e.task.done) {
                 GlassIconButton(FlowIcons.Move, { onMove(e.task) }, size = 34.dp, iconSize = 16.dp, contentDescription = "جابه‌جایی به تاریخ دیگر")
             }
-        }
-    }
 }
 
 @Composable
