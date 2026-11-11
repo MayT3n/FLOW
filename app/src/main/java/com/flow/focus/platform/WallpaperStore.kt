@@ -10,6 +10,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import java.util.UUID
 
 /**
  * Keeps one optimized wallpaper copy in app-private storage.
@@ -18,13 +19,13 @@ import java.nio.file.StandardCopyOption
 class WallpaperStore(context: Context) {
     private val app = context.applicationContext
     private val directory = File(app.filesDir, "wallpapers")
-    private val target = File(directory, "custom.jpg")
 
     fun import(uri: Uri): String? = runCatching {
         if (!directory.exists() && !directory.mkdirs()) error("Cannot create wallpaper directory")
         val bitmap = decode(uri) ?: error("Unsupported image")
         try {
-            val temp = File(directory, "custom.tmp")
+            val target = File(directory, "wallpaper-" + UUID.randomUUID().toString() + ".jpg")
+            val temp = File(directory, "wallpaper-" + UUID.randomUUID().toString() + ".tmp")
             FileOutputStream(temp).use { output ->
                 if (!bitmap.compress(Bitmap.CompressFormat.JPEG, 88, output)) error("Image compression failed")
                 output.fd.sync()
@@ -35,6 +36,9 @@ class WallpaperStore(context: Context) {
                 temp.copyTo(target, overwrite = true)
                 temp.delete()
             }
+            directory.listFiles()
+                ?.filter { it.isFile && it.name.startsWith("wallpaper-") && it != target }
+                ?.forEach { it.delete() }
             target.absolutePath
         } finally {
             bitmap.recycle()
