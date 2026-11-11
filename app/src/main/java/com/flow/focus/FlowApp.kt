@@ -7,7 +7,7 @@ import com.flow.focus.music.MusicManager
 import com.flow.focus.platform.AlarmScheduler
 import com.flow.focus.platform.AmbientPlayer
 import com.flow.focus.platform.NotificationHelper
-import com.flow.focus.platform.TimerController\nimport com.flow.focus.platform.MusicController\nimport com.flow.focus.remote.RemoteContentRepository\nimport com.flow.focus.remote.RemoteContentScheduler\nimport com.flow.focus.remote.UpdateManager
+import com.flow.focus.platform.TimerController
 import com.flow.focus.remote.RemoteContentRepository
 import com.flow.focus.remote.RemoteContentScheduler
 import com.flow.focus.remote.UpdateManager
@@ -17,15 +17,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
-/** ظرف وابستگی‌ها؛ مسیر فایل داده‌ی قدیمی عمداً ثابت مانده است. */
+/** App dependency container. Existing user data stays in the original private JSON file. */
 class AppContainer(app: Application) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    // Do not rename or move this file: it contains existing tasks, sessions, timer and settings.
     val repo = FlowRepository(JsonStore(File(app.filesDir, "flow_data.json")), scope)
     val notifier = NotificationHelper(app)
     val alarms = AlarmScheduler(app)
     val ambient = AmbientPlayer(app, scope)
-    val timer = TimerController(repo, alarms, notifier, ambient)\n    val remote = RemoteContentRepository(app, scope)\n    val updater = UpdateManager(app)\n    val music = MusicController(app)
+    val timer = TimerController(repo, alarms, notifier, ambient)
 
     val remote = RemoteContentRepository(app, scope)
     val updater = UpdateManager(app)
@@ -41,7 +40,7 @@ class FlowApp : Application() {
         container = AppContainer(this)
         container.notifier.ensureChannels()
         container.timer.restore()
-        container.alarms.rescheduleAllReminders(container.repo.current)\n        RemoteContentScheduler.schedule(this)
+        container.alarms.rescheduleAllReminders(container.repo.current)
         RemoteContentScheduler.schedule(this)
         container.scope.launch { container.remote.refresh(force = false) }
     }
