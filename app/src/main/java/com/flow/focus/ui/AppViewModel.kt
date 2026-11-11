@@ -39,8 +39,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val updateManifest: StateFlow<UpdateManifest?> get() = c.remote.manifest
     val updateDownloadState: StateFlow<UpdateDownloadState> get() = c.updater.state
 
-    fun refreshRemoteContent() {
-        viewModelScope.launch { c.remote.refresh(force = true) }
+    fun refreshRemoteContent(force: Boolean = false) {
+        viewModelScope.launch { c.remote.refresh(force = force) }
     }
     fun markNewsRead(id: String) { viewModelScope.launch { c.remote.markRead(id) } }
     fun markNewsUnread(id: String) { viewModelScope.launch { c.remote.markUnread(id) } }
@@ -76,18 +76,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ---- تایمر ----
-    fun start() {
-        val settings = c.repo.current.settings
-        val phase = c.repo.current.timer.phase
-        if (phase == PhaseType.FOCUS && settings.musicAutoFocus) c.music.play(settings.musicTrackId)
-        c.music.setVolume(settings.musicVolume)
-        c.timer.start()
-    }
-    fun pause() {
-        if (c.repo.current.settings.musicPauseWithTimer) c.music.pause()
-        c.timer.pause()
-    }
-    fun skip() = c.timer.skip()
+    fun start() = c.timer.start()
+    fun pause() = c.timer.pause()
+        fun skip() = c.timer.skip()
     fun reset() = c.timer.reset()
     fun selectPhase(p: PhaseType) = c.timer.selectPhase(p)
     fun selectTask(id: String?) = c.timer.selectTask(id)
