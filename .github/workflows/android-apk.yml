@@ -118,7 +118,12 @@ jobs:
           mkdir -p dist
           cp "$SRC" "dist/$OUT"
           APKSIGNER="$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)"
+          AAPT="$(ls "$ANDROID_HOME"/build-tools/*/aapt | sort -V | tail -n 1)"
           "$APKSIGNER" verify --verbose --print-certs "dist/$OUT" | tee dist/signature.txt
+          BADGING="$("$AAPT" dump badging "dist/$OUT")"
+          grep -F "name='com.flow.focus'" <<< "$BADGING" >/dev/null
+          grep -F "versionCode='${{ steps.ver.outputs.code }}'" <<< "$BADGING" >/dev/null
+          grep -F "versionName='${{ steps.ver.outputs.name }}'" <<< "$BADGING" >/dev/null
           SIZE="$(stat -c%s "dist/$OUT")"
           SHA="$(sha256sum "dist/$OUT" | awk '{print $1}')"
           echo "file=dist/$OUT" >> "$GITHUB_OUTPUT"
@@ -127,8 +132,8 @@ jobs:
           echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
           {
             echo "### MatFocus ${{ steps.ver.outputs.name }} (${{ steps.ver.outputs.code }})"
-            echo "- APK: `$OUT` ($(du -h "dist/$OUT" | cut -f1))"
-            echo "- SHA-256: `$SHA`"
+            echo "- APK: $OUT ($(du -h "dist/$OUT" | cut -f1))"
+            echo "- SHA-256: $SHA"
             if [[ "$SUFFIX" == "" ]]; then
               echo "- Signing: release keystore from Actions Secrets"
             else
