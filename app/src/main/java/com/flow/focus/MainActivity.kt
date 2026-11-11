@@ -70,6 +70,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // اگر زمان فاز در پس‌زمینه تمام شده، همین‌جا بسته و فاز بعد آماده می‌شود.
         vm.onResume()
+        vm.refreshRemoteContent()
     }
 }
 
