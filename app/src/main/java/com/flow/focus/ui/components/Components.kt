@@ -1,6 +1,10 @@
 package com.flow.focus.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
@@ -9,6 +13,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -66,7 +72,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.flow.focus.core.withDigits
 import com.flow.focus.ui.glass.GlassLevel
 import com.flow.focus.ui.glass.GlassSurface
-import com.flow.focus.ui.glass.LocalRootSize
+import com.flow.focus.ui.glass.dpSpring
 import com.flow.focus.ui.glass.floatSpring
 import com.flow.focus.ui.glass.springClick
 import com.flow.focus.ui.theme.Flow
@@ -369,7 +375,10 @@ fun Chip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifie
 @Composable
 fun FlowDialog(onDismiss: () -> Unit, title: String? = null, content: @Composable ColumnScope.() -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        CompositionLocalProvider(LocalRootSize provides null) {
+        AnimatedVisibility(
+            visible = true,
+            enter = fadeIn(tween(150)) + scaleIn(initialScale = 0.965f, animationSpec = tween(180)),
+        ) {
             GlassSurface(
                 Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 22.dp).widthIn(max = 440.dp),
                 shape = RoundedCornerShape(28.dp),
@@ -422,63 +431,88 @@ fun FlowDock(items: List<DockItem>, selected: Int, onSelect: (Int) -> Unit, modi
         level = GlassLevel.Strong,
         elevated = true,
     ) {
-        Row(
+        BoxWithConstraints(
             Modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            items.forEachIndexed { index, item ->
-                val isSelected = index == selected
-                val emphasis by animateFloatAsState(
-                    targetValue = if (isSelected) 1f else 0f,
-                    animationSpec = floatSpring(0.72f, 520f),
-                    label = "dockSelection",
-                )
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .semantics(mergeDescendants = true) {
-                            contentDescription = item.label
-                            this.selected = isSelected
-                        }
-                        .springClick(
-                            role = Role.Tab,
-                            scaleDown = 0.94f,
-                            onClick = { onSelect(index) },
-                        ),
-                    contentAlignment = Alignment.Center,
+            val count = items.size.coerceAtLeast(1)
+            val slotWidth = maxWidth / count
+            val activeIndex = if (items.isEmpty()) 0 else selected.coerceIn(items.indices)
+            val indicatorOffset by animateDpAsState(
+                targetValue = slotWidth * activeIndex,
+                animationSpec = dpSpring(),
+                label = "dock-glass-indicator",
+            )
+
+            if (items.isNotEmpty()) {
+                // One continuous glass pill travels between tabs instead of painting a flat tint per item.
+                GlassSurface(
+                    Modifier.offset(x = indicatorOffset)
+                        .width(slotWidth)
+                        .height(60.dp)
+                        .padding(horizontal = 2.dp, vertical = 1.dp),
+                    shape = RoundedCornerShape(25.dp),
+                    level = GlassLevel.Regular,
+                    tint = c.accent,
                 ) {
                     Box(
-                        Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                alpha = emphasis
-                                scaleX = 0.86f + 0.14f * emphasis
-                                scaleY = 0.86f + 0.14f * emphasis
-                            }
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(c.accentSoft),
+                        Modifier.fillMaxSize().drawBehind {
+                            drawRect(
+                                Brush.verticalGradient(
+                                    0f to Color.White.copy(alpha = if (c.isDark) 0.13f else 0.24f),
+                                    0.48f to Color.Transparent,
+                                    1f to c.accent.copy(alpha = if (c.isDark) 0.035f else 0.06f),
+                                ),
+                            )
+                        },
                     )
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                }
+            }
+
+            Row(Modifier.fillMaxSize()) {
+                items.forEachIndexed { index, item ->
+                    val isSelected = index == selected
+                    val emphasis by animateFloatAsState(
+                        targetValue = if (isSelected) 1f else 0f,
+                        animationSpec = floatSpring(0.78f, 560f),
+                        label = "dock-icon-emphasis",
+                    )
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .padding(horizontal = 2.dp)
+                            .semantics(mergeDescendants = true) {
+                                contentDescription = item.label
+                                this.selected = isSelected
+                            }
+                            .springClick(
+                                role = Role.Tab,
+                                scaleDown = 0.94f,
+                                onClick = { onSelect(index) },
+                            ),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        FlowIcon(
-                            item.icon,
-                            tint = if (isSelected) c.accent else c.textSecondary,
-                            size = 21.dp,
-                            modifier = Modifier.graphicsLayer {
-                                scaleX = 1f + 0.035f * emphasis
-                                scaleY = 1f + 0.035f * emphasis
-                            },
-                        )
-                        Text(
-                            item.label,
-                            style = Flow.type.caption.copy(fontSize = 10.5.sp, lineHeight = 13.sp),
-                            color = if (isSelected) c.accent else c.textSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            FlowIcon(
+                                item.icon,
+                                tint = if (isSelected) c.accent else c.textSecondary,
+                                size = 21.dp,
+                                modifier = Modifier.graphicsLayer {
+                                    scaleX = 1f + 0.045f * emphasis
+                                    scaleY = 1f + 0.045f * emphasis
+                                },
+                            )
+                            Text(
+                                item.label,
+                                style = Flow.type.caption.copy(fontSize = 10.5.sp, lineHeight = 13.sp),
+                                color = if (isSelected) c.accent else c.textSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
                 }
             }
