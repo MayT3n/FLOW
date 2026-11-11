@@ -64,6 +64,11 @@ object IranianCalendarData {
             context.assets.open(assetPath).bufferedReader(Charsets.UTF_8).use { it.readText() }
         }.getOrNull() ?: return emptyList()
 
+        return parseFeed(raw, expectedYear)
+    }
+
+    /** Parses a bundled yearly feed without Android dependencies so validation stays unit-testable. */
+    internal fun parseFeed(raw: String, expectedYear: Int): List<CalendarOccasion> {
         val feed = runCatching { json.decodeFromString<CalendarFeed>(raw) }.getOrNull()
             ?: return emptyList()
         if (feed.schemaVersion != 1 || feed.year != expectedYear) return emptyList()
@@ -89,5 +94,6 @@ object IranianCalendarData {
                 categories = item.categories,
             )
         }.distinctBy { it.id }
+    }
     }
 }
