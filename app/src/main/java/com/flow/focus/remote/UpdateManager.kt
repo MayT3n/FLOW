@@ -37,6 +37,7 @@ class UpdateManager(private val context: Context) {
     suspend fun download(manifest: UpdateManifest): File = withContext(Dispatchers.IO) {
         require(manifest.schemaVersion == 1 && manifest.updateAvailable) { "نسخه‌ی قابل دریافت اعلام نشده است." }
         require(manifest.versionCode > BuildConfig.VERSION_CODE) { "این نسخه از برنامه جدیدتر نیست." }
+        require(manifest.minimumSupportedVersion <= BuildConfig.VERSION_CODE) { "نسخه‌ی فعلی برای این آپدیت بیش از حد قدیمی است؛ باید نسخه‌ی میانی نصب شود." }
         require(manifest.applicationId == context.packageName) { "شناسه‌ی برنامه با نسخه‌ی نصب‌شده یکسان نیست." }
         require(manifest.minimumSupportedVersion >= 0 && manifest.minimumSupportedVersion <= manifest.versionCode) {
             "حداقل نسخه‌ی پشتیبانی‌شده در Manifest معتبر نیست."
