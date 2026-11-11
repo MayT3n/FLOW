@@ -1,6 +1,16 @@
 package com.flow.focus.ui.components
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
@@ -42,8 +52,11 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -66,6 +79,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.flow.focus.core.withDigits
@@ -90,7 +104,31 @@ fun FlowIcon(
     size: Dp = 24.dp,
     contentDescription: String? = null,
 ) {
-    Icon(imageVector = icon, contentDescription = contentDescription, tint = tint, modifier = modifier.size(size))
+    val animations = LocalGlass.current.animations
+    val iconTint by animateColorAsState(
+        targetValue = tint,
+        animationSpec = if (animations) tween(180) else snap(),
+        label = "flow-icon-tint",
+    )
+    if (animations) {
+        AnimatedContent(
+            targetState = icon,
+            transitionSpec = {
+                (fadeIn(tween(130)) + scaleIn(initialScale = 0.86f, animationSpec = tween(150))) togetherWith
+                    (fadeOut(tween(95)) + scaleOut(targetScale = 0.94f, animationSpec = tween(110)))
+            },
+            label = "flow-icon-swap",
+        ) { displayedIcon ->
+            Icon(
+                imageVector = displayedIcon,
+                contentDescription = contentDescription,
+                tint = iconTint,
+                modifier = modifier.size(size),
+            )
+        }
+    } else {
+        Icon(imageVector = icon, contentDescription = contentDescription, tint = iconTint, modifier = modifier.size(size))
+    }
 }
 
 @Composable
@@ -194,10 +232,19 @@ fun SegmentedControl(
                 val sel = i == selected
                 val bg by animateColorAsState(if (sel) c.accent else Color.Transparent, anim(), label = "segBg")
                 val fg by animateColorAsState(if (sel) c.textOnAccent else c.textSecondary, anim(), label = "segFg")
+                val emphasis by animateFloatAsState(
+                    targetValue = if (sel) 1f else 0f,
+                    animationSpec = floatSpring(0.82f, 520f),
+                    label = "segment-emphasis",
+                )
                 Box(
                     Modifier
                         .weight(1f)
                         .height(38.dp)
+                        .graphicsLayer {
+                            scaleX = 0.975f + emphasis * 0.025f
+                            scaleY = 0.95f + emphasis * 0.05f
+                        }
                         .clip(RoundedCornerShape(18.dp))
                         .background(bg)
                         .clickable(enabled = enabled, role = Role.Tab, onClick = { onSelect(i) }),
@@ -344,13 +391,22 @@ fun SectionTitle(text: String, modifier: Modifier = Modifier, trailing: (@Compos
 
 @Composable
 fun EmptyState(icon: ImageVector, title: String, subtitle: String, modifier: Modifier = Modifier) {
-    Column(
-        modifier.fillMaxWidth().padding(vertical = 28.dp, horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp),
+    val animations = LocalGlass.current.animations
+    AnimatedVisibility(
+        visible = true,
+        enter = if (animations) {
+            fadeIn(tween(190)) + scaleIn(initialScale = 0.96f, animationSpec = tween(220)) +
+                slideInVertically(tween(220)) { it / 14 }
+        } else EnterTransition.None,
     ) {
-        FlowIcon(icon, tint = Flow.colors.textSecondary.copy(alpha = 0.8f), size = 40.dp)
-        Text(title, style = Flow.type.heading, color = Flow.colors.textPrimary, textAlign = TextAlign.Center)
-        Text(subtitle, style = Flow.type.caption, color = Flow.colors.textSecondary, textAlign = TextAlign.Center)
+        Column(
+            modifier.fillMaxWidth().padding(vertical = 28.dp, horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FlowIcon(icon, tint = Flow.colors.textSecondary.copy(alpha = 0.8f), size = 40.dp)
+            Text(title, style = Flow.type.heading, color = Flow.colors.textPrimary, textAlign = TextAlign.Center)
+            Text(subtitle, style = Flow.type.caption, color = Flow.colors.textSecondary, textAlign = TextAlign.Center)
+        }
     }
 }
 
@@ -373,10 +429,22 @@ fun Chip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifie
 /** پوسته‌ی واحد پنجره‌ها؛ عنوان، بستن، فاصله‌گذاری و سطح شیشه‌ای در تمام دیالوگ‌ها یکسان است. */
 @Composable
 fun FlowDialog(onDismiss: () -> Unit, title: String? = null, content: @Composable ColumnScope.() -> Unit) {
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    val animations = LocalGlass.current.animations
+    var visible by remember { mutableStateOf(true) }
+    val requestDismiss = {
+        if (visible) visible = false
+    }
+    LaunchedEffect(visible) {
+        if (!visible) {
+            if (animations) delay(175)
+            onDismiss()
+        }
+    }
+    Dialog(onDismissRequest = requestDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         AnimatedVisibility(
-            visible = true,
-            enter = fadeIn(tween(150)) + scaleIn(initialScale = 0.965f, animationSpec = tween(180)),
+            visible = visible,
+            enter = if (animations) fadeIn(tween(150)) + scaleIn(initialScale = 0.965f, animationSpec = tween(180)) else EnterTransition.None,
+            exit = if (animations) fadeOut(tween(115)) + scaleOut(targetScale = 0.965f, animationSpec = tween(135)) else ExitTransition.None,
         ) {
             GlassSurface(
                 Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 22.dp).widthIn(max = 440.dp),
@@ -403,7 +471,7 @@ fun FlowDialog(onDismiss: () -> Unit, title: String? = null, content: @Composabl
                             )
                             GlassIconButton(
                                 FlowIcons.Close,
-                                onDismiss,
+                                requestDismiss,
                                 size = 34.dp,
                                 iconSize = 16.dp,
                                 contentDescription = "بستن پنجره",

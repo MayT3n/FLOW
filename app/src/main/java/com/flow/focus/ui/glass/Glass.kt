@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.os.Build
 import java.io.File
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -375,6 +376,18 @@ fun GlassSurface(
     }.let { surface -> surface.copy(alpha = (surface.alpha + contrastBoost).coerceAtMost(0.76f)) }
     val fill = baseFill.copy(alpha = (baseFill.alpha * g.opacity.coerceIn(0.65f, 1.18f)).coerceIn(0f, 0.88f))
     val shine = if (g.quality == GlassQuality.LOW) 0.15f else g.shine
+    val animationSpec = if (g.animations) tween<Color>(220) else snap()
+    val animatedFill by animateColorAsState(fill, animationSpec, label = "glass-fill")
+    val targetTint = tint?.copy(alpha = 0.16f) ?: Color.Transparent
+    val animatedTint by animateColorAsState(targetTint, animationSpec, label = "glass-surface-tint")
+    val paletteTint = rootBackdrop?.palette?.value?.firstOrNull() ?: rootBackdrop?.tone?.value
+    val paletteOverlay = paletteTint?.copy(alpha = if (c.isDark) 0.055f else 0.035f) ?: Color.Transparent
+    val animatedPaletteOverlay by animateColorAsState(paletteOverlay, animationSpec, label = "glass-wallpaper-tint")
+    val animatedShine by animateFloatAsState(
+        targetValue = shine,
+        animationSpec = if (g.animations) tween(240) else snap(),
+        label = "glass-shine",
+    )
 
     val outer = modifier
         .then(if (elevated && g.quality != GlassQuality.LOW) Modifier.shadow(18.dp, shape, ambientColor = c.shadow, spotColor = c.shadow) else Modifier)
@@ -405,17 +418,14 @@ fun GlassSurface(
         }
         Box(
             Modifier.matchParentSize().drawBehind {
-                drawRect(fill)
-                // A restrained average-wallpaper tint makes glass feel connected to the image beneath it.
-                val paletteTint = rootBackdrop?.palette?.value?.firstOrNull() ?: rootBackdrop?.tone?.value
-                paletteTint?.let { color ->
-                    drawRect(color.copy(alpha = if (c.isDark) 0.055f else 0.035f))
-                }
-                if (tint != null) drawRect(tint.copy(alpha = 0.16f))
+                drawRect(animatedFill)
+                // A restrained wallpaper tint blends with the glass when the backdrop changes.
+                if (animatedPaletteOverlay.alpha > 0.001f) drawRect(animatedPaletteOverlay)
+                if (animatedTint.alpha > 0.001f) drawRect(animatedTint)
                 if (g.quality != GlassQuality.LOW) {
                     drawRect(
                         Brush.verticalGradient(
-                            0f to c.glassTintTop.copy(alpha = c.glassTintTop.alpha * shine),
+                            0f to c.glassTintTop.copy(alpha = c.glassTintTop.alpha * animatedShine),
                             0.55f to Color.Transparent,
                             1f to Color.Transparent,
                         ),
@@ -433,10 +443,10 @@ fun GlassSurface(
                 1.dp,
                 Brush.linearGradient(
                     listOf(
-                        c.glassEdge.copy(alpha = 0.62f * shine * edgeStrength),
+                        c.glassEdge.copy(alpha = 0.62f * animatedShine * edgeStrength),
                         c.glassEdge.copy(alpha = 0.06f * edgeStrength),
                         c.glassEdge.copy(alpha = 0.025f * edgeStrength),
-                        c.glassEdge.copy(alpha = 0.32f * shine * edgeStrength),
+                        c.glassEdge.copy(alpha = 0.32f * animatedShine * edgeStrength),
                     ),
                     start = Offset.Zero, end = Offset.Infinite,
                 ),
