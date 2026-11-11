@@ -318,6 +318,7 @@ private fun EntryRow(vm: AppViewModel, e: PlanEntry, day: LocalDate, onEdit: (Ta
             if (e is TaskEntry && !e.task.done) {
                 GlassIconButton(FlowIcons.Move, { onMove(e.task) }, size = 34.dp, iconSize = 16.dp, contentDescription = "جابه‌جایی به تاریخ دیگر")
             }
+    }
 }
 
 @Composable
