@@ -12,10 +12,6 @@ on:
         required: false
         default: ''
 
-concurrency:
-  group: matfocus-android-${{ github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
 
