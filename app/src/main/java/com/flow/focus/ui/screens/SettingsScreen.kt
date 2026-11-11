@@ -468,7 +468,6 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                 onDownload = vm::downloadAmbient,
                 onDeleteDownload = vm::deleteAmbientDownload,
             )
-            MusicSettings(vm, st)
         }
 
         if (selectedPage == "music") Section("موسیقی") {
@@ -477,6 +476,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                 style = Flow.type.body,
                 color = Flow.colors.textSecondary,
             )
+            MusicSettings(vm, st)
             GlassButton(
                 "باز کردن پخش‌کننده و کتابخانه",
                 { musicOpen = true },
