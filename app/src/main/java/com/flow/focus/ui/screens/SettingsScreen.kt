@@ -20,6 +20,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +30,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -84,6 +87,7 @@ import com.flow.focus.ui.glass.LocalRootBackdrop
 import com.flow.focus.ui.glass.GlassSurface
 import com.flow.focus.ui.glass.springClick
 import com.flow.focus.ui.theme.Flow
+import com.flow.focus.ui.theme.LocalDockContentPadding
 import com.flow.focus.ui.theme.LocalGlass
 import java.time.LocalDate
 import kotlinx.coroutines.Dispatchers
@@ -269,11 +273,11 @@ private fun SettingsDestination(
             FlowIcon(icon, tint = Flow.colors.accent, size = 19.dp)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-            Text(title, style = Flow.type.bodyStrong, color = Flow.colors.textPrimary)
-            Text(subtitle, style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 1)
+            Text(title, style = Flow.type.bodyStrong, color = Flow.colors.textPrimary, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            Text(subtitle, style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
         if (!value.isNullOrBlank()) {
-            Text(value, style = Flow.type.caption, color = Flow.colors.textSecondary)
+            Text(value, style = Flow.type.caption, color = Flow.colors.textSecondary, modifier = Modifier.widthIn(max = 84.dp), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
         FlowIcon(FlowIcons.ChevronNext, tint = Flow.colors.textSecondary, size = 17.dp)
     }
@@ -326,7 +330,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
 
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding()
-            .padding(horizontal = 18.dp).padding(top = 8.dp, bottom = 120.dp),
+            .padding(horizontal = 18.dp).padding(top = 8.dp, bottom = LocalDockContentPadding.current),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         AnimatedVisibility(
@@ -405,7 +409,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             ) {
                 GlassIconButton(FlowIcons.ChevronPrev, { selectedPage = "root" }, size = 40.dp, iconSize = 19.dp, contentDescription = "بازگشت")
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                    Text(pageTitle, style = Flow.type.title, color = Flow.colors.textPrimary)
+                    Text(pageTitle, style = Flow.type.title, color = Flow.colors.textPrimary, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     Text("تنظیمات MatFocus", style = Flow.type.caption, color = Flow.colors.textSecondary)
                 }
             }
@@ -424,13 +428,16 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
 
         AnimatedSettingsSection(selectedPage == "wallpaper", "پس‌زمینه") {
             Text("انتخاب پس‌زمینه", style = Flow.type.body, color = Flow.colors.textPrimary)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                WallpaperOption("gradient", "اصلی", st.wallpaperId == "gradient", Modifier.weight(1f)) { wallpaperPreviewId = "gradient" }
-                WallpaperOption("aurora", "شفق", st.wallpaperId == "aurora", Modifier.weight(1f)) { wallpaperPreviewId = "aurora" }
-                WallpaperOption("midnight", "نیمه‌شب", st.wallpaperId == "midnight", Modifier.weight(1f)) { wallpaperPreviewId = "midnight" }
-                WallpaperOption("dusk", "غروب", st.wallpaperId == "dusk", Modifier.weight(1f)) { wallpaperPreviewId = "dusk" }
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                WallpaperOption("gradient", "اصلی", st.wallpaperId == "gradient", Modifier.width(70.dp)) { wallpaperPreviewId = "gradient" }
+                WallpaperOption("aurora", "شفق", st.wallpaperId == "aurora", Modifier.width(70.dp)) { wallpaperPreviewId = "aurora" }
+                WallpaperOption("midnight", "نیمه‌شب", st.wallpaperId == "midnight", Modifier.width(70.dp)) { wallpaperPreviewId = "midnight" }
+                WallpaperOption("dusk", "غروب", st.wallpaperId == "dusk", Modifier.width(70.dp)) { wallpaperPreviewId = "dusk" }
                 if (!st.wallpaperPath.isNullOrBlank()) {
-                    WallpaperOption("custom", "شخصی", st.wallpaperId == "custom", Modifier.weight(1f)) { wallpaperPreviewId = "custom" }
+                    WallpaperOption("custom", "شخصی", st.wallpaperId == "custom", Modifier.width(70.dp)) { wallpaperPreviewId = "custom" }
                 }
             }
             GlassButton(
