@@ -156,7 +156,7 @@ fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
 
 @Composable
 private fun Tile(icon: androidx.compose.ui.graphics.vector.ImageVector, value: String, caption: String, tint: Color, modifier: Modifier) {
-    GlassSurface(modifier, shape = RoundedCornerShape(22.dp)) {
+    GlassSurface(modifier, shape = RoundedCornerShape(18.dp), level = com.flow.focus.ui.glass.GlassLevel.Subtle) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             FlowIcon(icon, tint = tint, size = 24.dp)
             Text(value, style = Flow.type.heading, color = Flow.colors.textPrimary, maxLines = 1)

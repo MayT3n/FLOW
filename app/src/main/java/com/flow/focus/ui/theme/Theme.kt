@@ -53,30 +53,30 @@ data class FlowColors(
 
 val DarkColors = FlowColors(
     isDark = true,
-    bgTop = Color(0xFF0A1030), bgMid = Color(0xFF101A4A), bgBottom = Color(0xFF1B2A72),
-    blobA = Color(0xFF3B6CFF), blobB = Color(0xFF7A4DFF), blobC = Color(0xFF22B8F0),
-    glassFill = Color(0xFF9FB4FF).copy(alpha = 0.10f),
-    glassFillStrong = Color(0xFF1A2560).copy(alpha = 0.78f),
-    glassTintTop = Color.White.copy(alpha = 0.14f),
+    bgTop = Color(0xFF101318), bgMid = Color(0xFF171C24), bgBottom = Color(0xFF202833),
+    blobA = Color(0xFF526B86), blobB = Color(0xFF625A78), blobC = Color(0xFF477A7B),
+    glassFill = Color(0xFFB8C8DC).copy(alpha = 0.075f),
+    glassFillStrong = Color(0xFF252E39).copy(alpha = 0.82f),
+    glassTintTop = Color.White.copy(alpha = 0.10f),
     glassEdge = Color.White,
-    textPrimary = Color(0xFFF1F4FF), textSecondary = Color(0xFFAAB6E6), textOnAccent = Color.White,
-    accent = Color(0xFF5C9DFF), accentAlt = Color(0xFF8C6BFF), accentSoft = Color(0xFF5C9DFF).copy(alpha = 0.22f),
-    success = Color(0xFF3DDC97), warning = Color(0xFFFFB84D), danger = Color(0xFFFF6B81),
-    track = Color.White.copy(alpha = 0.12f), shadow = Color(0xFF000000).copy(alpha = 0.45f),
+    textPrimary = Color(0xFFF0F2F5), textSecondary = Color(0xFFAAB4C1), textOnAccent = Color.White,
+    accent = Color(0xFF79A9E4), accentAlt = Color(0xFF91A6C7), accentSoft = Color(0xFF79A9E4).copy(alpha = 0.20f),
+    success = Color(0xFF55B98A), warning = Color(0xFFD9A35A), danger = Color(0xFFE27A86),
+    track = Color.White.copy(alpha = 0.11f), shadow = Color(0xFF000000).copy(alpha = 0.42f),
 )
 
 val LightColors = FlowColors(
     isDark = false,
-    bgTop = Color(0xFFEAF1FF), bgMid = Color(0xFFEFEBFF), bgBottom = Color(0xFFD9E4FF),
-    blobA = Color(0xFF9DBBFF), blobB = Color(0xFFC7B2FF), blobC = Color(0xFFA6E3FF),
-    glassFill = Color.White.copy(alpha = 0.52f),
-    glassFillStrong = Color(0xFFF6F8FF).copy(alpha = 0.92f),
-    glassTintTop = Color.White.copy(alpha = 0.65f),
+    bgTop = Color(0xFFF4F5F7), bgMid = Color(0xFFF0F2F5), bgBottom = Color(0xFFE7ECF2),
+    blobA = Color(0xFFB8C9DC), blobB = Color(0xFFC9C6D4), blobC = Color(0xFFB8D0CE),
+    glassFill = Color.White.copy(alpha = 0.58f),
+    glassFillStrong = Color(0xFFFCFDFE).copy(alpha = 0.94f),
+    glassTintTop = Color.White.copy(alpha = 0.68f),
     glassEdge = Color.White,
-    textPrimary = Color(0xFF16204A), textSecondary = Color(0xFF5A6590), textOnAccent = Color.White,
-    accent = Color(0xFF3A63F0), accentAlt = Color(0xFF7B52F0), accentSoft = Color(0xFF3A63F0).copy(alpha = 0.14f),
-    success = Color(0xFF1FA971), warning = Color(0xFFE0891A), danger = Color(0xFFE0425F),
-    track = Color(0xFF16204A).copy(alpha = 0.08f), shadow = Color(0xFF3A4C99).copy(alpha = 0.22f),
+    textPrimary = Color(0xFF202833), textSecondary = Color(0xFF687586), textOnAccent = Color.White,
+    accent = Color(0xFF477DC5), accentAlt = Color(0xFF6B8FC8), accentSoft = Color(0xFF477DC5).copy(alpha = 0.13f),
+    success = Color(0xFF238C66), warning = Color(0xFFB87928), danger = Color(0xFFD64D5D),
+    track = Color(0xFF202833).copy(alpha = 0.09f), shadow = Color(0xFF42566F).copy(alpha = 0.16f),
 )
 
 @Immutable

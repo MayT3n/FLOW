@@ -184,11 +184,15 @@ private fun TaskRow(
     val cat = Categories.byId(t.categoryId)
     val due = dueLabel(t, today)
     val overdue = isOverdue(t, today)
-    GlassSurface(
-        Modifier.fillMaxWidth().springClick(scaleDown = 0.985f, onClick = onEdit),
-        shape = RoundedCornerShape(22.dp), tint = if (active) c.accent else null,
+    Column(
+        Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (active) c.accentSoft.copy(alpha = 0.55f) else Color.Transparent)
+            .springClick(scaleDown = 0.99f, onClick = onEdit)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(9.dp),
     ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 CheckCircle(t.done, onToggle, size = 28.dp, color = Color(cat.color))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {

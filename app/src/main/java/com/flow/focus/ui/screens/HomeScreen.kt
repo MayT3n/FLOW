@@ -164,7 +164,24 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
 
         // ---- حلقه‌ی تایمر ----
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            TimerRing(timer, now, settings.rounds, Modifier.size(280.dp))
+            TimerRing(timer, now, settings.rounds, Modifier.size(260.dp))
+        }
+
+        // ---- کنترل‌ها ----
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+            RoundControl(FlowIcons.Skip, "رد کردن جلسه", { vm.skip() })
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                MainControl(running) { if (running) vm.pause() else vm.start() }
+                Text(
+                    when (timer.status) {
+                        TimerStatus.RUNNING -> "توقف"
+                        TimerStatus.PAUSED -> "ادامه"
+                        TimerStatus.IDLE -> "شروع"
+                    },
+                    style = Flow.type.label, color = c.textSecondary,
+                )
+            }
+            RoundControl(FlowIcons.Reset, "بازنشانی", { vm.reset() })
         }
 
         SegmentedControl(
@@ -203,23 +220,6 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             StatTile(FlowIcons.Target, num(sessionsToday), "جلسه‌ی امروز", c.success, Modifier.weight(1f))
             StatTile(FlowIcons.Clock, num(minutesToday), "دقیقه تمرکز امروز", c.accent, Modifier.weight(1f), goal = minutesToday.toFloat() / settings.dailyGoalMin.coerceAtLeast(1))
-        }
-
-        // ---- کنترل‌ها ----
-        Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-            RoundControl(FlowIcons.Skip, "رد کردن جلسه", { vm.skip() })
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                MainControl(running) { if (running) vm.pause() else vm.start() }
-                Text(
-                    when (timer.status) {
-                        TimerStatus.RUNNING -> "توقف"
-                        TimerStatus.PAUSED -> "ادامه"
-                        TimerStatus.IDLE -> "شروع"
-                    },
-                    style = Flow.type.label, color = c.textSecondary,
-                )
-            }
-            RoundControl(FlowIcons.Reset, "بازنشانی", { vm.reset() })
         }
 
         // ---- برنامه‌ی بعدی ----
@@ -310,7 +310,7 @@ private fun StatTile(icon: androidx.compose.ui.graphics.vector.ImageVector, valu
 
 @Composable
 private fun RoundControl(icon: androidx.compose.ui.graphics.vector.ImageVector, description: String, onClick: () -> Unit) {
-    GlassIconButton(icon, onClick, size = 62.dp, iconSize = 26.dp, contentDescription = description)
+    GlassIconButton(icon, onClick, size = 48.dp, iconSize = 21.dp, contentDescription = description)
 }
 
 @Composable
@@ -318,7 +318,7 @@ private fun MainControl(running: Boolean, onClick: () -> Unit) {
     val c = Flow.colors
     Box(
         Modifier
-            .size(80.dp)
+            .size(72.dp)
             .springClick(scaleDown = 0.93f, onClick = onClick)
             .clip(CircleShape)
             .background(Brush.linearGradient(listOf(c.accent, c.accentAlt)))
@@ -360,7 +360,7 @@ private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier
                 drawCircle(Color.White, stroke * 0.28f, Offset(center.x + r * cos(ang), center.y + r * sin(ang)))
             }
         }
-        GlassSurface(Modifier.size(220.dp), shape = CircleShape, level = GlassLevel.Subtle) {
+        GlassSurface(Modifier.size(204.dp), shape = CircleShape, level = GlassLevel.Subtle) {
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 FlowIcon(
                     when (timer.phase) {
@@ -369,6 +369,15 @@ private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier
                         PhaseType.LONG_BREAK -> FlowIcons.Moon
                     },
                     tint = c.success, size = 26.dp,
+                )
+                Text(
+                    when (timer.phase) {
+                        PhaseType.FOCUS -> "تمرکز"
+                        PhaseType.SHORT_BREAK -> "استراحت کوتاه"
+                        PhaseType.LONG_BREAK -> "استراحت بلند"
+                    },
+                    style = Flow.type.label,
+                    color = c1,
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(num(formatClock(seconds)), style = Flow.type.display, color = c.textPrimary, maxLines = 1)

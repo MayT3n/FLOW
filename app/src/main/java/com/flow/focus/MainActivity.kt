@@ -19,7 +19,8 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -123,7 +124,9 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
             modifier = Modifier.fillMaxSize(),
             transitionSpec = {
                 if (animations) {
-                    (fadeIn(tween(240)) + slideInVertically(tween(280)) { it / 24 }) togetherWith fadeOut(tween(140))
+                    val direction = if (targetState > initialState) -1 else 1
+                    (fadeIn(tween(210)) + slideInHorizontally(tween(260)) { it * direction / 18 }) togetherWith
+                        (fadeOut(tween(150)) + slideOutHorizontally(tween(220)) { -it * direction / 18 })
                 } else {
                     ContentTransform(EnterTransition.None, ExitTransition.None)
                 }

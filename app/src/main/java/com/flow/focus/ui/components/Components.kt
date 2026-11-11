@@ -389,10 +389,10 @@ data class DockItem(val label: String, val icon: ImageVector)
 fun FlowDock(items: List<DockItem>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
     val c = Flow.colors
     GlassSurface(
-        modifier.fillMaxWidth().height(70.dp),
-        shape = RoundedCornerShape(35.dp), level = GlassLevel.Strong, elevated = true,
+        modifier.fillMaxWidth().widthIn(max = 440.dp).height(66.dp),
+        shape = RoundedCornerShape(33.dp), level = GlassLevel.Strong, elevated = true,
     ) {
-        Row(Modifier.fillMaxSize().padding(6.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(Modifier.fillMaxSize().padding(5.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             items.forEachIndexed { i, item ->
                 val sel = i == selected
                 val p by animateFloatAsState(if (sel) 1f else 0f, floatSpring(0.6f, 450f), label = "dock")
@@ -410,7 +410,7 @@ fun FlowDock(items: List<DockItem>, selected: Int, onSelect: (Int) -> Unit, modi
                     )
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         FlowIcon(
-                            item.icon, tint = if (sel) c.accent else c.textSecondary, size = 24.dp,
+                            item.icon, tint = if (sel) c.accent else c.textSecondary, size = 22.dp,
                             modifier = Modifier.graphicsLayer { translationY = -3f * p },
                         )
                         Text(item.label, style = Flow.type.caption, color = if (sel) c.accent else c.textSecondary, maxLines = 1)

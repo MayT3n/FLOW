@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -52,6 +53,7 @@ import com.flow.focus.data.ThemeMode
 import com.flow.focus.data.WallpaperFit
 import com.flow.focus.ui.AppViewModel
 import com.flow.focus.ui.components.FlowDialog
+import com.flow.focus.ui.components.FlowIcon
 import com.flow.focus.ui.components.FlowIcons
 import com.flow.focus.ui.components.FlowSlider
 import com.flow.focus.ui.components.GlassButton
@@ -63,6 +65,7 @@ import com.flow.focus.ui.components.SettingRow
 import com.flow.focus.ui.components.Stepper
 import com.flow.focus.ui.components.SwitchRow
 import com.flow.focus.ui.components.num
+import com.flow.focus.ui.glass.GlassLevel
 import com.flow.focus.ui.glass.GlassSurface
 import com.flow.focus.ui.glass.springClick
 import com.flow.focus.ui.theme.Flow
@@ -72,10 +75,39 @@ import kotlinx.coroutines.withContext
 
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionTitle(title)
-        GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(26.dp)) {
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) { content() }
+    val icon = when (title) {
+        "ظاهر" -> FlowIcons.Sun
+        "پس‌زمینه" -> FlowIcons.Layers
+        "کیفیت Liquid Glass" -> FlowIcons.Layers
+        "پومودورو" -> FlowIcons.Clock
+        "اعلان‌ها" -> FlowIcons.Bell
+        "صدای محیط" -> FlowIcons.Music
+        "مدیریت داده‌ها" -> FlowIcons.Export
+        else -> FlowIcons.Target
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = 3.dp, end = 3.dp, top = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(9.dp),
+        ) {
+            Box(
+                Modifier.size(30.dp).clip(RoundedCornerShape(10.dp)).background(Flow.colors.accentSoft),
+                contentAlignment = Alignment.Center,
+            ) {
+                FlowIcon(icon, tint = Flow.colors.accent, size = 17.dp)
+            }
+            Text(title, style = Flow.type.heading, color = Flow.colors.textPrimary)
+        }
+        GlassSurface(
+            Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(19.dp),
+            level = GlassLevel.Subtle,
+        ) {
+            Column(
+                Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) { content() }
         }
     }
 }
@@ -335,6 +367,12 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
 
         Section("درباره") {
             SettingRow("FLOW", subtitle = "تمرکز کن، جریان بساز.") { Text(num("نسخه ${BuildConfig.VERSION_NAME}"), style = Flow.type.caption, color = Flow.colors.textSecondary) }
+            Text(
+                "ساخته شده توسط مت زم",
+                Modifier.fillMaxWidth().padding(top = 2.dp),
+                style = Flow.type.caption,
+                color = Flow.colors.textSecondary,
+            )
         }
     }
 
