@@ -159,7 +159,7 @@ class MusicManager(
     fun isDownloaded(trackId: String): Boolean =
         MusicCatalog.tracks.firstOrNull { it.id == trackId }?.let { downloadedFile(it)?.let(File::exists) == true } ?: false
 
-    fun downloadedBytes(): Long = File(context.filesDir, "audio/music").listFiles()?.filter { it.isFile }?.sumOf { it.length() } ?: 0L
+    fun downloadedBytes(): Long = File(context.filesDir, "audio/music").listFiles()?.filter { it.isFile && it.extension.equals("mp3", ignoreCase = true) }?.sumOf { it.length() } ?: 0L
 
     suspend fun downloadTrack(trackId: String, onProgress: (Float) -> Unit = {}): File =
         withContext(Dispatchers.IO) {
