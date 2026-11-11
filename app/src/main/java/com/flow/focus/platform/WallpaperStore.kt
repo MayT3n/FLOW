@@ -36,14 +36,20 @@ class WallpaperStore(context: Context) {
                 temp.copyTo(target, overwrite = true)
                 temp.delete()
             }
-            directory.listFiles()
-                ?.filter { it.isFile && it.name.startsWith("wallpaper-") && it != target }
-                ?.forEach { it.delete() }
             target.absolutePath
         } finally {
             bitmap.recycle()
         }
     }.getOrNull()
+
+    fun isStored(path: String): Boolean {
+        val file = runCatching { File(path).canonicalFile }.getOrNull() ?: return false
+        return file.parentFile == directory.canonicalFile && file.isFile && file.name.startsWith("wallpaper-")
+    }
+
+    fun delete(path: String) {
+        if (isStored(path)) runCatching { File(path).delete() }
+    }
 
     private fun decode(uri: Uri): Bitmap? {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {

@@ -106,14 +106,26 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** تصویر انتخابی ابتدا به نسخه‌ی بهینه‌شده در حافظه‌ی خصوصی برنامه تبدیل می‌شود. */
-    fun importWallpaper(uri: Uri, onComplete: (Boolean) -> Unit = {}) {
+    fun importWallpaper(uri: Uri, onComplete: (String?) -> Unit = {}) {
         viewModelScope.launch {
             val path = withContext(Dispatchers.IO) { wallpaperStore.import(uri) }
-            if (path != null) {
-                updateSettings { it.copy(wallpaperId = "custom", wallpaperPath = path) }
-            }
-            onComplete(path != null)
+            onComplete(path)
         }
+    }
+
+    /** Apply only after the user accepts the preview. */
+    fun applyCustomWallpaper(path: String): Boolean {
+        if (!wallpaperStore.isStored(path)) return false
+        val previous = c.repo.current.settings.wallpaperPath
+        updateSettings { it.copy(wallpaperId = "custom", wallpaperPath = path) }
+        if (previous != null && previous != path) {
+            viewModelScope.launch(Dispatchers.IO) { wallpaperStore.delete(previous) }
+        }
+        return true
+    }
+
+    fun discardWallpaperPreview(path: String) {
+        viewModelScope.launch(Dispatchers.IO) { wallpaperStore.delete(path) }
     }
 
     // ---- داده‌ها ----

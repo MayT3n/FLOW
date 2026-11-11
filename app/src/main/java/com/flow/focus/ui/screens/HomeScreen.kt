@@ -121,9 +121,20 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
     ) {
         // ---- سربرگ ----
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Column(Modifier.weight(1f)) {
-                Text("FLOW", style = Flow.type.title.copy(letterSpacing = 2.sp), color = c.textPrimary)
-                Text(num(DateFormats.weekdayAndDay(today)), style = Flow.type.label, color = c.textSecondary)
+            Row(
+                Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                GlassSurface(Modifier.size(42.dp), shape = CircleShape, level = GlassLevel.Subtle) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        FlowIcon(FlowIcons.Leaf, tint = c.accent, size = 23.dp)
+                    }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Text("FLOW", style = Flow.type.title.copy(letterSpacing = 2.sp), color = c.textPrimary)
+                    Text(num(DateFormats.weekdayAndDay(today)), style = Flow.type.label, color = c.textSecondary)
+                }
             }
             GlassIconButton(
                 if (c.isDark) FlowIcons.Sun else FlowIcons.Moon,
@@ -153,7 +164,7 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
 
         // ---- حلقه‌ی تایمر ----
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            TimerRing(timer, now, settings.rounds, Modifier.size(292.dp))
+            TimerRing(timer, now, settings.rounds, Modifier.size(280.dp))
         }
 
         SegmentedControl(
@@ -307,7 +318,7 @@ private fun MainControl(running: Boolean, onClick: () -> Unit) {
     val c = Flow.colors
     Box(
         Modifier
-            .size(86.dp)
+            .size(80.dp)
             .springClick(scaleDown = 0.93f, onClick = onClick)
             .clip(CircleShape)
             .background(Brush.linearGradient(listOf(c.accent, c.accentAlt)))
@@ -330,7 +341,7 @@ private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier
 
     Box(modifier, contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
-            val stroke = 14.dp.toPx()
+            val stroke = 12.dp.toPx()
             val inset = stroke / 2f + 4.dp.toPx()
             val arc = Size(size.width - 2 * inset, size.height - 2 * inset)
             val tl = Offset(inset, inset)
@@ -349,7 +360,7 @@ private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier
                 drawCircle(Color.White, stroke * 0.28f, Offset(center.x + r * cos(ang), center.y + r * sin(ang)))
             }
         }
-        GlassSurface(Modifier.size(232.dp), shape = CircleShape, level = GlassLevel.Subtle) {
+        GlassSurface(Modifier.size(220.dp), shape = CircleShape, level = GlassLevel.Subtle) {
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 FlowIcon(
                     when (timer.phase) {

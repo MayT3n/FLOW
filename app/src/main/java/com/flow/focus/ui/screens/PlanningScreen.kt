@@ -96,7 +96,11 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                     onEditRoutine = { routineEditing = it },
                     onAddRoutine = { routineCreating = true },
                 )
-                1 -> WeeklyView(vm, data, selDate, today, onOpenDay = { selected = it.toEpochDay(); mode = 0 }, onShiftWeek = { selected = selDate.plusDays(7L * it).toEpochDay() })
+                1 -> WeeklyView(
+                    vm, data, selDate, today,
+                    onSelectDay = { selected = it.toEpochDay() },
+                    onShiftWeek = { selected = selDate.plusDays(7L * it).toEpochDay() },
+                )
                 else -> {
                     val a = JalaliDate.of(LocalDate.ofEpochDay(monthAnchor))
                     val first = LocalDate.ofEpochDay(monthAnchor)
@@ -261,55 +265,91 @@ private fun EntryRow(vm: AppViewModel, e: PlanEntry, day: LocalDate, onEdit: (Ta
 private fun WeeklyView(
     vm: AppViewModel,
     data: AppData,
-    anchor: LocalDate,
+    selectedDay: LocalDate,
     today: LocalDate,
-    onOpenDay: (LocalDate) -> Unit,
+    onSelectDay: (LocalDate) -> Unit,
     onShiftWeek: (Int) -> Unit,
 ) {
     val c = Flow.colors
-    val start = JalaliDate.startOfWeek(anchor)
+    val start = JalaliDate.startOfWeek(selectedDay)
     val end = start.plusDays(6)
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    val selectedEpoch = selectedDay.toEpochDay()
+
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         GlassIconButton(FlowIcons.ChevronPrev, { onShiftWeek(-1) }, size = 40.dp, iconSize = 18.dp, contentDescription = "هفته‌ی قبل")
-        Text(
-            num(DateFormats.short(start) + " تا " + DateFormats.short(end)),
-            Modifier.weight(1f), style = Flow.type.heading, color = c.textPrimary, textAlign = TextAlign.Center,
-        )
+        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(num(DateFormats.short(start) + " تا " + DateFormats.short(end)), style = Flow.type.heading, color = c.textPrimary)
+            Text("نمای هفتگی", style = Flow.type.caption, color = c.textSecondary)
+        }
         GlassIconButton(FlowIcons.ChevronNext, { onShiftWeek(1) }, size = 40.dp, iconSize = 18.dp, contentDescription = "هفته‌ی بعد")
     }
-    GoalsCard(
-        "اهداف هفته", data.goals.filter { it.period == GoalPeriod.WEEKLY && it.periodStartDay == start.toEpochDay() },
-        onAdd = { vm.addGoal(it, GoalPeriod.WEEKLY, start.toEpochDay()) }, onToggle = vm::toggleGoal, onDelete = vm::deleteGoal,
-    )
-    for (i in 0..6) {
-        val d = start.plusDays(i.toLong())
-        val entries = remember(data.tasks, data.routines, data.routineChecks, d) { Planner.entriesFor(data, d) }
-        val isToday = d == today
-        GlassSurface(
-            Modifier.fillMaxWidth().springClick(scaleDown = 0.985f, onClick = { onOpenDay(d) }),
-            shape = RoundedCornerShape(22.dp), tint = if (isToday) c.accent else null,
+
+    GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), level = GlassLevel.Subtle) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Column(Modifier.size(width = 64.dp, height = 52.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    Text(JalaliDate.weekdayNames[i], style = Flow.type.label, color = if (isToday) c.accent else c.textSecondary, maxLines = 1)
-                    Text(num(JalaliDate.of(d).day), style = Flow.type.title, color = c.textPrimary)
+            for (i in 0..6) {
+                val day = start.plusDays(i.toLong())
+                val epoch = day.toEpochDay()
+                val entries = remember(data.tasks, data.routines, data.routineChecks, epoch) {
+                    Planner.entriesFor(data, day)
                 }
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    if (entries.isEmpty()) {
-                        Text("آزاد", style = Flow.type.caption, color = c.textSecondary)
-                    } else {
-                        entries.take(3).forEach {
-                            Text(
-                                num((it.minute?.let { m -> DateFormats.clock(m) + "  " } ?: "") + it.title),
-                                style = Flow.type.caption, color = if (it.done) c.textSecondary else c.textPrimary,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            )
+                val selected = epoch == selectedEpoch
+                val isToday = day == today
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(17.dp))
+                        .background(if (selected) c.accent else Color.Transparent)
+                        .springClick(scaleDown = 0.94f, onClick = { onSelectDay(day) })
+                        .padding(vertical = 9.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
+                    Text(
+                        JalaliDate.weekdayInitials[i],
+                        style = Flow.type.caption,
+                        color = if (selected) c.textOnAccent.copy(alpha = 0.82f) else c.textSecondary,
+                    )
+                    Text(
+                        num(JalaliDate.of(day).day),
+                        style = Flow.type.bodyStrong,
+                        color = if (selected) c.textOnAccent else c.textPrimary,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        if (entries.isEmpty()) {
+                            Box(Modifier.size(4.dp).clip(CircleShape).background(if (isToday && !selected) c.accent else Color.Transparent))
+                        } else {
+                            repeat(minOf(entries.size, 3)) {
+                                Box(
+                                    Modifier.size(4.dp).clip(CircleShape)
+                                        .background(if (selected) c.textOnAccent else c.accent),
+                                )
+                            }
                         }
-                        if (entries.size > 3) Text(num("و ${entries.size - 3} مورد دیگر"), style = Flow.type.caption, color = c.textSecondary)
                     }
                 }
-                FlowIcon(FlowIcons.ChevronNext, tint = c.textSecondary, size = 18.dp)
             }
         }
     }
+
+    if (selectedDay != today) {
+        GlassButton("رفتن به امروز", { onSelectDay(today) }, Modifier.fillMaxWidth())
+    }
+
+    GoalsCard(
+        "اهداف هفته",
+        data.goals.filter { it.period == GoalPeriod.WEEKLY && it.periodStartDay == start.toEpochDay() },
+        onAdd = { vm.addGoal(it, GoalPeriod.WEEKLY, start.toEpochDay()) },
+        onToggle = vm::toggleGoal,
+        onDelete = vm::deleteGoal,
+    )
+
+    SectionTitle(num(DateFormats.full(selectedDay)))
+    EntryList(vm, data, selectedDay, onEdit = {}, onMove = {})
 }
