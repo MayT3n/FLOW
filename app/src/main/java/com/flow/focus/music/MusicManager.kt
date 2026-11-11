@@ -121,6 +121,10 @@ class MusicManager(
         val index = MusicCatalog.tracks.indexOfFirst { it.id == trackId }
         if (index < 0) return
         if (player.currentMediaItem?.mediaId == trackId) {
+            if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
+                player.seekToDefaultPosition()
+                player.prepare()
+            }
             if (!player.isPlaying) player.play()
             publish()
             return
