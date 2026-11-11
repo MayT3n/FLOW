@@ -3,7 +3,7 @@ package com.flow.focus
 import com.flow.focus.data.AppData
 import com.flow.focus.data.WallpaperFit
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.decodeFromString
+import kotlinx.serialization.decodeFromString
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
