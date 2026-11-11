@@ -135,6 +135,8 @@ fun TaskEditorDialog(
                         title = title.trim(), notes = notes.trim(), dueDay = dueDay,
                         dueMinute = if (dueDay != null) minute else null,
                         priority = priority, categoryId = category, estimatedPomodoros = pomodoros,
+                        done = done,
+                        doneAt = if (done) initial?.doneAt ?: System.currentTimeMillis() else null,
                     )
                     onSave(t)
                 },
