@@ -86,6 +86,9 @@ data class GlassConfig(
     val blurDp: Int = 24,
     val shine: Float = 0.7f,
     val animations: Boolean = true,
+    val material: com.flow.focus.data.GlassMaterial = com.flow.focus.data.GlassMaterial.CRYSTAL,
+    val refraction: Float = 0.7f,
+    val reflection: Float = 0.6f,
 )
 
 val LocalFlowColors = compositionLocalOf { DarkColors }
@@ -148,7 +151,7 @@ fun FlowTheme(settings: Settings, content: @Composable () -> Unit) {
     val ctx = LocalContext.current
     val family = remember { loadFontFamily(ctx) }
     val type = remember(family) { FlowTypography(family) }
-    val glass = GlassConfig(settings.glassQuality, settings.glassOpacity, settings.glassBlurDp, settings.glassShine, settings.animations)
+    val glass = GlassConfig(settings.glassQuality, settings.glassOpacity, settings.glassBlurDp, settings.glassShine, settings.animations, settings.glassMaterial, settings.glassRefraction, settings.glassReflection)
     MaterialTheme(colorScheme = scheme(colors)) {
         // رابط کاربری همیشه راست‌چین است، مستقل از زبان دستگاه.
         CompositionLocalProvider(

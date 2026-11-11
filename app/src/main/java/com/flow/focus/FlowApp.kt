@@ -3,6 +3,7 @@ package com.flow.focus
 import android.app.Application
 import com.flow.focus.data.FlowRepository
 import com.flow.focus.data.JsonStore
+import com.flow.focus.data.WallpaperStore
 import com.flow.focus.platform.AlarmScheduler
 import com.flow.focus.platform.AmbientPlayer
 import com.flow.focus.platform.NotificationHelper
@@ -16,6 +17,7 @@ import kotlinx.coroutines.SupervisorJob
 class AppContainer(app: Application) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val repo = FlowRepository(JsonStore(File(app.filesDir, "flow_data.json")), scope)
+    val wallpapers = WallpaperStore(app)
     val notifier = NotificationHelper(app)
     val alarms = AlarmScheduler(app)
     val ambient = AmbientPlayer(app, scope)

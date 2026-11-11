@@ -49,7 +49,7 @@ import com.flow.focus.ui.theme.Flow
 import java.time.LocalDate
 
 @Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
+internal fun Section(title: String, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionTitle(title)
         GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(26.dp)) {
@@ -96,37 +96,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
     ) {
         ScreenHeader("تنظیمات")
 
-        Section("ظاهر") {
-            Text("تم", style = Flow.type.body, color = Flow.colors.textPrimary)
-            SegmentedControl(listOf("روشن", "تاریک", "سیستم"), listOf(ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM).indexOf(st.theme), {
-                vm.updateSettings { s -> s.copy(theme = listOf(ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM)[it]) }
-            })
-            Text("اعداد", style = Flow.type.body, color = Flow.colors.textPrimary, modifier = Modifier.padding(top = 8.dp))
-            SegmentedControl(listOf("فارسی ۱۲۳", "انگلیسی 123"), if (st.persianDigits) 0 else 1, { vm.updateSettings { s -> s.copy(persianDigits = it == 0) } })
-            SwitchRow("انیمیشن‌ها", st.animations, { v -> vm.updateSettings { it.copy(animations = v) } }, subtitle = "خاموش کردن، مصرف باتری را کم می‌کند")
-        }
-
-        Section("کیفیت Liquid Glass") {
-            SegmentedControl(listOf("کم", "متوسط", "بالا"), st.glassQuality.ordinal, { vm.updateSettings { s -> s.copy(glassQuality = GlassQuality.entries[it]) } })
-            Text(
-                when (st.glassQuality) {
-                    GlassQuality.LOW -> "سطح ساده و کم‌مصرف؛ مناسب دستگاه‌های ضعیف."
-                    GlassQuality.MEDIUM -> "شیشه‌ی نیمه‌شفاف با درخشش و لبه‌ی نورانی."
-                    GlassQuality.HIGH -> "شامل تاری واقعی پس‌زمینه (اندروید ۱۲ به بالا)؛ مصرف بیشتر."
-                },
-                style = Flow.type.caption, color = Flow.colors.textSecondary,
-            )
-            if (st.glassQuality != GlassQuality.LOW) {
-                SettingRow("شفافیت") { Text(num("${(st.glassOpacity * 100).toInt()}%"), style = Flow.type.caption, color = Flow.colors.textSecondary) }
-                FlowSlider(st.glassOpacity, { v -> vm.updateSettings { it.copy(glassOpacity = v) } }, 0.4f..1.6f)
-                SettingRow("درخشش نور") { Text(num("${(st.glassShine * 100).toInt()}%"), style = Flow.type.caption, color = Flow.colors.textSecondary) }
-                FlowSlider(st.glassShine, { v -> vm.updateSettings { it.copy(glassShine = v) } }, 0f..1f)
-                if (st.glassQuality == GlassQuality.HIGH) {
-                    SettingRow("شدت تاری") { Text(num("${st.glassBlurDp}"), style = Flow.type.caption, color = Flow.colors.textSecondary) }
-                    FlowSlider(st.glassBlurDp.toFloat(), { v -> vm.updateSettings { it.copy(glassBlurDp = v.toInt()) } }, 4f..48f)
-                }
-            }
-        }
+        AppearanceSections(vm, st)
 
         Section("پومودورو") {
             SettingRow("مدت تمرکز") { Stepper(st.focusMin, { v -> vm.updateSettings { it.copy(focusMin = v) } }, 1..180, suffix = "دقیقه") }

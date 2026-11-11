@@ -44,6 +44,7 @@ import com.flow.focus.ui.components.DockItem
 import com.flow.focus.ui.components.FlowDock
 import com.flow.focus.ui.components.FlowIcons
 import com.flow.focus.ui.glass.GlassBackdropHost
+import com.flow.focus.ui.glass.rememberWallpaperState
 import com.flow.focus.ui.screens.HomeScreen
 import com.flow.focus.ui.screens.PlanningScreen
 import com.flow.focus.ui.screens.SettingsScreen
@@ -81,7 +82,8 @@ fun FlowRoot(vm: AppViewModel) {
     FlowTheme(data.settings) {
         SystemBars(Flow.colors.isDark)
         RequestNotificationPermission(data.settings.notifications)
-        GlassBackdropHost {
+        val wallpaper = rememberWallpaperState(data.settings)
+        GlassBackdropHost(wallpaper) {
             AppScaffold(vm, data)
         }
     }

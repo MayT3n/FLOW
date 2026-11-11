@@ -18,6 +18,15 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK }
 enum class GlassQuality { LOW, MEDIUM, HIGH }
 
 @Serializable
+enum class GlassMaterial { CRYSTAL, FROSTED, LIQUID }
+
+@Serializable
+enum class WallpaperKind { GRADIENT, BUILTIN, CUSTOM }
+
+@Serializable
+enum class WallpaperFit { CROP, FIT }
+
+@Serializable
 enum class GoalPeriod { DAILY, WEEKLY }
 
 /** دسته‌بندی‌های پیش‌فرض برنامه (ثابت؛ داده‌ی کاربر نیستند). */
@@ -106,6 +115,19 @@ data class Settings(
     val ambientVolume: Float = 0.5f,
     val ambientAuto: Boolean = true,
     val dailyGoalMin: Int = 120,
+    // ---- FLOW 2.0: مواد شیشه و والپیپر (پیش‌فرض‌های سازگار با نسخه‌های قبل) ----
+    val glassMaterial: GlassMaterial = GlassMaterial.CRYSTAL,
+    val glassRefraction: Float = 0.7f,
+    val glassReflection: Float = 0.6f,
+    val wallpaperKind: WallpaperKind = WallpaperKind.GRADIENT,
+    val wallpaperBuiltin: Int = 0,
+    val wallpaperRev: Long = 0L,
+    val wallpaperFit: WallpaperFit = WallpaperFit.CROP,
+    /** -0.6 (تیره‌تر) تا +0.6 (روشن‌تر) */
+    val wallpaperBrightness: Float = 0f,
+    val wallpaperSaturation: Float = 1f,
+    /** ۰..۱۰۰ */
+    val wallpaperBlur: Int = 0,
 ) {
     fun durationMs(phase: PhaseType): Long = when (phase) {
         PhaseType.FOCUS -> focusMin

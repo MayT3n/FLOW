@@ -12,6 +12,13 @@ import com.flow.focus.data.Settings
 import com.flow.focus.data.Task
 import com.flow.focus.data.FlowRepository
 import com.flow.focus.platform.AmbientSynth
+import android.net.Uri
+import androidx.lifecycle.viewModelScope
+import com.flow.focus.data.WallpaperFit
+import com.flow.focus.data.WallpaperKind
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.StateFlow
 
 /** تنها نقطه‌ی تماس رابط کاربری با منطق؛ UI هیچ‌جا مستقیم به مخزن یا سرویس‌ها دست نمی‌زند. */
@@ -91,6 +98,26 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val timerOwnsAmbient = d.timer.status == com.flow.focus.data.TimerStatus.RUNNING &&
             d.timer.phase == PhaseType.FOCUS && d.settings.ambientAuto && d.settings.ambientSound != AmbientSynth.NONE
         if (!timerOwnsAmbient) c.ambient.stop()
+    }
+
+    // ---- والپیپر ----
+    /** کپی بهینه در حافظه‌ی خصوصی (خارج از ترد اصلی)، سپس انتخاب به‌عنوان والپیپر فعلی. */
+    fun importWallpaper(uri: Uri, onDone: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val rev = withContext(Dispatchers.IO) { c.wallpapers.import(uri) }
+            if (rev != null) c.repo.updateSettings { it.copy(wallpaperKind = WallpaperKind.CUSTOM, wallpaperRev = rev) }
+            onDone(rev != null)
+        }
+    }
+
+    fun resetWallpaper() {
+        c.repo.updateSettings {
+            it.copy(
+                wallpaperKind = WallpaperKind.GRADIENT, wallpaperBuiltin = 0, wallpaperFit = WallpaperFit.CROP,
+                wallpaperBrightness = 0f, wallpaperSaturation = 1f, wallpaperBlur = 0, wallpaperRev = 0L,
+            )
+        }
+        viewModelScope.launch(Dispatchers.IO) { c.wallpapers.prune(null) }
     }
 
     // ---- داده‌ها ----
