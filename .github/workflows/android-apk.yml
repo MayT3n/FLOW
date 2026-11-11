@@ -73,6 +73,17 @@ jobs:
       - name: Unit tests
         run: ./gradlew testDebugUnitTest --stacktrace
 
+      - name: Debug build
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Android lint
+        run: ./gradlew lintRelease --stacktrace
+
+      - name: Resolve release dependency graph
+        run: |
+          mkdir -p audit-reports
+          ./gradlew :app:dependencies --configuration releaseRuntimeClasspath > audit-reports/release-dependencies.txt
+
       - name: Prepare signing
         id: sign
         env:
@@ -184,6 +195,7 @@ jobs:
           path: |
             ${{ steps.apk.outputs.file }}
             dist/signature.txt
+            audit-reports/release-dependencies.txt
           if-no-files-found: error
           retention-days: 30
 
