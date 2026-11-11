@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalUriHandler
 import com.flow.focus.core.DateFormats
 import com.flow.focus.core.JalaliDate
 import com.flow.focus.data.Categories
@@ -34,6 +35,7 @@ import com.flow.focus.data.Settings
 import com.flow.focus.data.Task
 import com.flow.focus.data.FlowRepository
 import com.flow.focus.platform.AmbientSynth
+import com.flow.focus.platform.AmbientLibrary
 import com.flow.focus.ui.components.CheckCircle
 import com.flow.focus.ui.components.Chip
 import com.flow.focus.ui.components.EmptyState
@@ -252,7 +254,7 @@ fun GoalsCard(
     }
 }
 
-/** انتخاب صدای محیط؛ هم در منوی خانه و هم در تنظیمات استفاده می‌شود. */
+/** انتخاب ضبط‌های واقعی محیط؛ منبع و مجوز هر فایل از کاتالوگ قابل مشاهده است. */
 @Composable
 fun AmbientPicker(
     settings: Settings,
@@ -261,25 +263,86 @@ fun AmbientPicker(
     onPreview: (String) -> Unit,
     onVolume: (Float) -> Unit,
     onAuto: (Boolean) -> Unit,
+    isDownloaded: (String) -> Boolean = { false },
+    downloadProgress: Map<String, Float> = emptyMap(),
+    downloadedBytes: Long = 0L,
+    onDownload: (String) -> Unit = {},
+    onDeleteDownload: (String) -> Unit = {},
 ) {
+    val uriHandler = LocalUriHandler.current
     val none = listOf(com.flow.focus.platform.AmbientSoundInfo(AmbientSynth.NONE, "خاموش", "بدون صدای محیط"))
-    (none + AmbientSynth.sounds).forEach { s ->
-        val sel = settings.ambientSound == s.id
+    (none + AmbientSynth.sounds).forEach { sound ->
+        val selected = settings.ambientSound == sound.id
+        val recording = AmbientLibrary.byId(sound.id)
         GlassSurface(
-            Modifier.fillMaxWidth().springClick(scaleDown = 0.98f, onClick = { onSelect(s.id) }),
-            shape = RoundedCornerShape(18.dp), level = GlassLevel.Subtle, tint = if (sel) Flow.colors.accent else null,
+            Modifier.fillMaxWidth().springClick(scaleDown = 0.98f, onClick = { onSelect(sound.id) }),
+            shape = RoundedCornerShape(18.dp),
+            level = GlassLevel.Subtle,
+            tint = if (selected) Flow.colors.accent else null,
         ) {
-            Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                FlowIcon(ambientIcon(s.id), tint = if (sel) Flow.colors.accent else Flow.colors.textSecondary, size = 22.dp)
-                Column(Modifier.weight(1f)) {
-                    Text(s.label, style = Flow.type.bodyStrong, color = Flow.colors.textPrimary)
-                    Text(s.hint, style = Flow.type.caption, color = Flow.colors.textSecondary)
+            Column(Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    FlowIcon(ambientIcon(sound.id), tint = if (selected) Flow.colors.accent else Flow.colors.textSecondary, size = 22.dp)
+                    Column(Modifier.weight(1f)) {
+                        Text(sound.label, style = Flow.type.bodyStrong, color = Flow.colors.textPrimary)
+                        Text(sound.hint, style = Flow.type.caption, color = Flow.colors.textSecondary)
+                    }
+                    if (sound.id != AmbientSynth.NONE) {
+                        GlassIconButton(
+                            if (playingId == sound.id) FlowIcons.Pause else FlowIcons.Play,
+                            { onPreview(sound.id) },
+                            size = 36.dp,
+                            iconSize = 16.dp,
+                            contentDescription = "پیش‌شنوایی",
+                        )
+                    }
                 }
-                if (s.id != AmbientSynth.NONE) {
-                    GlassIconButton(
-                        if (playingId == s.id) FlowIcons.Pause else FlowIcons.Play, { onPreview(s.id) },
-                        size = 36.dp, iconSize = 16.dp, contentDescription = "پیش‌شنوایی",
+                if (recording != null) {
+                    Text(
+                        "${recording.duration} · ${recording.license} · ${recording.creator}",
+                        style = Flow.type.caption,
+                        color = Flow.colors.textSecondary,
                     )
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "منبع و مجوز",
+                            Modifier.springClick(onClick = { runCatching { uriHandler.openUri(recording.sourcePage) } }).padding(vertical = 4.dp),
+                            style = Flow.type.caption,
+                            color = Flow.colors.accent,
+                        )
+                        Spacer(Modifier.weight(1f))
+                        val progress = downloadProgress[sound.id]
+                        when {
+                            progress != null -> Text(
+                                num("${(progress * 100).toInt()}٪"),
+                                style = Flow.type.caption,
+                                color = Flow.colors.accent,
+                            )
+                            isDownloaded(sound.id) -> Text(
+                                "ذخیره‌شده",
+                                Modifier.springClick(onClick = { onDeleteDownload(sound.id) }).padding(vertical = 4.dp),
+                                style = Flow.type.caption,
+                                color = Flow.colors.success,
+                            )
+                            else -> Text(
+                                "دانلود آفلاین",
+                                Modifier.springClick(onClick = { onDownload(sound.id) }).padding(vertical = 4.dp),
+                                style = Flow.type.caption,
+                                color = Flow.colors.accent,
+                            )
+                        }
+                    }
+                    recording.attribution?.let {
+                        Text(it, style = Flow.type.caption, color = Flow.colors.textSecondary)
+                    }
                 }
             }
         }
@@ -289,14 +352,26 @@ fun AmbientPicker(
         FlowSlider(settings.ambientVolume, onVolume, 0f..1f, Modifier.weight(1f))
         Text(num("${(settings.ambientVolume * 100).toInt()}%"), style = Flow.type.caption, color = Flow.colors.textSecondary)
     }
-    SwitchRow("پخش خودکار با شروع تمرکز", settings.ambientAuto, onAuto, subtitle = "با پایان جلسه خودکار خاموش می‌شود")
+    SwitchRow("پخش خودکار با شروع تمرکز", settings.ambientAuto, onAuto, subtitle = "صدای محیط در Focus خودکار فعال می‌شود")
+    Text(
+        "حجم صداهای ذخیره‌شده: ${formatAmbientBytes(downloadedBytes)}",
+        style = Flow.type.caption,
+        color = Flow.colors.textSecondary,
+    )
+}
+
+private fun formatAmbientBytes(bytes: Long): String = when {
+    bytes >= 1024L * 1024L -> "%.1f MB".format(bytes / (1024f * 1024f))
+    bytes >= 1024L -> "%.0f KB".format(bytes / 1024f)
+    else -> "$bytes B"
 }
 
 fun ambientIcon(id: String) = when (id) {
     "rain" -> FlowIcons.Rain
     "wind" -> FlowIcons.Wind
-    "cafe" -> FlowIcons.Cup
-    "library" -> FlowIcons.Book
+    "forest" -> FlowIcons.Leaf
+    "wind" -> FlowIcons.Wind
+    "rain" -> FlowIcons.Rain
     AmbientSynth.NONE -> FlowIcons.Close
     else -> FlowIcons.Wave
 }
