@@ -2,8 +2,6 @@ package com.flow.focus.music
 
 import android.content.ComponentName
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
 import androidx.core.content.ContextCompat
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -59,7 +57,7 @@ class MusicManager(
     private val json = Json { ignoreUnknownKeys = true }
     private var controller: MediaController? = null
     private var controllerFuture: ListenableFuture<MediaController>? = null
-    private val mainHandler = Handler(Looper.getMainLooper())
+    @Volatile private var pendingPlayTrackId: String? = null
     private val playerListener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) = publish()
     }
@@ -75,6 +73,7 @@ class MusicManager(
                             player.setMediaItems(MusicCatalog.tracks.map { track -> MusicCatalog.mediaItem(track, downloadedFile(track)) })
                         }
                     }
+                    pendingPlayTrackId?.let { id -> pendingPlayTrackId = null; play(id) }
                     publish()
                 }
             }, ContextCompat.getMainExecutor(context))
@@ -96,7 +95,8 @@ class MusicManager(
     }
 
     fun play(trackId: String) {
-        val player = controller ?: return
+        val player = controller
+        if (player == null) { pendingPlayTrackId = trackId; return }
         val index = MusicCatalog.tracks.indexOfFirst { it.id == trackId }
         if (index < 0) return
         val items = MusicCatalog.tracks.map { track ->
@@ -116,6 +116,7 @@ class MusicManager(
         publish()
     }
 
+    fun pause() { controller?.pause(); publish() }
     fun next() { controller?.seekToNextMediaItem(); publish() }
     fun previous() { controller?.seekToPreviousMediaItem(); publish() }
     fun seekTo(positionMs: Long) { controller?.seekTo(positionMs); publish() }
@@ -234,6 +235,7 @@ class MusicManager(
     fun release() {
         controller?.removeListener(playerListener)
         controller = null
+        pendingPlayTrackId = null
         controllerFuture?.let { MediaController.releaseFuture(it) }
         controllerFuture = null
     }
