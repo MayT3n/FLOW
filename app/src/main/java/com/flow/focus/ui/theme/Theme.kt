@@ -70,9 +70,10 @@ val LightColors = FlowColors(
     bgTop = Color(0xFFF4F5F7), bgMid = Color(0xFFF0F2F5), bgBottom = Color(0xFFE7ECF2),
     blobA = Color(0xFFB8C9DC), blobB = Color(0xFFC9C6D4), blobC = Color(0xFFB8D0CE),
     // Light glass stays translucent so custom and built-in wallpapers remain visible.
-    glassFill = Color(0xFFF7FAFF).copy(alpha = 0.28f),
-    glassFillStrong = Color(0xFFF7FAFF).copy(alpha = 0.54f),
-    glassTintTop = Color.White.copy(alpha = 0.36f),
+    // Light mode prioritises readable controls over excessive wallpaper bleed-through.
+    glassFill = Color(0xFFF9FBFF).copy(alpha = 0.43f),
+    glassFillStrong = Color(0xFFFBFCFF).copy(alpha = 0.68f),
+    glassTintTop = Color.White.copy(alpha = 0.25f),
     glassEdge = Color.White,
     textPrimary = Color(0xFF202833), textSecondary = Color(0xFF687586), textOnAccent = Color.White,
     accent = Color(0xFF477DC5), accentAlt = Color(0xFF6B8FC8), accentSoft = Color(0xFF477DC5).copy(alpha = 0.13f),

@@ -88,6 +88,7 @@ data class RootBackdropFrame(
     val image: State<ImageBitmap?>,
     val phase: State<Float>,
     val tone: State<Color?>,
+    val palette: State<List<Color>>,
     val settings: Settings,
 )
 
@@ -193,6 +194,45 @@ private fun Bitmap.sampledAverageColor(): Color {
     )
 }
 
+private fun Bitmap.sampledPalette(): List<Color> {
+    val samples = ArrayList<Pair<Float, Color>>(64)
+    val stepX = (width / 10).coerceAtLeast(1)
+    val stepY = (height / 10).coerceAtLeast(1)
+    val hsv = FloatArray(3)
+    for (y in stepY until height step stepY) {
+        for (x in stepX until width step stepX) {
+            val pixel = getPixel(x, y)
+            android.graphics.Color.colorToHSV(pixel, hsv)
+            if (hsv[1] > 0.22f && hsv[2] in 0.18f..0.94f) {
+                val score = hsv[1] * (0.55f + (1f - kotlin.math.abs(hsv[2] - 0.62f)))
+                samples += score to Color(pixel.toLong())
+            }
+        }
+    }
+    val selected = ArrayList<Color>(3)
+    for ((_, color) in samples.sortedByDescending { it.first }) {
+        val distinct = selected.all { old ->
+            val dr = color.red - old.red
+            val dg = color.green - old.green
+            val db = color.blue - old.blue
+            dr * dr + dg * dg + db * db > 0.075f
+        }
+        if (distinct) selected += color
+        if (selected.size == 3) break
+    }
+    listOf(Color(0xFF7896B6), Color(0xFF8FAEAA), Color(0xFF9A8EAE)).forEach {
+        if (selected.size < 3 && it !in selected) selected += it
+    }
+    return selected
+}
+
+private fun builtinWallpaperPalette(id: String): List<Color> = when (id) {
+    "aurora" -> listOf(Color(0xFF68C8D6), Color(0xFF6B7DD1), Color(0xFF254B72))
+    "midnight" -> listOf(Color(0xFF547DB4), Color(0xFF7D8FA8), Color(0xFF26364B))
+    "dusk" -> listOf(Color(0xFFD18B9A), Color(0xFF9C739A), Color(0xFF344E70))
+    else -> listOf(Color(0xFF77899D), Color(0xFF789D9A), Color(0xFF8C80A8))
+}
+
 private fun decodeStoredWallpaper(context: Context, path: String): Bitmap? {
     val candidate = File(path).canonicalFile
     val allowedDirectory = File(context.filesDir, "wallpapers").canonicalFile
@@ -240,22 +280,23 @@ fun GlassBackdropHost(settings: Settings, content: @Composable BoxScope.() -> Un
     val size = remember { mutableStateOf(IntSize.Zero) }
     val image = remember { mutableStateOf<ImageBitmap?>(null) }
     val tone = remember { mutableStateOf<Color?>(null) }
+    val palette = remember { mutableStateOf(builtinWallpaperPalette(settings.wallpaperId)) }
 
     LaunchedEffect(settings.wallpaperId, settings.wallpaperPath) {
         val path = settings.wallpaperPath
-        val (decoded, sampledTone) = if (settings.wallpaperId == "custom" && !path.isNullOrBlank()) {
-            // Decode and sample on IO: scanning a user-selected bitmap on the UI thread can hitch transitions.
+        val (decoded, sampledTone, sampledColors) = if (settings.wallpaperId == "custom" && !path.isNullOrBlank()) {
             withContext(Dispatchers.IO) {
                 runCatching {
                     val bitmap = decodeStoredWallpaper(context, path)
-                    bitmap to bitmap?.sampledAverageColor()
-                }.getOrDefault(null to null)
+                    Triple(bitmap, bitmap?.sampledAverageColor(), bitmap?.sampledPalette().orEmpty())
+                }.getOrDefault(Triple(null, null, emptyList()))
             }
         } else {
-            null to builtinWallpaperTone(settings.wallpaperId)
+            Triple(null, builtinWallpaperTone(settings.wallpaperId), builtinWallpaperPalette(settings.wallpaperId))
         }
         image.value = decoded?.asImageBitmap()
         tone.value = sampledTone ?: builtinWallpaperTone(settings.wallpaperId)
+        palette.value = sampledColors.ifEmpty { builtinWallpaperPalette(settings.wallpaperId) }
     }
 
     // The phase is read by drawing, not by the composition on every frame.
@@ -264,7 +305,7 @@ fun GlassBackdropHost(settings: Settings, content: @Composable BoxScope.() -> Un
             .animateFloat(0f, 1f, infiniteRepeatable(tween(60_000, easing = LinearEasing), RepeatMode.Restart), label = "bgPhase")
     } else remember { mutableStateOf(0f) }
 
-    val frame = RootBackdropFrame(image, phase, tone, settings)
+    val frame = RootBackdropFrame(image, phase, tone, palette, settings)
     Box(Modifier.fillMaxSize().onSizeChanged { size.value = it }) {
         Canvas(
             Modifier.fillMaxSize().graphicsLayer {
@@ -303,7 +344,8 @@ fun GlassSurface(
         GlassQuality.MEDIUM -> 0.48f
         GlassQuality.HIGH -> 1f
     }
-    val blurOn = blurStrength > 0f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+    // Subtle content rows avoid a separate RenderEffect allocation on every scrolling item.
+    val blurOn = level != GlassLevel.Subtle && blurStrength > 0f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
         rootSize != null && rootBackdrop != null && g.blurDp > 0
     val levelBlur = when (level) {
         GlassLevel.Subtle -> 0.55f
@@ -320,7 +362,9 @@ fun GlassSurface(
     // needs a little more light glass. Only the difficult extremes receive this boost.
     val contrastBoost = when {
         c.isDark && wallpaperLuminance != null && wallpaperLuminance > 0.58f -> 0.14f
-        !c.isDark && wallpaperLuminance != null && wallpaperLuminance < 0.32f -> 0.12f
+        !c.isDark && wallpaperLuminance != null && wallpaperLuminance > 0.62f -> 0.19f
+        !c.isDark && wallpaperLuminance != null && wallpaperLuminance < 0.30f -> 0.22f
+        !c.isDark && wallpaperLuminance != null -> 0.15f
         else -> 0f
     }
     val baseFill = when {
@@ -329,7 +373,7 @@ fun GlassSurface(
         level == GlassLevel.Subtle -> c.glassFill.copy(alpha = c.glassFill.alpha * 0.6f)
         else -> c.glassFill
     }.let { surface -> surface.copy(alpha = (surface.alpha + contrastBoost).coerceAtMost(0.76f)) }
-    val fill = baseFill.copy(alpha = (baseFill.alpha * g.opacity).coerceIn(0f, 1f))
+    val fill = baseFill.copy(alpha = (baseFill.alpha * g.opacity.coerceIn(0.65f, 1.18f)).coerceIn(0f, 0.88f))
     val shine = if (g.quality == GlassQuality.LOW) 0.15f else g.shine
 
     val outer = modifier
@@ -363,8 +407,9 @@ fun GlassSurface(
             Modifier.matchParentSize().drawBehind {
                 drawRect(fill)
                 // A restrained average-wallpaper tint makes glass feel connected to the image beneath it.
-                rootBackdrop?.tone?.value?.let { wallpaperTone ->
-                    drawRect(wallpaperTone.copy(alpha = if (c.isDark) 0.075f else 0.105f))
+                val paletteTint = rootBackdrop?.palette?.value?.firstOrNull() ?: rootBackdrop?.tone?.value
+                paletteTint?.let { color ->
+                    drawRect(color.copy(alpha = if (c.isDark) 0.055f else 0.035f))
                 }
                 if (tint != null) drawRect(tint.copy(alpha = 0.16f))
                 if (g.quality != GlassQuality.LOW) {

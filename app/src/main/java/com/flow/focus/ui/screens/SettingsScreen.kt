@@ -69,6 +69,7 @@ import com.flow.focus.ui.components.Stepper
 import com.flow.focus.ui.components.SwitchRow
 import com.flow.focus.ui.components.num
 import com.flow.focus.ui.glass.GlassLevel
+import com.flow.focus.ui.glass.LocalRootBackdrop
 import com.flow.focus.ui.glass.GlassSurface
 import com.flow.focus.ui.glass.springClick
 import com.flow.focus.ui.theme.Flow
@@ -250,6 +251,7 @@ private fun SettingsDestination(
 @Composable
 fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifier) {
     val st = data.settings
+    val generatedWallpaperPalette = LocalRootBackdrop.current?.palette?.value.orEmpty()
     val ctx = LocalContext.current
     val playing by vm.ambientPlaying.collectAsStateWithLifecycle()
     val ambientProgress by vm.ambientDownloadProgress.collectAsStateWithLifecycle()
@@ -327,7 +329,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                     FlowIcons.Music,
                 ) { selectedPage = "ambient" }
                 SettingsDestination(
-                    "موسیقی و پخش‌کننده", "کتابخانه، علاقه‌مندی‌ها و دانلود آفلاین",
+                    "موسیقی آنلاین", "باز کردن سرویس‌های رسمی موسیقی",
                     FlowIcons.Music,
                 ) { selectedPage = "music" }
             }
@@ -412,7 +414,22 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                 Text(num("${st.wallpaperBlurDp}"), style = Flow.type.caption, color = Flow.colors.textSecondary)
             }
             FlowSlider(st.wallpaperBlurDp.toFloat(), { v -> vm.updateSettings { it.copy(wallpaperBlurDp = v.toInt()) } }, 0f..24f)
-            Text("تغییرها به‌صورت زنده روی پس‌زمینه‌ی همه‌ی صفحه‌ها دیده می‌شوند.", style = Flow.type.caption, color = Flow.colors.textSecondary)
+            Text("پالت رنگی استخراج‌شده از والپیپر", style = Flow.type.bodyStrong, color = Flow.colors.textPrimary)
+            if (generatedWallpaperPalette.isNotEmpty()) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    generatedWallpaperPalette.take(3).forEach { swatch ->
+                        Box(
+                            Modifier.weight(1f).height(34.dp).clip(RoundedCornerShape(12.dp))
+                                .background(swatch).border(1.dp, Flow.colors.glassEdge.copy(alpha = 0.35f), RoundedCornerShape(12.dp)),
+                        )
+                    }
+                }
+            }
+            Text(
+                "Liquid Glass از رنگ‌های تصویر برای هماهنگی استفاده می‌کند؛ در تم روشن، لایه‌ی روشن‌تر برای خوانایی متن حفظ می‌شود.",
+                style = Flow.type.caption,
+                color = Flow.colors.textSecondary,
+            )
             GlassButton("بازنشانی پس‌زمینه", { vm.selectWallpaper("gradient") }, Modifier.fillMaxWidth())
         }
 
@@ -471,14 +488,9 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
         }
 
         if (selectedPage == "music") Section("موسیقی") {
-            Text(
-                "کتابخانه‌ی موسیقی MatFocus شامل قطعه‌های Instrumental دارای مجوز CC0 است. پخش پس‌زمینه و کنترل صفحه‌ی قفل از MediaSession اندروید استفاده می‌کنند.",
-                style = Flow.type.body,
-                color = Flow.colors.textSecondary,
-            )
             MusicSettings(vm, st)
             GlassButton(
-                "باز کردن پخش‌کننده و کتابخانه",
+                "نمایش سرویس‌های موسیقی آنلاین",
                 { musicOpen = true },
                 Modifier.fillMaxWidth(),
                 icon = FlowIcons.Play,

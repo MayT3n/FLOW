@@ -1,6 +1,11 @@
 package com.flow.focus.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
@@ -154,16 +159,20 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
                     notificationsOpen = true
                     vm.refreshRemoteContent()
                 }, contentDescription = "اعلان‌ها")
-                if (unreadNotices > 0) {
+                AnimatedVisibility(
+                    visible = unreadNotices > 0,
+                    enter = fadeIn(tween(140)) + scaleIn(initialScale = 0.55f, animationSpec = tween(190)),
+                    exit = fadeOut(tween(90)) + scaleOut(targetScale = 0.65f, animationSpec = tween(110)),
+                ) {
                     Box(
                         Modifier.align(Alignment.TopEnd).padding(top = 1.dp, end = 1.dp)
-                            .size(16.dp).clip(CircleShape).background(c.accent),
+                            .size(17.dp).clip(CircleShape).background(c.danger),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             num(unreadNotices.coerceAtMost(9)),
                             style = Flow.type.caption.copy(fontSize = 9.sp),
-                            color = c.textOnAccent,
+                            color = Color.White,
                             maxLines = 1,
                         )
                     }
@@ -192,8 +201,25 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
         }
 
         // ---- حلقه‌ی تایمر ----
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            TimerRing(timer, now, settings.rounds, Modifier.size(260.dp))
+        Column(
+            Modifier.fillMaxWidth().padding(top = 7.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            TimerRing(timer, now, settings.rounds, Modifier.size(276.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                val totalRounds = settings.rounds.coerceAtLeast(1)
+                repeat(totalRounds) { index ->
+                    val roundIndex = index + 1
+                    val done = roundIndex < timer.round
+                    val current = roundIndex == timer.round
+                    Box(
+                        Modifier.size(if (current) 9.dp else 7.dp).clip(CircleShape)
+                            .background(if (done) c.textSecondary else if (current) c.accent else c.track),
+                    )
+                }
+                Text(num("دور ${timer.round} از $totalRounds"), style = Flow.type.caption, color = c.textSecondary)
+            }
         }
 
         // ---- کنترل‌ها ----
@@ -397,7 +423,7 @@ private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier
                 drawCircle(Color.White, stroke * 0.28f, Offset(center.x + r * cos(ang), center.y + r * sin(ang)))
             }
         }
-        GlassSurface(Modifier.size(204.dp), shape = CircleShape, level = GlassLevel.Subtle) {
+        GlassSurface(Modifier.size(222.dp), shape = CircleShape, level = GlassLevel.Subtle) {
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 FlowIcon(
                     when (timer.phase) {
@@ -432,22 +458,7 @@ private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier
                     color = c.textSecondary,
                     maxLines = 1,
                 )
-                Spacer(Modifier.height(7.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    val total = rounds.coerceAtLeast(1)
-                    for (i in 1..total) {
-                        val state = when {
-                            i < timer.round -> 2
-                            i == timer.round -> 1
-                            else -> 0
-                        }
-                        Box(
-                            Modifier.size(if (state == 1) 10.dp else 7.dp).clip(CircleShape)
-                                .background(if (state == 0) c.track else if (state == 1) c1 else c.textSecondary),
-                        )
-                    }
-                }
-                Text(num("دور ${timer.round} از $rounds"), style = Flow.type.caption, color = c.textSecondary, modifier = Modifier.padding(top = 4.dp))
+                Spacer(Modifier.height(5.dp))
             }
         }
     }
