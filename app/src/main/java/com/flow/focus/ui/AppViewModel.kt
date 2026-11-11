@@ -32,6 +32,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     val data: StateFlow<AppData> get() = c.repo.data
     val ambientPlaying: StateFlow<String?> get() = c.ambient.playing
+    val ambientDownloadProgress get() = c.ambient.downloadProgress
     // News, updates and persistent read state
     val newsItems: StateFlow<List<NewsItem>> get() = c.remote.items
     val newsReadIds: StateFlow<Set<String>> get() = c.remote.readIds
@@ -75,8 +76,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ---- تایمر ----
-    fun start() = c.timer.start()
-    fun pause() = c.timer.pause()
+    fun start() {
+        val settings = c.repo.current.settings
+        val phase = c.repo.current.timer.phase
+        if (phase == PhaseType.FOCUS && settings.musicAutoFocus) c.music.play(settings.musicTrackId)
+        c.music.setVolume(settings.musicVolume)
+        c.timer.start()
+    }
+    fun pause() {
+        if (c.repo.current.settings.musicPauseWithTimer) c.music.pause()
+        c.timer.pause()
+    }
     fun skip() = c.timer.skip()
     fun reset() = c.timer.reset()
     fun selectPhase(p: PhaseType) = c.timer.selectPhase(p)
@@ -131,6 +141,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (durationsChanged) c.timer.syncIdle() else if (effectsChanged) c.timer.refresh()
         if (before.notifications != after.notifications) c.alarms.rescheduleAllReminders(c.repo.current)
         if (before.ambientVolume != after.ambientVolume) c.ambient.setVolume(after.ambientVolume)
+        if (before.musicVolume != after.musicVolume) c.music.setVolume(after.musicVolume)
     }
 
     /** پیش‌شنوایی صدای محیط در تنظیمات (جدا از پخش خودکار تایمر) */
@@ -138,6 +149,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val s = c.repo.current.settings
         if (c.ambient.playing.value == id) c.ambient.stop() else c.ambient.play(id, s.ambientVolume)
     }
+
+    fun isAmbientDownloaded(id: String) = c.ambient.isDownloaded(id)
+    fun downloadedAmbientBytes() = c.ambient.downloadedBytes()
+    fun deleteAmbientDownload(id: String) = c.ambient.deleteDownload(id)
+    fun downloadAmbient(id: String) { viewModelScope.launch { runCatching { c.ambient.downloadAsset(id) } } }
 
     fun stopAmbientPreview() {
         val d = c.repo.current
