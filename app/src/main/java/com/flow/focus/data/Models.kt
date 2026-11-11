@@ -148,7 +148,7 @@ data class TimerState(
 
 @Serializable
 data class AppData(
-    val version: Int = 1,
+    val version: Int = 2,
     val tasks: List<Task> = emptyList(),
     val sessions: List<FocusSession> = emptyList(),
     val routines: List<Routine> = emptyList(),
