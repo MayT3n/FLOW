@@ -117,7 +117,7 @@ fun MusicPlayerDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                GlassIconButton(FlowIcons.Repeat, { vm.cycleMusicRepeat() }, size = 42.dp, iconSize = 20.dp, contentDescription = "تکرار")
+                GlassIconButton(FlowIcons.Repeat, { vm.cycleMusicRepeat() }, size = 42.dp, iconSize = 20.dp, active = snapshot.repeatMode != androidx.media3.common.Player.REPEAT_MODE_OFF, contentDescription = "تکرار")
                 GlassIconButton(FlowIcons.ChevronPrev, { vm.previousMusic() }, size = 48.dp, iconSize = 23.dp, contentDescription = "قبلی")
                 GlassIconButton(
                     if (snapshot.isPlaying) FlowIcons.Pause else FlowIcons.Play,
@@ -127,7 +127,7 @@ fun MusicPlayerDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                     contentDescription = "پخش یا توقف",
                 )
                 GlassIconButton(FlowIcons.ChevronNext, { vm.nextMusic() }, size = 48.dp, iconSize = 23.dp, contentDescription = "بعدی")
-                GlassIconButton(FlowIcons.Sparkles, { vm.toggleMusicShuffle() }, size = 42.dp, iconSize = 20.dp, contentDescription = "پخش تصادفی")
+                GlassIconButton(FlowIcons.Shuffle, { vm.toggleMusicShuffle() }, size = 42.dp, iconSize = 20.dp, active = snapshot.shuffle, contentDescription = "پخش تصادفی")
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                 FlowIcon(FlowIcons.Volume, tint = Flow.colors.textSecondary, size = 20.dp)
@@ -164,6 +164,7 @@ fun MusicPlayerDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                         { vm.toggleMusicFavorite(item.id) },
                         size = 34.dp,
                         iconSize = 16.dp,
+                        active = item.id in favorites,
                         contentDescription = if (item.id in favorites) "حذف از علاقه‌مندی‌ها" else "افزودن به علاقه‌مندی‌ها",
                     )
                     val progress = downloads[item.id]
