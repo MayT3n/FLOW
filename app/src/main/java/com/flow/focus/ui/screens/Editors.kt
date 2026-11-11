@@ -166,7 +166,7 @@ fun TaskPickerDialog(
     val open = tasks.filter { !it.done }.sortedWith(compareBy({ it.dueDay ?: Long.MAX_VALUE }, { it.dueMinute ?: Int.MAX_VALUE }))
     FlowDialog(onDismiss, "تغییر وظیفه") {
         if (open.isEmpty()) {
-            EmptyState(FlowIcons.Tasks, "وظیفه‌ی بازی نیست", "یک وظیفه بساز تا جلسه‌های تمرکز به آن ثبت شوند.")
+            EmptyState(FlowIcons.Tasks, "وظیفه‌ای برای انتخاب وجود ندارد", "یک وظیفه بساز تا جلسه‌های تمرکز به آن ثبت شوند.")
         }
         open.forEach { t ->
             GlassSurface(
