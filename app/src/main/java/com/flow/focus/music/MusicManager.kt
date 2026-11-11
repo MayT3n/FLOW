@@ -19,11 +19,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.UUID
@@ -72,7 +76,9 @@ class MusicManager(
     private var controller: MediaController? = null
     private var controllerFuture: ListenableFuture<MediaController>? = null
     @Volatile private var pendingPlayTrackId: String? = null
+    @Volatile private var pendingPlaylistTrackIds: List<String>? = null
     @Volatile private var pendingVolume: Float = 0.8f
+    private val downloadMutex = Mutex()
     private val playerListener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) = publish()
     }
@@ -89,7 +95,16 @@ class MusicManager(
                             player.setMediaItems(MusicCatalog.tracks.map { track -> MusicCatalog.mediaItem(track, downloadedFile(track)) })
                         }
                     }
-                    pendingPlayTrackId?.let { id -> pendingPlayTrackId = null; play(id) }
+                    val queuedPlaylist = pendingPlaylistTrackIds
+                    if (queuedPlaylist != null) {
+                        pendingPlaylistTrackIds = null
+                        playQueue(queuedPlaylist)
+                    } else {
+                        pendingPlayTrackId?.let { id ->
+                            pendingPlayTrackId = null
+                            play(id)
+                        }
+                    }
                     publish()
                 }
             }, ContextCompat.getMainExecutor(context))
@@ -116,8 +131,12 @@ class MusicManager(
     }
 
     fun play(trackId: String) {
+        pendingPlaylistTrackIds = null
         val player = controller
-        if (player == null) { pendingPlayTrackId = trackId; return }
+        if (player == null) {
+            pendingPlayTrackId = trackId
+            return
+        }
         val index = MusicCatalog.tracks.indexOfFirst { it.id == trackId }
         if (index < 0) return
         if (player.currentMediaItem?.mediaId == trackId) {
@@ -259,13 +278,21 @@ class MusicManager(
 
     fun playPlaylist(playlistId: String) {
         val ids = _playlists.value.firstOrNull { it.id == playlistId }?.trackIds.orEmpty()
-        val tracks = ids.mapNotNull { id -> MusicCatalog.tracks.firstOrNull { it.id == id } }
-        if (tracks.isEmpty()) return
+        val trackIds = MusicCatalog.resolveTracks(ids).map { it.id }
+        if (trackIds.isEmpty()) return
         val player = controller
         if (player == null) {
-            pendingPlayTrackId = tracks.first().id
+            pendingPlayTrackId = null
+            pendingPlaylistTrackIds = trackIds
             return
         }
+        playQueue(trackIds)
+    }
+
+    private fun playQueue(trackIds: List<String>) {
+        val player = controller ?: return
+        val tracks = trackIds.mapNotNull { id -> MusicCatalog.tracks.firstOrNull { it.id == id } }
+        if (tracks.isEmpty()) return
         player.setMediaItems(tracks.map { MusicCatalog.mediaItem(it, downloadedFile(it)) }, 0, C.TIME_UNSET)
         player.prepare()
         player.play()
@@ -279,62 +306,92 @@ class MusicManager(
 
     suspend fun downloadTrack(trackId: String, onProgress: (Float) -> Unit = {}): File =
         withContext(Dispatchers.IO) {
-            val track = MusicCatalog.tracks.firstOrNull { it.id == trackId }
-                ?: throw IllegalArgumentException("آهنگ پیدا نشد.")
-            val folder = File(context.filesDir, "audio/music").apply { mkdirs() }
-            val target = File(folder, track.fileName)
-            if (target.isFile && target.length() == track.fileSize && isPlausibleMp3(target)) return@withContext target
-            val part = File(folder, track.fileName + ".part")
-            var connection: HttpURLConnection? = null
-            try {
-                connection = (URL(track.url).openConnection() as HttpURLConnection).apply {
-                    connectTimeout = 15_000
-                    readTimeout = 30_000
-                    instanceFollowRedirects = true
-                    setRequestProperty("User-Agent", "MatFocus-Music/1.2")
+            downloadMutex.withLock {
+                val track = MusicCatalog.tracks.firstOrNull { it.id == trackId }
+                    ?: throw IllegalArgumentException("آهنگ پیدا نشد.")
+                val folder = File(context.filesDir, "audio/music")
+                check((folder.isDirectory || folder.mkdirs()) && folder.isDirectory) {
+                    "ساخت پوشه‌ی موسیقی ناموفق بود."
                 }
-                require(connection.responseCode in 200..299 && connection.url.protocol == "https") { "دریافت فایل صوتی ناموفق بود." }
-                val contentType = connection.contentType?.substringBefore(';')?.trim()?.lowercase().orEmpty()
-                require(contentType.isEmpty() || contentType.startsWith("audio/") || contentType == "application/octet-stream") {
-                    "پاسخ سرور فایل صوتی معتبر نیست."
+                val target = File(folder, track.fileName)
+                if (target.isFile && target.length() == track.fileSize && isPlausibleMp3(target)) {
+                    return@withLock target
                 }
-                val length = connection.contentLengthLong
-                require(length <= 0L || length == track.fileSize) { "حجم فایل صوتی با فهرست موسیقی مطابقت ندارد." }
-                var written = 0L
-                connection.inputStream.use { input ->
-                    part.outputStream().buffered().use { output ->
-                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                        while (true) {
-                            val count = input.read(buffer)
-                            if (count < 0) break
-                            output.write(buffer, 0, count)
-                            written += count
-                            val p = (written.toFloat() / track.fileSize).coerceIn(0f, 1f)
-                            _downloadProgress.value = _downloadProgress.value + (trackId to p)
-                            onProgress(p)
-                            require(written <= track.fileSize) { "فایل صوتی بزرگ‌تر از اندازه‌ی فهرست است." }
+                val part = File(folder, track.fileName + ".part")
+                var connection: HttpURLConnection? = null
+                try {
+                    connection = (URL(track.url).openConnection() as HttpURLConnection).apply {
+                        connectTimeout = 15_000
+                        readTimeout = 30_000
+                        instanceFollowRedirects = true
+                        setRequestProperty("User-Agent", "MatFocus-Music/1.2")
+                    }
+                    require(connection.responseCode in 200..299 && connection.url.protocol == "https") {
+                        "دریافت فایل صوتی ناموفق بود."
+                    }
+                    val contentType = connection.contentType?.substringBefore(';')?.trim()?.lowercase().orEmpty()
+                    require(contentType.isEmpty() || contentType.startsWith("audio/") || contentType == "application/octet-stream") {
+                        "پاسخ سرور فایل صوتی معتبر نیست."
+                    }
+                    val length = connection.contentLengthLong
+                    require(length <= 0L || length == track.fileSize) {
+                        "حجم فایل صوتی با فهرست موسیقی مطابقت ندارد."
+                    }
+                    var written = 0L
+                    connection.inputStream.use { input ->
+                        part.outputStream().buffered().use { output ->
+                            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                            while (true) {
+                                val count = input.read(buffer)
+                                if (count < 0) break
+                                output.write(buffer, 0, count)
+                                written += count
+                                val progress = (written.toFloat() / track.fileSize).coerceIn(0f, 1f)
+                                _downloadProgress.value = _downloadProgress.value + (trackId to progress)
+                                onProgress(progress)
+                                require(written <= track.fileSize) {
+                                    "فایل صوتی بزرگ‌تر از اندازه‌ی فهرست است."
+                                }
+                            }
                         }
                     }
+                    require(written == track.fileSize) { "فایل صوتی ناقص دانلود شد." }
+                    require(isPlausibleMp3(part)) { "فایل دریافتی ساختار MP3 معتبر ندارد." }
+                    try {
+                        Files.move(part.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+                    } catch (_: Exception) {
+                        Files.move(part.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                    }
+                    target
+                } catch (error: Exception) {
+                    part.delete()
+                    throw error
+                } finally {
+                    _downloadProgress.value = _downloadProgress.value - trackId
+                    connection?.disconnect()
                 }
-                require(written == track.fileSize) { "فایل صوتی ناقص دانلود شد." }
-                require(isPlausibleMp3(part)) { "فایل دریافتی ساختار MP3 معتبر ندارد." }
-                if (target.exists()) target.delete()
-                check(part.renameTo(target)) { "ذخیره‌ی فایل صوتی ناموفق بود." }
-                _downloadProgress.value = _downloadProgress.value - trackId
-                target
-            } catch (error: Exception) {
-                part.delete()
-                _downloadProgress.value = _downloadProgress.value - trackId
-                throw error
-            } finally {
-                connection?.disconnect()
             }
         }
 
     fun removeDownload(trackId: String): Boolean {
         val track = MusicCatalog.tracks.firstOrNull { it.id == trackId } ?: return false
-        val file = downloadedFile(track) ?: return false
-        return !file.exists() || file.delete()
+        // Only catalog-owned names are used; corrupt and partial cache files can be cleaned too.
+        val file = File(context.filesDir, "audio/music/${track.fileName}")
+        val partial = File(file.parentFile, file.name + ".part")
+
+        // Switch an active local item back to its HTTPS source before deleting the cache file.
+        val player = controller
+        if (file.exists() && player?.currentMediaItem?.mediaId == trackId) {
+            val index = player.currentMediaItemIndex
+            val position = player.currentPosition.coerceAtLeast(0L)
+            val shouldResume = player.isPlaying || player.playWhenReady
+            player.replaceMediaItem(index, MusicCatalog.mediaItem(track, localFile = null))
+            player.seekTo(index, position)
+            if (shouldResume) player.play() else player.pause()
+        }
+        val fileDeleted = !file.exists() || file.delete()
+        val partialDeleted = !partial.exists() || partial.delete()
+        return fileDeleted && partialDeleted
     }
 
     fun downloadedFile(track: MusicTrack): File? =
@@ -375,6 +432,7 @@ class MusicManager(
         controller?.removeListener(playerListener)
         controller = null
         pendingPlayTrackId = null
+        pendingPlaylistTrackIds = null
         controllerFuture?.let { MediaController.releaseFuture(it) }
         controllerFuture = null
     }

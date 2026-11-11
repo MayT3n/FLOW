@@ -60,7 +60,6 @@ import com.flow.focus.domain.PomodoroEngine
 import com.flow.focus.domain.Planner
 import com.flow.focus.domain.Stats
 import com.flow.focus.ui.AppViewModel
-import com.flow.focus.ui.greeting
 import com.flow.focus.ui.relativeDay
 import com.flow.focus.ui.rememberNowMs
 import com.flow.focus.ui.components.CheckCircle

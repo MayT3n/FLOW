@@ -50,15 +50,9 @@ fun rememberToday(): LocalDate {
     return today
 }
 
-fun greeting(hour: Int): String = when (hour) {
-    in 5..11 -> "صبح بخیر"
-    in 12..16 -> "ظهر بخیر"
-    in 17..20 -> "عصر بخیر"
-    else -> "شب بخیر"
-}
-
 fun relativeDay(epochDay: Long, today: LocalDate): String {
-    val d = LocalDate.ofEpochDay(epochDay)
+    val d = runCatching { LocalDate.ofEpochDay(epochDay) }.getOrNull()
+        ?: return "تاریخ نامعتبر"
     return when (epochDay - today.toEpochDay()) {
         0L -> "امروز"
         1L -> "فردا"
@@ -71,10 +65,9 @@ fun relativeDay(epochDay: Long, today: LocalDate): String {
 fun dueLabel(t: Task, today: LocalDate): String? {
     val day = t.dueDay ?: return null
     val base = relativeDay(day, today)
-    return if (t.dueMinute != null) "$base · ${DateFormats.clock(t.dueMinute)}" else base
+    val minute = t.dueMinute?.takeIf { it in 0 until 24 * 60 }
+    return if (minute != null) "$base · ${DateFormats.clock(minute)}" else base
 }
 
 fun isOverdue(t: Task, today: LocalDate): Boolean = !t.done && t.dueDay != null && t.dueDay < today.toEpochDay()
 
-fun epochDayToMillisStart(day: Long): Long =
-    LocalDate.ofEpochDay(day).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()

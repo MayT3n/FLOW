@@ -144,7 +144,9 @@ class NotificationHelper(private val ctx: Context) {
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(openApp())
-        safeNotify(ID_REMINDER_BASE + (task.id.hashCode() and 0xFFFF), b.build())
+        // Namespace the full stable task hash away from fixed timer/media notification IDs.
+        val notificationId = 0x40000000 or (task.id.hashCode() and 0x3FFFFFFF)
+        safeNotify(notificationId, b.build())
     }
 
     fun ambientNotification(): android.app.Notification =
@@ -162,6 +164,5 @@ class NotificationHelper(private val ctx: Context) {
         const val ID_RUNNING = 1
         const val ID_DONE = 2
         const val ID_AMBIENT = 3
-        const val ID_REMINDER_BASE = 1000
     }
 }

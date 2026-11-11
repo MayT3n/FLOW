@@ -55,8 +55,9 @@ android {
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true; buildConfig = true }
     lint {
-        abortOnError = false
-        checkReleaseBuilds = false
+        // Lint is part of release verification; do not silently ship critical findings.
+        abortOnError = true
+        checkReleaseBuilds = true
     }
     packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
 }

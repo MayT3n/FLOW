@@ -1,8 +1,10 @@
 package com.flow.focus.ui.glass
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
+import java.io.File
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -49,6 +51,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionOnScreen
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -190,6 +193,36 @@ private fun Bitmap.sampledAverageColor(): Color {
     )
 }
 
+private fun decodeStoredWallpaper(context: Context, path: String): Bitmap? {
+    val candidate = File(path).canonicalFile
+    val allowedDirectory = File(context.filesDir, "wallpapers").canonicalFile
+    if (
+        candidate.parentFile != allowedDirectory ||
+        !candidate.name.startsWith("wallpaper-") ||
+        !candidate.isFile ||
+        candidate.length() !in 1L..MAX_WALLPAPER_BYTES
+    ) return null
+
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeFile(candidate.absolutePath, bounds)
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+    var sampleSize = 1
+    while (maxOf(bounds.outWidth / sampleSize, bounds.outHeight / sampleSize) > MAX_WALLPAPER_DIMENSION) {
+        sampleSize *= 2
+    }
+    return BitmapFactory.decodeFile(
+        candidate.absolutePath,
+        BitmapFactory.Options().apply {
+            inSampleSize = sampleSize
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+        },
+    )
+}
+
+private const val MAX_WALLPAPER_BYTES = 32L * 1024L * 1024L
+private const val MAX_WALLPAPER_DIMENSION = 2048
+
 private fun builtinWallpaperTone(id: String): Color? = when (id) {
     "aurora" -> Color(0xFF24556D)
     "midnight" -> Color(0xFF263A55)
@@ -203,21 +236,26 @@ private fun builtinWallpaperTone(id: String): Color? = when (id) {
 fun GlassBackdropHost(settings: Settings, content: @Composable BoxScope.() -> Unit) {
     val c = Flow.colors
     val g = LocalGlass.current
+    val context = LocalContext.current.applicationContext
     val size = remember { mutableStateOf(IntSize.Zero) }
     val image = remember { mutableStateOf<ImageBitmap?>(null) }
     val tone = remember { mutableStateOf<Color?>(null) }
 
     LaunchedEffect(settings.wallpaperId, settings.wallpaperPath) {
         val path = settings.wallpaperPath
-        val decoded = if (settings.wallpaperId == "custom" && !path.isNullOrBlank()) {
+        val (decoded, sampledTone) = if (settings.wallpaperId == "custom" && !path.isNullOrBlank()) {
+            // Decode and sample on IO: scanning a user-selected bitmap on the UI thread can hitch transitions.
             withContext(Dispatchers.IO) {
                 runCatching {
-                    if (java.io.File(path).isFile) BitmapFactory.decodeFile(path) else null
-                }.getOrNull()
+                    val bitmap = decodeStoredWallpaper(context, path)
+                    bitmap to bitmap?.sampledAverageColor()
+                }.getOrDefault(null to null)
             }
-        } else null
+        } else {
+            null to builtinWallpaperTone(settings.wallpaperId)
+        }
         image.value = decoded?.asImageBitmap()
-        tone.value = decoded?.sampledAverageColor() ?: builtinWallpaperTone(settings.wallpaperId)
+        tone.value = sampledTone ?: builtinWallpaperTone(settings.wallpaperId)
     }
 
     // The phase is read by drawing, not by the composition on every frame.

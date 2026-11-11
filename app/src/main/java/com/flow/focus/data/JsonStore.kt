@@ -14,10 +14,23 @@ class JsonStore(private val file: File) {
         if (!file.exists()) return AppData()
         return try {
             json.decodeFromString<AppData>(file.readText(Charsets.UTF_8))
-        } catch (e: Exception) {
-            // فایل خراب: نسخه‌ی خراب کنار گذاشته می‌شود تا داده‌ای بی‌صدا از بین نرود.
-            runCatching { file.copyTo(File(file.parentFile, file.name + ".corrupt"), overwrite = true) }
+        } catch (_: Exception) {
+            // Never overwrite an earlier recovery copy; quarantine the invalid source under a unique name.
+            quarantineCorruptFile()
             AppData()
+        }
+    }
+
+    private fun quarantineCorruptFile() {
+        val parent = file.parentFile ?: return
+        val backup = File(parent, file.name + ".corrupt-" + System.nanoTime())
+        runCatching {
+            try {
+                Files.move(file.toPath(), backup.toPath(), StandardCopyOption.ATOMIC_MOVE)
+            } catch (_: Exception) {
+                file.copyTo(backup, overwrite = false)
+                file.delete()
+            }
         }
     }
 

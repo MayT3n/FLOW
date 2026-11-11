@@ -63,7 +63,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val manifest = c.remote.manifest.value ?: return
         viewModelScope.launch { runCatching { c.updater.download(manifest) } }
     }
-    fun installDownloadedUpdate(): Boolean = runCatching { c.updater.installDownloaded() }.getOrDefault(false)
+    fun installDownloadedUpdate() {
+        viewModelScope.launch {
+            runCatching { c.updater.installDownloaded() }
+        }
+    }
 
     // Media3 playback
     val musicSnapshot: StateFlow<MusicSnapshot> get() = c.music.snapshot

@@ -24,7 +24,7 @@ class AppContainer(app: Application) {
     val repo = FlowRepository(JsonStore(File(app.filesDir, "flow_data.json")), scope)
     val notifier = NotificationHelper(app)
     val alarms = AlarmScheduler(app)
-    val ambient = AmbientPlayer(app, scope)
+    val ambient = AmbientPlayer(app)
     val music = MusicManager(app, scope)
     val timer = TimerController(repo, alarms, notifier, ambient, music)
 

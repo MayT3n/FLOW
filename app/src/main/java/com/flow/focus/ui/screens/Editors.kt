@@ -76,8 +76,12 @@ fun TaskEditorDialog(
     val base = initial ?: template
     var title by remember { mutableStateOf(base?.title ?: "") }
     var notes by remember { mutableStateOf(base?.notes ?: "") }
-    var dueDay by remember { mutableStateOf(base?.dueDay) }
-    var minute by remember { mutableStateOf(base?.dueMinute) }
+    var dueDay by remember {
+        mutableStateOf(
+            base?.dueDay?.takeIf { epoch -> runCatching { LocalDate.ofEpochDay(epoch) }.isSuccess },
+        )
+    }
+    var minute by remember { mutableStateOf(base?.dueMinute?.takeIf { it in 0 until 24 * 60 }) }
     var priority by remember { mutableStateOf(base?.priority ?: Priority.MEDIUM) }
     var category by remember { mutableStateOf(base?.categoryId ?: "study") }
     var pomodoros by remember { mutableStateOf(base?.estimatedPomodoros ?: 1) }
@@ -193,7 +197,7 @@ fun TaskPickerDialog(
 fun RoutineEditorDialog(initial: Routine?, onSave: (Routine) -> Unit, onDelete: ((Routine) -> Unit)?, onDismiss: () -> Unit) {
     var title by remember { mutableStateOf(initial?.title ?: "") }
     var days by remember { mutableStateOf(initial?.weekdays?.toSet() ?: setOf(0, 1, 2, 3, 4, 5, 6)) }
-    var minute by remember { mutableStateOf(initial?.minute) }
+    var minute by remember { mutableStateOf(initial?.minute?.takeIf { it in 0 until 24 * 60 }) }
     var category by remember { mutableStateOf(initial?.categoryId ?: "personal") }
     FlowDialog(onDismiss, if (initial == null) "روتین جدید" else "ویرایش روتین") {
         FlowTextField(title, { title = it }, "نام روتین (مثلاً ورزش صبحگاهی)")

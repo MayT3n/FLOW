@@ -111,14 +111,49 @@ class FlowRepository(private val store: JsonStore, scope: CoroutineScope) {
 
     private fun migrateLegacySettings(data: AppData): AppData {
         val supportedAmbientIds = setOf("none", "rain", "forest", "wind", "waves", "fire", "shore")
-        val migratedSettings = if (data.settings.ambientSound in supportedAmbientIds) {
-            data.settings
-        } else {
-            data.settings.copy(ambientSound = "none")
+        val settings = data.settings
+        fun bounded(value: Float, range: ClosedFloatingPointRange<Float>, fallback: Float): Float =
+            if (value.isFinite()) value.coerceIn(range) else fallback
+
+        val migratedSettings = settings.copy(
+            focusMin = settings.focusMin.coerceIn(1, 180),
+            shortBreakMin = settings.shortBreakMin.coerceIn(1, 60),
+            longBreakMin = settings.longBreakMin.coerceIn(1, 90),
+            rounds = settings.rounds.coerceIn(1, 12),
+            dailyGoalMin = settings.dailyGoalMin.coerceIn(10, 720),
+            glassOpacity = bounded(settings.glassOpacity, 0.4f..1.6f, 1f),
+            glassBlurDp = settings.glassBlurDp.coerceIn(4, 48),
+            glassShine = bounded(settings.glassShine, 0f..1f, 0.7f),
+            ambientVolume = bounded(settings.ambientVolume, 0f..1f, 0.5f),
+            musicVolume = bounded(settings.musicVolume, 0f..1f, 0.8f),
+            wallpaperDim = bounded(settings.wallpaperDim, 0f..0.5f, 0.18f),
+            wallpaperBlurDp = settings.wallpaperBlurDp.coerceIn(0, 24),
+            ambientSound = settings.ambientSound.takeIf { it in supportedAmbientIds } ?: "none",
+            wallpaperId = settings.wallpaperId.takeIf { it in setOf("gradient", "aurora", "midnight", "dusk", "custom") } ?: "gradient",
+        )
+        val migratedTasks = data.tasks.map { task ->
+            val validDay = task.dueDay?.takeIf { epoch ->
+                runCatching { java.time.LocalDate.ofEpochDay(epoch) }.isSuccess
+            }
+            task.copy(
+                dueDay = validDay,
+                dueMinute = validDay?.let { task.dueMinute?.takeIf { minute -> minute in 0 until 24 * 60 } },
+                estimatedPomodoros = task.estimatedPomodoros.coerceIn(1, 20),
+            )
         }
-        // New fields on Settings are decoded via defaults; preserve all user-owned collections and timer state.
+        val migratedRoutines = data.routines.map { routine ->
+            routine.copy(
+                weekdays = routine.weekdays.filter { it in 0..6 }.distinct().sorted(),
+                minute = routine.minute?.takeIf { it in 0 until 24 * 60 },
+                pomodoros = routine.pomodoros.coerceIn(1, 20),
+            )
+        }
+        // Preserve IDs, notes, sessions, checks, goals and active timer while normalizing values
+        // that could otherwise crash date conversion or create unbounded UI loops/effects.
         return data.copy(
             version = maxOf(data.version, 2),
+            tasks = migratedTasks,
+            routines = migratedRoutines,
             settings = migratedSettings,
         )
     }
