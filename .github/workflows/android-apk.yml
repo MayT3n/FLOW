@@ -2,7 +2,7 @@ name: Android APK
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, matfocus-1.2]
     tags: ['v*']
   pull_request:
   workflow_dispatch:
@@ -110,14 +110,14 @@ jobs:
           SRC="$(ls app/build/outputs/apk/release/*.apk | head -n 1)"
           SUFFIX=""
           if [[ "${{ steps.sign.outputs.mode }}" != "release" ]]; then SUFFIX="-testsigned"; fi
-          OUT="FLOW-${{ steps.ver.outputs.name }}-${{ steps.ver.outputs.code }}${SUFFIX}.apk"
+          OUT="MatFocus-${{ steps.ver.outputs.name }}-${{ steps.ver.outputs.code }}${SUFFIX}.apk"
           mkdir -p dist
           cp "$SRC" "dist/$OUT"
           APKSIGNER="$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)"
           "$APKSIGNER" verify --verbose --print-certs "dist/$OUT" | tee dist/signature.txt
           echo "file=dist/$OUT" >> "$GITHUB_OUTPUT"
           {
-            echo "### FLOW ${{ steps.ver.outputs.name }} (${{ steps.ver.outputs.code }})"
+            echo "### MatFocus ${{ steps.ver.outputs.name }} (${{ steps.ver.outputs.code }})"
             echo "- فایل: \`$OUT\` ($(du -h "dist/$OUT" | cut -f1))"
             if [[ "$SUFFIX" == "" ]]; then
               echo "- امضا: Keystore نسخه‌ی انتشار (Secrets)"
@@ -129,7 +129,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FLOW-apk-${{ steps.ver.outputs.name }}-${{ steps.ver.outputs.code }}
+          name: MatFocus-apk-${{ steps.ver.outputs.name }}-${{ steps.ver.outputs.code }}
           path: |
             ${{ steps.apk.outputs.file }}
             dist/signature.txt
@@ -145,9 +145,62 @@ jobs:
           if-no-files-found: ignore
 
       - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') && steps.sign.outputs.mode == 'release'
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ steps.apk.outputs.file }}
           generate_release_notes: true
           prerelease: ${{ steps.sign.outputs.mode != 'release' }}
+
+      - name: Publish update manifest
+        if: startsWith(github.ref, 'refs/tags/v') && steps.sign.outputs.mode == 'release'
+        uses: actions/github-script@v7
+        env:
+          APK_FILE: ${{ steps.apk.outputs.file }}
+          VERSION_NAME: ${{ steps.ver.outputs.name }}
+          VERSION_CODE: ${{ steps.ver.outputs.code }}
+        with:
+          script: |
+            const fs = require('fs');
+            const crypto = require('crypto');
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const tag = context.ref.replace('refs/tags/', '');
+            const release = (await github.rest.repos.getReleaseByTag({ owner, repo, tag })).data;
+            const assetName = require('path').basename(process.env.APK_FILE);
+            const asset = release.assets.find(item => item.name === assetName);
+            if (!asset) throw new Error('Release APK asset not found: ' + assetName);
+            const apk = fs.readFileSync(process.env.APK_FILE);
+            const sha256 = crypto.createHash('sha256').update(apk).digest('hex');
+            const changelog = (release.body || '').split(/\\r?\\n/)
+              .map(line => line.replace(/^\\s*[-*]\\s*/, '').trim())
+              .filter(Boolean);
+            const manifest = {
+              schemaVersion: 1,
+              versionName: process.env.VERSION_NAME,
+              versionCode: Number(process.env.VERSION_CODE),
+              releaseDate: release.published_at || new Date().toISOString(),
+              changelog,
+              downloadUrl: asset.browser_download_url,
+              fileSize: apk.length,
+              sha256,
+              minimumSupportedVersion: 0,
+              mandatory: false,
+              updateAvailable: true,
+              applicationId: 'com.flow.focus'
+            };
+            const path = 'updates/latest.json';
+            let sha;
+            try {
+              const current = await github.rest.repos.getContent({ owner, repo, path, ref: 'main' });
+              sha = current.data.sha;
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+            await github.rest.repos.createOrUpdateFileContents({
+              owner, repo, path, branch: 'main',
+              message: 'Publish MatFocus ' + process.env.VERSION_NAME + ' update manifest',
+              content: Buffer.from(JSON.stringify(manifest, null, 2) + '\\n').toString('base64'),
+              ...(sha ? { sha } : {})
+            });
+            core.notice('Update manifest published for MatFocus ' + process.env.VERSION_NAME);
