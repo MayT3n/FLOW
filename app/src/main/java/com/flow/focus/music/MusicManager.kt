@@ -294,6 +294,10 @@ class MusicManager(
                     setRequestProperty("User-Agent", "MatFocus-Music/1.2")
                 }
                 require(connection.responseCode in 200..299 && connection.url.protocol == "https") { "دریافت فایل صوتی ناموفق بود." }
+                val contentType = connection.contentType?.substringBefore(';')?.trim()?.lowercase().orEmpty()
+                require(contentType.isEmpty() || contentType.startsWith("audio/") || contentType == "application/octet-stream") {
+                    "پاسخ سرور فایل صوتی معتبر نیست."
+                }
                 val length = connection.contentLengthLong
                 require(length <= 0L || length == track.fileSize) { "حجم فایل صوتی با فهرست موسیقی مطابقت ندارد." }
                 var written = 0L
@@ -313,6 +317,7 @@ class MusicManager(
                     }
                 }
                 require(written == track.fileSize) { "فایل صوتی ناقص دانلود شد." }
+                require(isPlausibleMp3(part)) { "فایل دریافتی ساختار MP3 معتبر ندارد." }
                 if (target.exists()) target.delete()
                 check(part.renameTo(target)) { "ذخیره‌ی فایل صوتی ناموفق بود." }
                 _downloadProgress.value = _downloadProgress.value - trackId
@@ -333,7 +338,19 @@ class MusicManager(
     }
 
     fun downloadedFile(track: MusicTrack): File? =
-        File(context.filesDir, "audio/music/${track.fileName}").takeIf { it.isFile && it.length() == track.fileSize }
+        File(context.filesDir, "audio/music/${track.fileName}").takeIf {
+            it.isFile && it.length() == track.fileSize && isPlausibleMp3(it)
+        }
+
+    private fun isPlausibleMp3(file: File): Boolean = runCatching {
+        file.inputStream().use { input ->
+            val header = ByteArray(3)
+            if (input.read(header) != 3) return@use false
+            val hasId3 = header[0] == 0x49.toByte() && header[1] == 0x44.toByte() && header[2] == 0x33.toByte()
+            val hasMpegFrame = header[0] == 0xff.toByte() && (header[1].toInt() and 0xe0) == 0xe0
+            hasId3 || hasMpegFrame
+        }
+    }.getOrDefault(false)
 
     private fun publish() {
         val p = controller
