@@ -164,6 +164,5 @@ class NotificationHelper(private val ctx: Context) {
         const val ID_RUNNING = 1
         const val ID_DONE = 2
         const val ID_AMBIENT = 3
-        const val ID_REMINDER_BASE = 1000
     }
 }
