@@ -251,9 +251,11 @@ fun GlassSurface(
                 Modifier
                     .matchParentSize()
                     .graphicsLayer {
-                        val extra = rootBackdrop!!.settings.wallpaperBlurDp.dp.toPx()
-                        val r = g.blurDp.dp.toPx() * levelBlur + extra
-                        renderEffect = BlurEffect(r, r)
+                        val extra = rootBackdrop!!.settings.wallpaperBlurDp.dp.toPx() * 0.35f
+                        // Prevent extreme settings from turning each surface into an expensive full-screen blur pass.
+                        val requested = g.blurDp.dp.toPx() * levelBlur + extra
+                        val radius = requested.coerceAtMost(36.dp.toPx())
+                        renderEffect = BlurEffect(radius, radius)
                     }
                     .drawBehind {
                         val s = rootSize!!.value
@@ -279,15 +281,20 @@ fun GlassSurface(
                 }
             },
         )
+        val edgeStrength = when (level) {
+            GlassLevel.Subtle -> 0.58f
+            GlassLevel.Regular -> 0.82f
+            GlassLevel.Strong -> 1f
+        }
         Box(
             Modifier.matchParentSize().border(
                 1.dp,
                 Brush.linearGradient(
                     listOf(
-                        c.glassEdge.copy(alpha = 0.60f * shine),
-                        c.glassEdge.copy(alpha = 0.06f),
-                        c.glassEdge.copy(alpha = 0.02f),
-                        c.glassEdge.copy(alpha = 0.30f * shine),
+                        c.glassEdge.copy(alpha = 0.62f * shine * edgeStrength),
+                        c.glassEdge.copy(alpha = 0.06f * edgeStrength),
+                        c.glassEdge.copy(alpha = 0.025f * edgeStrength),
+                        c.glassEdge.copy(alpha = 0.32f * shine * edgeStrength),
                     ),
                     start = Offset.Zero, end = Offset.Infinite,
                 ),
