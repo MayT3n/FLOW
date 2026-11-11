@@ -447,6 +447,7 @@ private fun WeeklyView(
     onMove: (Task) -> Unit,
 ) {
     val c = Flow.colors
+    val animations = Flow.glass.animations
     val start = JalaliDate.startOfWeek(selectedDay)
     val end = start.plusDays(6)
     val selectedEpoch = selectedDay.toEpochDay()
