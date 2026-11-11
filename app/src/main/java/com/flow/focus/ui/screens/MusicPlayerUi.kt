@@ -51,7 +51,7 @@ fun MiniMusicPlayer(
     onCollapse: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (snapshot.currentTrackId == null) return
+    val hasTrack = snapshot.currentTrackId != null
     GlassSurface(
         modifier.fillMaxWidth().springClick(scaleDown = 0.99f, onClick = onOpen),
         shape = RoundedCornerShape(22.dp),
@@ -65,21 +65,37 @@ fun MiniMusicPlayer(
         ) {
             MusicArtwork(Modifier.size(42.dp), 42.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("موسیقی در حال پخش", style = Flow.type.label, color = Flow.colors.textPrimary, maxLines = 1)
-                Text("برای کنترل لمس کن", style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 1)
-                FlowProgressBar(
-                    if (snapshot.durationMs > 0L) snapshot.positionMs.toFloat() / snapshot.durationMs else 0f,
-                    Modifier.fillMaxWidth(),
-                    height = 2.dp,
+                Text(
+                    if (hasTrack) "موسیقی در حال پخش" else "موسیقی آنلاین",
+                    style = Flow.type.label,
+                    color = Flow.colors.textPrimary,
+                    maxLines = 1,
                 )
+                Text(
+                    if (hasTrack) "برای کنترل لمس کن" else "سرویس‌های رسمی موسیقی",
+                    style = Flow.type.caption,
+                    color = Flow.colors.textSecondary,
+                    maxLines = 1,
+                )
+                if (hasTrack) {
+                    FlowProgressBar(
+                        if (snapshot.durationMs > 0L) snapshot.positionMs.toFloat() / snapshot.durationMs else 0f,
+                        Modifier.fillMaxWidth(),
+                        height = 2.dp,
+                    )
+                }
             }
-            GlassIconButton(
-                if (snapshot.isPlaying) FlowIcons.Pause else FlowIcons.Play,
-                { vm.toggleMusicPlayback() },
-                size = 38.dp,
-                iconSize = 19.dp,
-                contentDescription = if (snapshot.isPlaying) "توقف موسیقی" else "پخش موسیقی",
-            )
+            if (hasTrack) {
+                GlassIconButton(
+                    if (snapshot.isPlaying) FlowIcons.Pause else FlowIcons.Play,
+                    { vm.toggleMusicPlayback() },
+                    size = 38.dp,
+                    iconSize = 19.dp,
+                    contentDescription = if (snapshot.isPlaying) "توقف موسیقی" else "پخش موسیقی",
+                )
+            } else {
+                FlowIcon(FlowIcons.Export, tint = Flow.colors.accent, size = 20.dp)
+            }
             GlassIconButton(FlowIcons.ChevronDown, onCollapse, size = 34.dp, iconSize = 17.dp, contentDescription = "جمع کردن پخش‌کننده")
         }
     }

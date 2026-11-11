@@ -175,7 +175,7 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             AnimatedVisibility(
-                visible = music.connected && music.currentTrackId != null && musicShelfExpanded,
+                visible = music.connected && musicShelfExpanded,
                 enter = fadeIn(tween(160)) + slideInVertically(tween(220)) { it / 2 },
                 exit = fadeOut(tween(110)) + slideOutVertically(tween(170)) { it / 2 },
             ) {

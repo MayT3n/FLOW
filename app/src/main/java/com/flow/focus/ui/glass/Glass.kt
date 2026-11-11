@@ -205,7 +205,7 @@ private fun Bitmap.sampledPalette(): List<Color> {
             android.graphics.Color.colorToHSV(pixel, hsv)
             if (hsv[1] > 0.22f && hsv[2] in 0.18f..0.94f) {
                 val score = hsv[1] * (0.55f + (1f - kotlin.math.abs(hsv[2] - 0.62f)))
-                samples += score to Color(pixel.toLong())
+                samples += score to Color(pixel)
             }
         }
     }
