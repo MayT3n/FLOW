@@ -98,7 +98,19 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
     val today = dateTime.toLocalDate()
     var dialog by remember { mutableStateOf<HomeDialog?>(null) }
     var menu by remember { mutableStateOf(false) }
+    var notificationsOpen by remember { mutableStateOf(false) }
+    var musicOpen by remember { mutableStateOf(false) }
     val playing by vm.ambientPlaying.collectAsStateWithLifecycle()
+    val newsItems by vm.newsItems.collectAsStateWithLifecycle()
+    val newsReadIds by vm.newsReadIds.collectAsStateWithLifecycle()
+    val remoteUpdate by vm.updateManifest.collectAsStateWithLifecycle()
+    val musicSnapshot by vm.musicSnapshot.collectAsStateWithLifecycle()
+    val updateNoticeUnread = remoteUpdate?.let {
+        it.updateAvailable && it.versionCode > com.flow.focus.BuildConfig.VERSION_CODE && "update:${it.versionCode}" !in newsReadIds
+    } == true
+    val unreadNotices = newsItems.count { it.id !in newsReadIds } + if (updateNoticeUnread) 1 else 0
+
+    LaunchedEffect(Unit) { vm.refreshRemoteContent() }
 
     // پایان فاز در پیش‌زمینه: دقیقاً در لحظه‌ی پایان (Alarm سیستم برای پس‌زمینه جداگانه ثبت شده است)
     LaunchedEffect(timer.status, timer.endAtMs) {
@@ -132,8 +144,28 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
                     }
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                    Text("FLOW", style = Flow.type.title.copy(letterSpacing = 2.sp), color = c.textPrimary)
+                    Text("MatFocus", style = Flow.type.title.copy(letterSpacing = 0.6.sp), color = c.textPrimary)
                     Text(num(DateFormats.weekdayAndDay(today)), style = Flow.type.label, color = c.textSecondary)
+                }
+            }
+            Box {
+                GlassIconButton(FlowIcons.Bell, {
+                    notificationsOpen = true
+                    vm.refreshRemoteContent()
+                }, contentDescription = "اعلان‌ها")
+                if (unreadNotices > 0) {
+                    Box(
+                        Modifier.align(Alignment.TopEnd).padding(top = 1.dp, end = 1.dp)
+                            .size(16.dp).clip(CircleShape).background(c.accent),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            num(unreadNotices.coerceAtMost(9)),
+                            style = Flow.type.caption.copy(fontSize = 9.sp),
+                            color = c.textOnAccent,
+                            maxLines = 1,
+                        )
+                    }
                 }
             }
             GlassIconButton(
@@ -149,6 +181,7 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
                         MenuAction("تغییر وظیفه", FlowIcons.Edit) { dialog = HomeDialog.PICK_TASK },
                         MenuAction("مدت تمرکز", FlowIcons.Clock) { dialog = HomeDialog.DURATION },
                         MenuAction("صدای محیط", FlowIcons.Music) { dialog = HomeDialog.AMBIENT },
+                        MenuAction("موزیک پلیر", FlowIcons.Music) { musicOpen = true },
                         MenuAction("افزودن یادآور", FlowIcons.Bell) { dialog = HomeDialog.REMINDER },
                         MenuAction("آمار جلسه", FlowIcons.Stats) { onNavigate(3) },
                         MenuAction("تنظیمات تایمر", FlowIcons.Settings) { onNavigate(4) },
@@ -281,6 +314,9 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
         }
         null -> Unit
     }
+
+    if (notificationsOpen) MatFocusNotificationsDialog(vm) { notificationsOpen = false }
+    if (musicOpen) MusicPlayerDialog(vm) { musicOpen = false }
 }
 
 @Composable
