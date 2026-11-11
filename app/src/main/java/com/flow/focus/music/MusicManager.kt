@@ -283,7 +283,7 @@ class MusicManager(
                 ?: throw IllegalArgumentException("آهنگ پیدا نشد.")
             val folder = File(context.filesDir, "audio/music").apply { mkdirs() }
             val target = File(folder, track.fileName)
-            if (target.isFile && target.length() == track.fileSize) return@withContext target
+            if (target.isFile && target.length() == track.fileSize && isPlausibleMp3(target)) return@withContext target
             val part = File(folder, track.fileName + ".part")
             var connection: HttpURLConnection? = null
             try {
