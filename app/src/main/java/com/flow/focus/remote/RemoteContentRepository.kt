@@ -115,12 +115,13 @@ class RemoteContentRepository(
 
         val feedText = fetchText(NEWS_URL)
         val manifestText = fetchText(UPDATE_URL)
-        var anyValidResponse = false
+        var feedValid = false
+        var manifestValid = false
 
         if (feedText != null) {
             val parsed = runCatching { json.decodeFromString<NewsFeed>(feedText) }.getOrNull()
             if (parsed != null && parsed.schemaVersion == 1) {
-                anyValidResponse = true
+                feedValid = true
                 val normalized = parsed.copy(items = parsed.items.filter {
                     it.id.isNotBlank() && it.title.isNotBlank() && isActive(it)
                 })
@@ -135,7 +136,7 @@ class RemoteContentRepository(
         if (manifestText != null) {
             val parsed = runCatching { json.decodeFromString<UpdateManifest>(manifestText) }.getOrNull()
             if (parsed != null && isValidManifest(parsed)) {
-                anyValidResponse = true
+                manifestValid = true
                 val manifestJson = json.encodeToString(parsed)
                 if (prefs[manifestKey] != manifestJson) {
                     store.edit { it[manifestKey] = manifestJson }
@@ -145,11 +146,12 @@ class RemoteContentRepository(
         }
 
         // Record every valid successful check, even when the JSON is unchanged.
-        if (anyValidResponse) {
+        val completeSync = feedValid && manifestValid
+        if (completeSync) {
             store.edit { it[lastSyncKey] = now }
             _lastSync.value = now
         }
-        return anyValidResponse || _items.value.isNotEmpty() || _manifest.value != null
+        return completeSync
     }
 
     suspend fun markRead(id: String) {
