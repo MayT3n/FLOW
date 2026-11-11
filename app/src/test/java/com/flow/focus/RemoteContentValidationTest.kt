@@ -1,6 +1,5 @@
 package com.flow.focus
 
-import com.flow.focus.remote.NewsItem
 import com.flow.focus.remote.RemoteContentValidation
 import com.flow.focus.remote.UpdateManifest
 import java.io.StringReader
@@ -61,7 +60,7 @@ class RemoteContentValidationTest {
         val result = RemoteContentValidation.parseNewsFeed(raw, now)
 
         assertEquals(listOf("release-note"), result?.items?.map { it.id })
-        assertEquals("خبر معتبر", result?.items?.single()?.title)
+        assertEquals("خبر تکراری", result?.items?.single()?.title)
     }
 
     @Test
