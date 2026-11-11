@@ -228,7 +228,12 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
         ) {
             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (task != null) {
-                    CheckCircle(task.done, { vm.setTaskDone(task.id, !task.done) }, size = 30.dp)
+                    CheckCircle(
+                        task.done,
+                        { vm.setTaskDone(task.id, !task.done) },
+                        size = 30.dp,
+                        contentDescription = "تغییر وضعیت ${task.title}",
+                    )
                 } else {
                     FlowIcon(FlowIcons.Target, tint = c.textSecondary, size = 28.dp)
                 }

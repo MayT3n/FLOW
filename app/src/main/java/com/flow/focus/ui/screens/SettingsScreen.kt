@@ -53,6 +53,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -163,16 +166,18 @@ private fun WallpaperOption(
         "aurora" -> listOf(Color(0xFF101B39), Color(0xFF514080), Color(0xFF132E4E))
         "midnight" -> listOf(Color(0xFF080F20), Color(0xFF1D2D45), Color(0xFF334B62))
         "dusk" -> listOf(Color(0xFF30213F), Color(0xFF76506D), Color(0xFF293B59))
+        "gradient" -> listOf(Flow.colors.bgTop, Flow.colors.bgMid, Flow.colors.bgBottom)
         else -> listOf(Color(0xFF18233F), Color(0xFF34466B), Color(0xFF242C4D))
     }
     Box(
         modifier.height(76.dp).clip(RoundedCornerShape(17.dp))
             .background(Brush.verticalGradient(palette))
             .border(if (selected) 2.dp else 1.dp, if (selected) Flow.colors.accent else Color.White.copy(alpha = 0.22f), RoundedCornerShape(17.dp))
-            .springClick(scaleDown = 0.97f, onClick = onClick),
+            .semantics { this.selected = selected }
+            .springClick(role = Role.RadioButton, scaleDown = 0.97f, onClick = onClick),
         contentAlignment = Alignment.BottomStart,
     ) {
-        Text(label, Modifier.padding(horizontal = 9.dp, vertical = 7.dp), style = Flow.type.caption, color = Color.White)
+        Text(label, Modifier.padding(horizontal = 9.dp, vertical = 7.dp), style = Flow.type.caption, color = Color.White, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
     }
 }
 
@@ -196,6 +201,7 @@ private fun WallpaperPreviewSurface(
         "aurora" -> listOf(Color(0xFF07172B), Color(0xFF173B59), Color(0xFF382B65))
         "midnight" -> listOf(Color(0xFF070D1B), Color(0xFF172A42), Color(0xFF26364B))
         "dusk" -> listOf(Color(0xFF241B37), Color(0xFF69435E), Color(0xFF273D5C))
+        "gradient" -> listOf(Flow.colors.bgTop, Flow.colors.bgMid, Flow.colors.bgBottom)
         else -> listOf(Color(0xFF18233F), Color(0xFF34466B), Color(0xFF242C4D))
     }
     Box(

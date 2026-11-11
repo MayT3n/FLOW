@@ -214,7 +214,7 @@ private fun TaskRow(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                CheckCircle(t.done, onToggle, size = 28.dp, color = Color(cat.color))
+                CheckCircle(t.done, onToggle, size = 28.dp, color = Color(cat.color), contentDescription = "تغییر وضعیت ${t.title}")
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         t.title, style = Flow.type.bodyStrong,

@@ -51,6 +51,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -131,6 +133,7 @@ fun JalaliMonthView(
                         color = c.textPrimary,
                         modifier = Modifier.weight(1f),
                         textAlign = TextAlign.Center,
+                        maxLines = 1,
                     )
                     GlassIconButton(FlowIcons.ChevronNext, onNext, size = 38.dp, iconSize = 18.dp, contentDescription = "ماه بعد")
                 }
@@ -169,7 +172,8 @@ fun JalaliMonthView(
                                         .weight(1f)
                                         .aspectRatio(1f)
                                         .padding(2.dp)
-                                        .springClick(role = Role.Button, scaleDown = 0.9f, onClick = { onSelect(date) })
+                                        .semantics { this.selected = selected }
+                                        .springClick(role = Role.RadioButton, scaleDown = 0.9f, onClick = { onSelect(date) })
                                         .drawBehind {
                                             if (selectionScale > 0.001f) {
                                                 drawCircle(

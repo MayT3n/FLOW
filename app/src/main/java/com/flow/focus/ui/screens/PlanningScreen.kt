@@ -42,6 +42,9 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.flow.focus.core.CalendarOccasion
@@ -399,7 +402,7 @@ private fun EntryRow(vm: AppViewModel, e: PlanEntry, day: LocalDate, onEdit: (Ta
     Row(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(13.dp))
-            .springClick(scaleDown = 0.99f, onClick = { if (e is TaskEntry) onEdit(e.task) })
+            .springClick(enabled = e is TaskEntry, scaleDown = 0.99f, onClick = { if (e is TaskEntry) onEdit(e.task) })
             .padding(horizontal = 7.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -407,7 +410,9 @@ private fun EntryRow(vm: AppViewModel, e: PlanEntry, day: LocalDate, onEdit: (Ta
             CheckCircle(
                 e.done,
                 { if (e is TaskEntry) vm.setTaskDone(e.task.id, !e.task.done) else if (e is RoutineEntry) vm.toggleRoutine(e.routine.id, day.toEpochDay()) },
-                size = 28.dp, color = Color(cat.color),
+                size = 28.dp,
+                color = Color(cat.color),
+                contentDescription = "تغییر وضعیت ${e.title}",
             )
             Column(Modifier.weight(1f)) {
                 Text(
@@ -420,6 +425,7 @@ private fun EntryRow(vm: AppViewModel, e: PlanEntry, day: LocalDate, onEdit: (Ta
                     Text(
                         num(cat.name + (e.minute?.let { " · " + DateFormats.clock(it) } ?: "")),
                         style = Flow.type.caption, color = c.textSecondary,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -452,7 +458,7 @@ private fun WeeklyView(
     ) {
         GlassIconButton(FlowIcons.ChevronPrev, { onShiftWeek(-1) }, size = 40.dp, iconSize = 18.dp, contentDescription = "هفته‌ی قبل")
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(num(DateFormats.short(start) + " تا " + DateFormats.short(end)), style = Flow.type.heading, color = c.textPrimary)
+            Text(num(DateFormats.short(start) + " تا " + DateFormats.short(end)), style = Flow.type.heading, color = c.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("نمای هفتگی", style = Flow.type.caption, color = c.textSecondary)
         }
         GlassIconButton(FlowIcons.ChevronNext, { onShiftWeek(1) }, size = 40.dp, iconSize = 18.dp, contentDescription = "هفته‌ی بعد")
@@ -479,9 +485,10 @@ private fun WeeklyView(
                 Column(
                     Modifier
                         .weight(1f)
+                        .semantics { this.selected = selected }
                         .clip(RoundedCornerShape(17.dp))
                         .background(dayBackground)
-                        .springClick(scaleDown = 0.94f, onClick = { onSelectDay(day) })
+                        .springClick(role = Role.Tab, scaleDown = 0.94f, onClick = { onSelectDay(day) })
                         .padding(vertical = 9.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(5.dp),

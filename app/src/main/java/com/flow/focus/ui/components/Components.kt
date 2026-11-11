@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -71,6 +72,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -141,13 +143,22 @@ fun GlassIconButton(
     active: Boolean = false,
     enabled: Boolean = true,
 ) {
-    GlassSurface(
-        modifier = modifier.size(size).alpha(if (enabled) 1f else 0.4f).springClick(enabled = enabled, onClick = onClick),
-        shape = CircleShape,
-        tint = if (active) Flow.colors.accent else null,
+    Box(
+        modifier = modifier
+            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+            .alpha(if (enabled) 1f else 0.4f)
+            .springClick(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            FlowIcon(icon, tint = if (active) Flow.colors.accent else tint, size = iconSize, contentDescription = contentDescription)
+        // Keep the visual diameter compact while exposing an accessible touch target.
+        GlassSurface(
+            modifier = Modifier.size(size),
+            shape = CircleShape,
+            tint = if (active) Flow.colors.accent else null,
+        ) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                FlowIcon(icon, tint = if (active) Flow.colors.accent else tint, size = iconSize, contentDescription = contentDescription)
+            }
         }
     }
 }
@@ -178,7 +189,7 @@ fun PrimaryButton(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (icon != null) FlowIcon(icon, tint = c.textOnAccent, size = 20.dp)
-            Text(text, style = Flow.type.bodyStrong, color = c.textOnAccent, maxLines = 1)
+            Text(text, style = Flow.type.bodyStrong, color = c.textOnAccent, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -205,7 +216,7 @@ fun GlassButton(
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         ) {
             if (icon != null) FlowIcon(icon, tint = color, size = 20.dp)
-            Text(text, style = Flow.type.bodyStrong, color = color, maxLines = 1)
+            Text(text, style = Flow.type.bodyStrong, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -245,6 +256,7 @@ fun SegmentedControl(
                         }
                         .clip(RoundedCornerShape(18.dp))
                         .background(bg)
+                        .semantics { this.selected = sel }
                         .clickable(enabled = enabled, role = Role.Tab, onClick = { onSelect(i) }),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -304,7 +316,7 @@ fun FlowSlider(value: Float, onChange: (Float) -> Unit, range: ClosedFloatingPoi
 @Composable
 fun Stepper(value: Int, onChange: (Int) -> Unit, range: IntRange, modifier: Modifier = Modifier, step: Int = 1, suffix: String = "") {
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        GlassIconButton(FlowIcons.Minus, { onChange((value - step).coerceIn(range)) }, size = 36.dp, iconSize = 18.dp, enabled = value > range.first)
+        GlassIconButton(FlowIcons.Minus, { onChange((value - step).coerceIn(range)) }, size = 36.dp, iconSize = 18.dp, enabled = value > range.first, contentDescription = "کاهش مقدار")
         val displayValue = num(value) + if (suffix.isNotEmpty()) " $suffix" else ""
         if (LocalGlass.current.animations) {
             AnimatedContent(
@@ -328,7 +340,7 @@ fun Stepper(value: Int, onChange: (Int) -> Unit, range: IntRange, modifier: Modi
                 modifier = Modifier.widthIn(min = 56.dp), textAlign = TextAlign.Center, maxLines = 1,
             )
         }
-        GlassIconButton(FlowIcons.Plus, { onChange((value + step).coerceIn(range)) }, size = 36.dp, iconSize = 18.dp, enabled = value < range.last)
+        GlassIconButton(FlowIcons.Plus, { onChange((value + step).coerceIn(range)) }, size = 36.dp, iconSize = 18.dp, enabled = value < range.last, contentDescription = "افزایش مقدار")
     }
 }
 
@@ -361,7 +373,13 @@ fun FlowTextField(
                 ) {
                     if (leading != null) FlowIcon(leading, tint = c.textSecondary, size = 20.dp)
                     Box(Modifier.weight(1f)) {
-                        if (value.isEmpty()) Text(placeholder, style = Flow.type.body, color = c.textSecondary.copy(alpha = 0.75f))
+                        if (value.isEmpty()) Text(
+                            placeholder,
+                            style = Flow.type.body,
+                            color = c.textSecondary.copy(alpha = 0.75f),
+                            maxLines = if (singleLine) 1 else Int.MAX_VALUE,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                         inner()
                     }
                 }
@@ -371,20 +389,35 @@ fun FlowTextField(
 }
 
 @Composable
-fun CheckCircle(checked: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier, size: Dp = 28.dp, color: Color = Flow.colors.accent) {
+fun CheckCircle(
+    checked: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+    size: Dp = 28.dp,
+    color: Color = Flow.colors.accent,
+    contentDescription: String = "وضعیت تکمیل",
+) {
     val c = Flow.colors
     val fill by animateFloatAsState(if (checked) 1f else 0f, floatSpring(0.55f, 500f), label = "check")
     Box(
         modifier
-            .size(size)
-            .springClick(role = Role.Checkbox, onClick = onToggle)
-            .drawBehind {
+            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+            .semantics(mergeDescendants = true) {
+                this.contentDescription = contentDescription
+                toggleableState = if (checked) ToggleableState.On else ToggleableState.Off
+            }
+            .springClick(role = Role.Checkbox, onClick = onToggle),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier.size(size).drawBehind {
                 drawCircle(c.textSecondary.copy(alpha = 0.55f * (1f - fill)), radius = this.size.minDimension / 2f - 1.5f, style = androidx.compose.ui.graphics.drawscope.Stroke(2f))
                 drawCircle(color, radius = (this.size.minDimension / 2f) * fill)
             },
-        contentAlignment = Alignment.Center,
-    ) {
-        FlowIcon(FlowIcons.Check, tint = Color.White, size = size * 0.62f, modifier = Modifier.alpha(fill).scale(0.6f + 0.4f * fill))
+            contentAlignment = Alignment.Center,
+        ) {
+            FlowIcon(FlowIcons.Check, tint = Color.White, size = size * 0.62f, modifier = Modifier.alpha(fill).scale(0.6f + 0.4f * fill))
+        }
     }
 }
 
@@ -431,13 +464,13 @@ fun Chip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifie
     val c = Flow.colors
     val bg by animateColorAsState(if (selected) c.accent else Color.Transparent, anim(), label = "chipBg")
     val fg by animateColorAsState(if (selected) c.textOnAccent else c.textPrimary, anim(), label = "chipFg")
-    GlassSurface(modifier.springClick(onClick = onClick), shape = RoundedCornerShape(18.dp), level = GlassLevel.Subtle) {
+    GlassSurface(modifier.semantics { this.selected = selected }.springClick(onClick = onClick), shape = RoundedCornerShape(18.dp), level = GlassLevel.Subtle) {
         Row(
             Modifier.background(bg).padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             if (dot != null) Box(Modifier.size(8.dp).clip(CircleShape).background(dot))
-            Text(text, style = Flow.type.label, color = fg, maxLines = 1)
+            Text(text, style = Flow.type.label, color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -484,6 +517,7 @@ fun FlowDialog(onDismiss: () -> Unit, title: String? = null, content: @Composabl
                                 style = Flow.type.title,
                                 color = Flow.colors.textPrimary,
                                 maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
                             )
                             GlassIconButton(
                                 FlowIcons.Close,
@@ -606,7 +640,7 @@ fun FlowDock(items: List<DockItem>, selected: Int, onSelect: (Int) -> Unit, modi
 @Composable
 fun ScreenHeader(title: String, modifier: Modifier = Modifier, trailing: (@Composable () -> Unit)? = null) {
     Row(modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, style = Flow.type.title, color = Flow.colors.textPrimary, modifier = Modifier.weight(1f))
+        Text(title, style = Flow.type.title, color = Flow.colors.textPrimary, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
         trailing?.invoke()
     }
 }
