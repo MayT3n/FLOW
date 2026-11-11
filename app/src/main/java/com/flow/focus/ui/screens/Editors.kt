@@ -81,6 +81,7 @@ fun TaskEditorDialog(
     var priority by remember { mutableStateOf(base?.priority ?: Priority.MEDIUM) }
     var category by remember { mutableStateOf(base?.categoryId ?: "study") }
     var pomodoros by remember { mutableStateOf(base?.estimatedPomodoros ?: 1) }
+    var done by remember { mutableStateOf(base?.done ?: false) }
     var pickDate by remember { mutableStateOf(false) }
     val today = LocalDate.now()
 
