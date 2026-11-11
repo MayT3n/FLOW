@@ -52,6 +52,19 @@ The catalogue includes source and licence metadata for each file:
 
 Ambient files are streamed or downloaded on demand to app-private storage. The forest source page describes noticeable background noise; the fireplace clip is about 25 seconds long and has not yet been verified for seamless looping. These are disclosed limitations, not claims of studio-mastered or already-tested audio.
 
+## Offline Iranian calendar
+
+The Jalali planning calendar loads its annual data from APK assets; no network request is needed to display them. The bundled dataset currently covers Jalali year **1405**:
+
+- 29 holiday records covering 26 distinct official holiday dates (national and religious).
+- 192 non-holiday observances.
+- Dates are stored as Jalali `YYYY-MM-DD` and converted with the app's tested `JalaliDate` implementation.
+- Holiday days and observances receive dots in the month grid; selecting a day shows the full Persian titles and the official-holiday label.
+
+Source: the University of Tehran Calendar Center (`calendar.ut.ac.ir`), distributed as the 1405 JSON data files by [FarsiUI](https://github.com/MiladJoodi/FarsiUI). The holiday feed identifies the official University of Tehran holiday/calendar PDFs it was cross-checked against. The event feed notes that some Hijri-linked observances can shift by ±1 day according to the printed calendar / moon-sighting updates. Fridays are derived from the weekday calculation and are not inferred from the event files.
+
+**Coverage limitation:** only 1405 is bundled at this revision. A subsequent annual calendar dataset must be added to `app/src/main/assets/calendar/` before that year's observances can be displayed offline. The UI explicitly reports when the selected Jalali year has no bundled dataset; it does not invent or extrapolate lunar dates.
+
 ## GitHub-hosted announcements
 
 Edit `notifications/news.json` on the default branch to publish messages without changing Kotlin code.
