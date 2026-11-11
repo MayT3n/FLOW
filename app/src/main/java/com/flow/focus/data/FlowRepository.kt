@@ -111,9 +111,16 @@ class FlowRepository(private val store: JsonStore, scope: CoroutineScope) {
 
     private fun migrateLegacySettings(data: AppData): AppData {
         val supportedAmbientIds = setOf("none", "rain", "forest", "wind", "waves", "fire", "shore")
-        val selected = data.settings.ambientSound
-        if (selected in supportedAmbientIds) return data
-        return data.copy(settings = data.settings.copy(ambientSound = "none"))
+        val migratedSettings = if (data.settings.ambientSound in supportedAmbientIds) {
+            data.settings
+        } else {
+            data.settings.copy(ambientSound = "none")
+        }
+        // New fields on Settings are decoded via defaults; preserve all user-owned collections and timer state.
+        return data.copy(
+            version = maxOf(data.version, 2),
+            settings = migratedSettings,
+        )
     }
 
     companion object {
