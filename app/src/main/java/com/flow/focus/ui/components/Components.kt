@@ -470,7 +470,7 @@ fun FlowDock(items: List<DockItem>, selected: Int, onSelect: (Int) -> Unit, modi
 
             Row(Modifier.fillMaxSize()) {
                 items.forEachIndexed { index, item ->
-                    val isSelected = index == selected
+                    val isSelected = index == activeIndex
                     val emphasis by animateFloatAsState(
                         targetValue = if (isSelected) 1f else 0f,
                         animationSpec = floatSpring(0.78f, 560f),
