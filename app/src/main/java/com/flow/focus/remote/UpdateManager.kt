@@ -85,7 +85,7 @@ class UpdateManager(private val context: Context) {
             val actualHash = digest.digest().joinToString("") { "%02x".format(it) }
             require(actualHash.equals(manifest.sha256, ignoreCase = true)) { "بررسی SHA-256 ناموفق بود." }
 
-            verifyPackageAndSignature(temporary, manifest.versionCode)
+            verifyPackageAndSignature(temporary, manifest.versionCode, manifest.versionName)
             if (target.exists()) target.delete()
             check(temporary.renameTo(target)) { "ذخیره‌ی فایل دانلودشده ناموفق بود." }
             _state.value = UpdateDownloadState.Ready(target)
@@ -124,7 +124,7 @@ class UpdateManager(private val context: Context) {
         return true
     }
 
-    private fun verifyPackageAndSignature(apk: File, expectedVersionCode: Int) {
+    private fun verifyPackageAndSignature(apk: File, expectedVersionCode: Int, expectedVersionName: String) {
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             PackageManager.GET_SIGNING_CERTIFICATES
         } else {
@@ -135,6 +135,9 @@ class UpdateManager(private val context: Context) {
             ?: throw IllegalArgumentException("فایل دانلودشده APK معتبر نیست.")
         require(archive.packageName == context.packageName) { "این APK متعلق به برنامه‌ی دیگری است." }
         require(versionCode(archive) == expectedVersionCode.toLong()) { "شماره‌ی نسخه‌ی APK با Manifest تطابق ندارد." }
+        require(archive.versionName == expectedVersionName) { "نام نسخه‌ی APK با Manifest تطابق ندارد." }
+        val minimumSdk = archive.applicationInfo?.minSdkVersion ?: 1
+        require(Build.VERSION.SDK_INT >= minimumSdk) { "این APK با نسخه‌ی اندروید دستگاه سازگار نیست." }
 
         val installed = context.packageManager.getPackageInfo(context.packageName, flags)
         val downloadedCertificates = certificateDigests(archive)
