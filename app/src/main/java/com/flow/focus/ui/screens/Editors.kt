@@ -101,6 +101,14 @@ fun TaskEditorDialog(
             SwitchRow("ساعت مشخص", minute != null, { minute = if (it) (minute ?: 9 * 60) else null }, subtitle = "برای یادآوری در همان ساعت")
             minute?.let { m -> TimeEditor(m, { minute = it }) }
         }
+        if (initial != null) {
+            SwitchRow(
+                "انجام‌شده",
+                done,
+                { done = it },
+                subtitle = if (done) "این وظیفه در فهرست انجام‌شده‌ها قرار می‌گیرد" else "وظیفه هنوز در حال انجام است",
+            )
+        }
 
         Label("اولویت")
         SegmentedControl(Priority.entries.map { it.label }, priority.ordinal, { priority = Priority.entries[it] })
