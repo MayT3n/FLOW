@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -78,6 +77,7 @@ import com.flow.focus.ui.glass.GlassSurface
 import com.flow.focus.ui.glass.springClick
 import com.flow.focus.ui.relativeDay
 import com.flow.focus.ui.rememberToday
+import com.flow.focus.ui.theme.LocalDockContentPadding
 import com.flow.focus.ui.theme.Flow
 import com.flow.focus.ui.theme.LocalGlass
 import java.time.LocalDate
@@ -112,7 +112,7 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
     Box(modifier.fillMaxSize()) {
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding()
-                .padding(horizontal = 18.dp).padding(top = 8.dp, bottom = 130.dp),
+                .padding(horizontal = 18.dp).padding(top = 8.dp, bottom = LocalDockContentPadding.current),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             ScreenHeader("تقویم و برنامه")
@@ -208,7 +208,7 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                 OfflineCalendarOccasions(selectedOccasions)
             }
         }
-        Fab({ creating = true }, Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 108.dp).navigationBarsPadding())
+        Fab({ creating = true }, Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = LocalDockContentPadding.current - 8.dp))
     }
 
     if (creating) {
