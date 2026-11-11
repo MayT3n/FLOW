@@ -6,7 +6,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -70,26 +74,34 @@ object AmbientLibrary {
 
 class AmbientAssetStore(private val context: Context) {
     private val folder = File(context.filesDir, "audio/ambient")
+    private val downloadMutex = Mutex()
     private val _progress = MutableStateFlow<Map<String, Float>>(emptyMap())
     val progress: StateFlow<Map<String, Float>> = _progress.asStateFlow()
 
     fun localFile(id: String): File? {
         val recording = AmbientLibrary.byId(id) ?: return null
-        return File(folder, "${recording.id}.ogg").takeIf { file ->
-            file.isFile && file.length() > 1024L && file.inputStream().use { input ->
-                val signature = ByteArray(4)
-                input.read(signature) == 4 && signature.contentEquals(byteArrayOf(0x4f, 0x67, 0x67, 0x53))
+        val file = File(folder, "${recording.id}.ogg")
+        return runCatching {
+            file.takeIf {
+                it.isFile && it.length() > 1024L && it.inputStream().use { input ->
+                    val signature = ByteArray(4)
+                    input.read(signature) == 4 && signature.contentEquals(byteArrayOf(0x4f, 0x67, 0x67, 0x53))
+                }
             }
-        }
+        }.getOrNull()
     }
 
     fun isDownloaded(id: String): Boolean = localFile(id) != null
-    fun totalBytes(): Long = folder.listFiles()?.filter { it.isFile && !it.name.endsWith(".part") }?.sumOf { it.length() } ?: 0L
+    fun totalBytes(): Long =
+        folder.listFiles()?.filter { it.isFile && it.extension.equals("ogg", ignoreCase = true) }?.sumOf { it.length() } ?: 0L
 
     suspend fun download(id: String): File = withContext(Dispatchers.IO) {
-        val recording = AmbientLibrary.byId(id) ?: throw IllegalArgumentException("صدای محیط پیدا نشد.")
-        folder.mkdirs()
-        localFile(id)?.let { return@withContext it }
+        downloadMutex.withLock {
+            val recording = AmbientLibrary.byId(id) ?: throw IllegalArgumentException("صدای محیط پیدا نشد.")
+            check((folder.isDirectory || folder.mkdirs()) && folder.isDirectory) {
+                "ساخت پوشه‌ی صدای محیط ناموفق بود."
+            }
+            localFile(id)?.let { return@withLock it }
         val target = File(folder, "${recording.id}.ogg")
         val part = File(folder, "${recording.id}.ogg.part")
         var connection: HttpURLConnection? = null
@@ -132,22 +144,29 @@ class AmbientAssetStore(private val context: Context) {
                 }
             }
             require(written > 1024L && (expected <= 0L || written == expected)) { "فایل صوتی ناقص دریافت شد." }
-            target.delete()
-            check(part.renameTo(target)) { "ذخیره‌ی صدای محیط ناموفق بود." }
-            _progress.value = _progress.value - id
+            try {
+                Files.move(part.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+            } catch (_: Exception) {
+                Files.move(part.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            }
             target
         } catch (error: Exception) {
             part.delete()
-            _progress.value = _progress.value - id
             throw error
         } finally {
+            _progress.value = _progress.value - id
             connection?.disconnect()
+        }
         }
     }
 
     fun delete(id: String): Boolean {
-        val file = File(folder, "${id}.ogg")
-        return !file.exists() || file.delete()
+        val recording = AmbientLibrary.byId(id) ?: return false
+        val file = File(folder, "${recording.id}.ogg")
+        val partial = File(folder, "${recording.id}.ogg.part")
+        val fileDeleted = !file.exists() || file.delete()
+        val partialDeleted = !partial.exists() || partial.delete()
+        return fileDeleted && partialDeleted
     }
 
     companion object {
