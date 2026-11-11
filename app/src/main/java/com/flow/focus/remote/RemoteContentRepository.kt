@@ -116,10 +116,12 @@ class RemoteContentRepository(
         val feedText = fetchText(NEWS_URL)
         val manifestText = fetchText(UPDATE_URL)
         var changed = false
+        var validResponse = false
 
         if (feedText != null) {
             val parsed = runCatching { json.decodeFromString<NewsFeed>(feedText) }.getOrNull()
             if (parsed != null && parsed.schemaVersion == 1) {
+                validResponse = true
                 val normalized = parsed.copy(items = parsed.items.filter { it.id.isNotBlank() && it.title.isNotBlank() && isActive(it) })
                 val normalizedJson = json.encodeToString(normalized)
                 if (prefs[feedKey] != normalizedJson) {
@@ -133,6 +135,7 @@ class RemoteContentRepository(
         if (manifestText != null) {
             val parsed = runCatching { json.decodeFromString<UpdateManifest>(manifestText) }.getOrNull()
             if (parsed != null && isValidManifest(parsed)) {
+                validResponse = true
                 val manifestJson = json.encodeToString(parsed)
                 if (prefs[manifestKey] != manifestJson) {
                     store.edit { it[manifestKey] = manifestJson }
@@ -143,7 +146,7 @@ class RemoteContentRepository(
         }
 
         // Keep the last successful check timestamp. A failed request is retried on the next app open/worker run.
-        if (changed) {
+        if (validResponse) {
             store.edit { it[lastSyncKey] = now }
             _lastSync.value = now
         }
@@ -186,7 +189,6 @@ class RemoteContentRepository(
     private fun isValidManifest(value: UpdateManifest): Boolean =
         value.schemaVersion == 1 &&
             value.versionCode > 0 &&
-            value.minimumSupportedVersion >= 0 &&
             value.versionName.isNotBlank() &&
             value.applicationId == "com.flow.focus" &&
             value.minimumSupportedVersion >= 0 &&
