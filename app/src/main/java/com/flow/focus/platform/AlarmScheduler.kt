@@ -8,8 +8,7 @@ import android.net.Uri
 import android.os.Build
 import com.flow.focus.data.AppData
 import com.flow.focus.data.Task
-import java.time.LocalDate
-import java.time.ZoneId
+import com.flow.focus.core.ReminderTime
 
 class AlarmScheduler(private val ctx: Context) {
     private val am = ctx.getSystemService(AlarmManager::class.java)
@@ -39,8 +38,7 @@ class AlarmScheduler(private val ctx: Context) {
     fun reminderTime(task: Task): Long? {
         val day = task.dueDay ?: return null
         val minute = task.dueMinute ?: return null
-        return LocalDate.ofEpochDay(day).atTime(minute / 60, minute % 60)
-            .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        return ReminderTime.epochMillis(day, minute)
     }
 
     /** یادآوری وظیفه در ساعت سررسید؛ برای وظیفه‌ی انجام‌شده یا گذشته لغو می‌شود. */
