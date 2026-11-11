@@ -159,42 +159,6 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Prepare release manifest
-        if: startsWith(github.ref, 'refs/tags/v')
-        env:
-          VERSION_NAME: ${{ steps.ver.outputs.name }}
-          VERSION_CODE: ${{ steps.ver.outputs.code }}
-          APK_NAME: ${{ steps.apk.outputs.name }}
-          APK_SIZE: ${{ steps.apk.outputs.size }}
-          APK_SHA256: ${{ steps.apk.outputs.sha256 }}
-          REPOSITORY: ${{ github.repository }}
-          TAG_NAME: ${{ github.ref_name }}
-          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import json, os, datetime
-          repo = os.environ["REPOSITORY"]
-          tag = os.environ["TAG_NAME"]
-          manifest = {
-            "schemaVersion": 1,
-            "versionName": os.environ["VERSION_NAME"],
-            "versionCode": int(os.environ["VERSION_CODE"]),
-            "releaseDate": datetime.datetime.now(datetime.timezone.utc).date().isoformat(),
-            "changelog": [os.environ.get("COMMIT_MESSAGE") or f"MatFocus {os.environ['VERSION_NAME']}"],
-            "downloadUrl": f"https://github.com/{repo}/releases/download/{tag}/{os.environ['APK_NAME']}",
-            "fileSize": int(os.environ["APK_SIZE"]),
-            "sha256": os.environ["APK_SHA256"],
-            "minimumSupportedVersion": 1,
-            "mandatory": False,
-            "updateAvailable": True,
-            "applicationId": "com.flow.focus"
-          }
-          with open("dist/latest.json", "w", encoding="utf-8") as f:
-            json.dump(manifest, f, ensure_ascii=False, indent=2)
-            f.write("\n")
-          PY
-
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
@@ -202,8 +166,16 @@ jobs:
           path: |
             ${{ steps.apk.outputs.file }}
             dist/signature.txt
-            audit-reports/release-dependencies.txt
           if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload dependency report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dependency-report
+          path: audit-reports/release-dependencies.txt
+          if-no-files-found: ignore
           retention-days: 30
 
       - name: Upload test reports on failure
