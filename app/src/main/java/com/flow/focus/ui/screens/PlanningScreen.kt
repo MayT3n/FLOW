@@ -1,6 +1,9 @@
 package com.flow.focus.ui.screens
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -37,6 +40,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -73,6 +79,7 @@ import com.flow.focus.ui.glass.springClick
 import com.flow.focus.ui.relativeDay
 import com.flow.focus.ui.rememberToday
 import com.flow.focus.ui.theme.Flow
+import com.flow.focus.ui.theme.LocalGlass
 import java.time.LocalDate
 
 @Composable
@@ -296,7 +303,16 @@ private fun DailyView(
             shape = RoundedCornerShape(20.dp), level = GlassLevel.Subtle,
         ) {
             Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(num(DateFormats.full(day)), style = Flow.type.bodyStrong, color = c.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                AnimatedContent(
+                    targetState = num(DateFormats.full(day)),
+                    transitionSpec = {
+                        (fadeIn(tween(140)) + slideInVertically(tween(165)) { it / 4 }) togetherWith
+                            (fadeOut(tween(105)) + slideOutVertically(tween(125)) { -it / 4 })
+                    },
+                    label = "planning-selected-date",
+                ) { label ->
+                    Text(label, style = Flow.type.bodyStrong, color = c.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
                 if (day != today) Text(num(relativeDay(day.toEpochDay(), today)), style = Flow.type.caption, color = c.textSecondary)
                 else Text("امروز", style = Flow.type.caption, color = c.accent)
             }
@@ -319,14 +335,23 @@ private fun DailyView(
     if (data.routines.isEmpty()) {
         EmptyState(FlowIcons.Repeat, "هنوز روتینی نداری", "کارهایی مثل ورزش یا مطالعه را یک بار تعریف کن تا هر هفته تکرار شوند.")
     } else {
-        data.routines.forEach { r ->
-            GlassSurface(Modifier.fillMaxWidth().springClick(scaleDown = 0.985f, onClick = { onEditRoutine(r) }), shape = RoundedCornerShape(20.dp), level = GlassLevel.Subtle) {
-                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    FlowIcon(FlowIcons.Repeat, tint = c.accent, size = 20.dp)
-                    Column(Modifier.weight(1f)) {
-                        Text(r.title, style = Flow.type.bodyStrong, color = c.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        val days = if (r.weekdays.size == 7) "هر روز" else r.weekdays.joinToString("، ") { JalaliDate.weekdayNames[it] }
-                        Text(num(days + (r.minute?.let { " · " + DateFormats.clock(it) } ?: "")), style = Flow.type.caption, color = c.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        data.routines.forEachIndexed { index, r ->
+            val animations = LocalGlass.current.animations
+            val delay = index.coerceAtMost(7) * 24
+            AnimatedVisibility(
+                visible = true,
+                enter = if (animations) fadeIn(tween(180, delayMillis = delay)) +
+                    slideInVertically(tween(210, delayMillis = delay)) { it / 14 }
+                else androidx.compose.animation.EnterTransition.None,
+            ) {
+                GlassSurface(Modifier.fillMaxWidth().springClick(scaleDown = 0.985f, onClick = { onEditRoutine(r) }), shape = RoundedCornerShape(20.dp), level = GlassLevel.Subtle) {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        FlowIcon(FlowIcons.Repeat, tint = c.accent, size = 20.dp)
+                        Column(Modifier.weight(1f)) {
+                            Text(r.title, style = Flow.type.bodyStrong, color = c.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            val days = if (r.weekdays.size == 7) "هر روز" else r.weekdays.joinToString("، ") { JalaliDate.weekdayNames[it] }
+                            Text(num(days + (r.minute?.let { " · " + DateFormats.clock(it) } ?: "")), style = Flow.type.caption, color = c.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
                     }
                 }
             }
@@ -349,9 +374,21 @@ private fun EntryList(vm: AppViewModel, data: AppData, day: LocalDate, onEdit: (
     ) {
         Column(Modifier.padding(horizontal = 9.dp, vertical = 4.dp)) {
             entries.forEachIndexed { index, entry ->
-                EntryRow(vm, entry, day, onEdit, onMove)
-                if (index < entries.lastIndex) {
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(c.track))
+                val animations = LocalGlass.current.animations
+                val delay = index.coerceAtMost(7) * 24
+                AnimatedVisibility(
+                    visible = true,
+                    enter = if (animations) {
+                        fadeIn(tween(180, delayMillis = delay)) +
+                            slideInVertically(tween(210, delayMillis = delay)) { it / 14 }
+                    } else androidx.compose.animation.EnterTransition.None,
+                ) {
+                    Column {
+                        EntryRow(vm, entry, day, onEdit, onMove)
+                        if (index < entries.lastIndex) {
+                            Box(Modifier.fillMaxWidth().height(1.dp).background(c.track))
+                        }
+                    }
                 }
             }
         }
@@ -437,11 +474,16 @@ private fun WeeklyView(
                 }
                 val selected = epoch == selectedEpoch
                 val isToday = day == today
+                val dayBackground by animateColorAsState(
+                    targetValue = if (selected) c.accent else Color.Transparent,
+                    animationSpec = if (animations) tween(190) else snap(),
+                    label = "week-day-selection",
+                )
                 Column(
                     Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(17.dp))
-                        .background(if (selected) c.accent else Color.Transparent)
+                        .background(dayBackground)
                         .springClick(scaleDown = 0.94f, onClick = { onSelectDay(day) })
                         .padding(vertical = 9.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,

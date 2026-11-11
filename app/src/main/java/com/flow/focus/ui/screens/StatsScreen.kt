@@ -1,5 +1,11 @@
 package com.flow.focus.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -86,16 +92,25 @@ fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
     ) {
         ScreenHeader("آمار و تحلیل")
         SegmentedControl(listOf("روزانه", "هفتگی", "ماهانه"), rangeIdx, { rangeIdx = it })
-        Text(
-            when (range) {
-                StatsRange.DAY -> "نمای امروز"
-                StatsRange.WEEK -> "۷ روز اخیر"
-                StatsRange.MONTH -> "۳۰ روز اخیر"
+        AnimatedContent(
+            targetState = range,
+            transitionSpec = {
+                (fadeIn(tween(150)) + slideInVertically(tween(170)) { it / 4 }) togetherWith
+                    (fadeOut(tween(110)) + slideOutVertically(tween(130)) { -it / 4 })
             },
-            style = Flow.type.caption,
-            color = c.textSecondary,
-            modifier = Modifier.padding(horizontal = 4.dp),
-        )
+            label = "stats-range-label",
+        ) { activeRange ->
+            Text(
+                when (activeRange) {
+                    StatsRange.DAY -> "نمای امروز"
+                    StatsRange.WEEK -> "۷ روز اخیر"
+                    StatsRange.MONTH -> "۳۰ روز اخیر"
+                },
+                style = Flow.type.caption,
+                color = c.textSecondary,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
+        }
 
         OverviewCard(
             focusMinutes = summary.focusMinutes,
@@ -275,12 +290,21 @@ private fun OverviewCard(
                 }
                 FlowIcon(FlowIcons.Clock, tint = c.textSecondary, size = 19.dp)
             }
-            Text(
-                num(formatMinutes(focusMinutes)),
-                style = Flow.type.display.copy(fontSize = 38.sp, lineHeight = 46.sp),
-                color = c.textPrimary,
-                maxLines = 1,
-            )
+            AnimatedContent(
+                targetState = num(formatMinutes(focusMinutes)),
+                transitionSpec = {
+                    (fadeIn(tween(150)) + slideInVertically(tween(175)) { it / 4 }) togetherWith
+                        (fadeOut(tween(110)) + slideOutVertically(tween(130)) { -it / 4 })
+                },
+                label = "stats-focus-total",
+            ) { value ->
+                Text(
+                    value,
+                    style = Flow.type.display.copy(fontSize = 38.sp, lineHeight = 46.sp),
+                    color = c.textPrimary,
+                    maxLines = 1,
+                )
+            }
             Box(Modifier.fillMaxWidth().height(1.dp).background(c.track))
             Row(
                 Modifier.fillMaxWidth(),
@@ -348,7 +372,16 @@ private fun MetricCard(
                 FlowIcon(icon, tint = tint, size = 18.dp)
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                Text(value, style = Flow.type.heading, color = Flow.colors.textPrimary, maxLines = 1)
+                AnimatedContent(
+                    targetState = value,
+                    transitionSpec = {
+                        (fadeIn(tween(145)) + slideInVertically(tween(165)) { it / 4 }) togetherWith
+                            (fadeOut(tween(100)) + slideOutVertically(tween(120)) { -it / 4 })
+                    },
+                    label = "stats-metric-value",
+                ) { displayedValue ->
+                    Text(displayedValue, style = Flow.type.heading, color = Flow.colors.textPrimary, maxLines = 1)
+                }
                 Text(
                     label,
                     style = Flow.type.caption,
