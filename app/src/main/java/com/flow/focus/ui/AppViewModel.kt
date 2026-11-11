@@ -78,7 +78,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // ---- تایمر ----
     fun start() = c.timer.start()
     fun pause() = c.timer.pause()
-        fun skip() = c.timer.skip()
+    fun skip() = c.timer.skip()
     fun reset() = c.timer.reset()
     fun selectPhase(p: PhaseType) = c.timer.selectPhase(p)
     fun selectTask(id: String?) = c.timer.selectTask(id)
@@ -200,9 +200,4 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         c.timer.syncIdle()
     }
 
-    override fun onCleared() {
-        // MusicSession remains alive when a track is playing; release only this UI controller.
-        c.music.release()
-        super.onCleared()
-    }
 }
