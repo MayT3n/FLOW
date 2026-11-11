@@ -150,7 +150,7 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
             Box {
                 GlassIconButton(FlowIcons.Bell, {
                     notificationsOpen = true
-                    vm.refreshRemoteContent(force = true)
+                    vm.refreshRemoteContent()
                 }, contentDescription = "اعلان‌ها")
                 if (unreadNotices > 0) {
                     Box(
