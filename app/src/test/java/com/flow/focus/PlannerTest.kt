@@ -5,6 +5,14 @@ import com.flow.focus.data.AppData
 import com.flow.focus.data.Priority
 import com.flow.focus.data.Routine
 import com.flow.focus.data.Task
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
+import java.io.File
+import com.flow.focus.data.JsonStore
+import com.flow.focus.data.FlowRepository
+import com.flow.focus.data.Settings
 import com.flow.focus.domain.Planner
 import com.flow.focus.domain.RoutineEntry
 import com.flow.focus.domain.TaskEntry
@@ -135,4 +143,24 @@ class PlannerTest {
         val decoded = codec.decodeFromString<MusicPlaylist>(encoded)
         assertEquals(playlist, decoded)
     }
+    @Test fun legacyDataMigratesWithoutLosingUserContent() {
+        val directory = createTempDir(prefix = "matfocus-migration-")
+        val file = File(directory, "flow_data.json")
+        val legacy = AppData(
+            version = 1,
+            tasks = tasks,
+            settings = Settings(ambientSound = "cafe"),
+        )
+        val store = JsonStore(file)
+        store.save(legacy)
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val repository = FlowRepository(JsonStore(file), scope)
+        assertEquals(2, repository.current.version)
+        assertEquals("none", repository.current.settings.ambientSound)
+        assertEquals(legacy.tasks, repository.current.tasks)
+        assertEquals(legacy.sessions, repository.current.sessions)
+        scope.cancel()
+        directory.deleteRecursively()
+    }
+
 }
