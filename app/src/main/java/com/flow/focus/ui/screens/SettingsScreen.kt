@@ -4,11 +4,15 @@ import android.content.Context
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -23,6 +27,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -31,6 +38,7 @@ import com.flow.focus.BuildConfig
 import com.flow.focus.data.AppData
 import com.flow.focus.data.GlassQuality
 import com.flow.focus.data.ThemeMode
+import com.flow.focus.data.WallpaperFit
 import com.flow.focus.ui.AppViewModel
 import com.flow.focus.ui.components.FlowDialog
 import com.flow.focus.ui.components.FlowIcons
@@ -45,6 +53,7 @@ import com.flow.focus.ui.components.Stepper
 import com.flow.focus.ui.components.SwitchRow
 import com.flow.focus.ui.components.num
 import com.flow.focus.ui.glass.GlassSurface
+import com.flow.focus.ui.glass.springClick
 import com.flow.focus.ui.theme.Flow
 import java.time.LocalDate
 
@@ -65,6 +74,31 @@ private fun writeText(ctx: Context, uri: Uri, text: String): Boolean =
     runCatching { ctx.contentResolver.openOutputStream(uri, "wt")?.bufferedWriter(Charsets.UTF_8)?.use { it.write(text) } != null }.getOrDefault(false)
 
 @Composable
+private fun WallpaperOption(
+    id: String,
+    label: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val palette = when (id) {
+        "aurora" -> listOf(Color(0xFF101B39), Color(0xFF514080), Color(0xFF132E4E))
+        "midnight" -> listOf(Color(0xFF080F20), Color(0xFF1D2D45), Color(0xFF334B62))
+        "dusk" -> listOf(Color(0xFF30213F), Color(0xFF76506D), Color(0xFF293B59))
+        else -> listOf(Color(0xFF18233F), Color(0xFF34466B), Color(0xFF242C4D))
+    }
+    Box(
+        modifier.height(76.dp).clip(RoundedCornerShape(17.dp))
+            .background(Brush.verticalGradient(palette))
+            .border(if (selected) 2.dp else 1.dp, if (selected) Flow.colors.accent else Color.White.copy(alpha = 0.22f), RoundedCornerShape(17.dp))
+            .springClick(scaleDown = 0.97f, onClick = onClick),
+        contentAlignment = Alignment.BottomStart,
+    ) {
+        Text(label, Modifier.padding(horizontal = 9.dp, vertical = 7.dp), style = Flow.type.caption, color = Color.White)
+    }
+}
+
+@Composable
 fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifier) {
     val st = data.settings
     val ctx = LocalContext.current
@@ -79,6 +113,13 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
         if (uri != null) {
             val ok = writeText(ctx, uri, vm.exportJson())
             Toast.makeText(ctx, if (ok) "نسخه‌ی پشتیبان ذخیره شد" else "ذخیره‌ی فایل ناموفق بود", Toast.LENGTH_SHORT).show()
+        }
+    }
+    val wallpaperLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) {
+            vm.importWallpaper(uri) { ok ->
+                Toast.makeText(ctx, if (ok) "تصویر پس‌زمینه ذخیره شد" else "خواندن تصویر ناموفق بود", Toast.LENGTH_SHORT).show()
+            }
         }
     }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -104,6 +145,43 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             Text("اعداد", style = Flow.type.body, color = Flow.colors.textPrimary, modifier = Modifier.padding(top = 8.dp))
             SegmentedControl(listOf("فارسی ۱۲۳", "انگلیسی 123"), if (st.persianDigits) 0 else 1, { vm.updateSettings { s -> s.copy(persianDigits = it == 0) } })
             SwitchRow("انیمیشن‌ها", st.animations, { v -> vm.updateSettings { it.copy(animations = v) } }, subtitle = "خاموش کردن، مصرف باتری را کم می‌کند")
+        }
+
+        Section("پس‌زمینه") {
+            Text("انتخاب پس‌زمینه", style = Flow.type.body, color = Flow.colors.textPrimary)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                WallpaperOption("gradient", "اصلی", st.wallpaperId == "gradient", Modifier.weight(1f)) { vm.selectWallpaper("gradient") }
+                WallpaperOption("aurora", "شفق", st.wallpaperId == "aurora", Modifier.weight(1f)) { vm.selectWallpaper("aurora") }
+                WallpaperOption("midnight", "نیمه‌شب", st.wallpaperId == "midnight", Modifier.weight(1f)) { vm.selectWallpaper("midnight") }
+                WallpaperOption("dusk", "غروب", st.wallpaperId == "dusk", Modifier.weight(1f)) { vm.selectWallpaper("dusk") }
+            }
+            GlassButton(
+                "انتخاب تصویر از گالری",
+                { wallpaperLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                Modifier.fillMaxWidth(),
+                icon = FlowIcons.Export,
+            )
+            if (st.wallpaperId == "custom") {
+                Text(
+                    if (st.wallpaperPath.isNullOrBlank()) "تصویر شخصی در دسترس نیست؛ پس‌زمینه‌ی اصلی نمایش داده می‌شود."
+                    else "تصویر شخصی فعال است. نسخه‌ی بهینه‌شده در فضای خصوصی برنامه نگهداری می‌شود.",
+                    style = Flow.type.caption, color = Flow.colors.textSecondary,
+                )
+            }
+            Text("جای‌گیری تصویر", style = Flow.type.body, color = Flow.colors.textPrimary)
+            SegmentedControl(listOf("برش", "جا دادن"), if (st.wallpaperFit == WallpaperFit.CROP) 0 else 1, {
+                vm.updateSettings { it.copy(wallpaperFit = if (it == 0) WallpaperFit.CROP else WallpaperFit.FIT) }
+            })
+            SettingRow("تاریک‌سازی تصویر") {
+                Text(num("${(st.wallpaperDim * 100).toInt()}%"), style = Flow.type.caption, color = Flow.colors.textSecondary)
+            }
+            FlowSlider(st.wallpaperDim, { v -> vm.updateSettings { it.copy(wallpaperDim = v) } }, 0f..0.5f)
+            SettingRow("تاری پس‌زمینه") {
+                Text(num("${st.wallpaperBlurDp}"), style = Flow.type.caption, color = Flow.colors.textSecondary)
+            }
+            FlowSlider(st.wallpaperBlurDp.toFloat(), { v -> vm.updateSettings { it.copy(wallpaperBlurDp = v.toInt()) } }, 0f..24f)
+            Text("تغییرها به‌صورت زنده روی پس‌زمینه‌ی همه‌ی صفحه‌ها دیده می‌شوند.", style = Flow.type.caption, color = Flow.colors.textSecondary)
+            GlassButton("بازنشانی پس‌زمینه", { vm.selectWallpaper("gradient") }, Modifier.fillMaxWidth())
         }
 
         Section("کیفیت Liquid Glass") {

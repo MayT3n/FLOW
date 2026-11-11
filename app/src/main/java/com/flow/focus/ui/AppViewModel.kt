@@ -1,7 +1,9 @@
 package com.flow.focus.ui
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import com.flow.focus.FlowApp
 import com.flow.focus.data.AppData
 import com.flow.focus.data.Goal
@@ -12,11 +14,16 @@ import com.flow.focus.data.Settings
 import com.flow.focus.data.Task
 import com.flow.focus.data.FlowRepository
 import com.flow.focus.platform.AmbientSynth
+import com.flow.focus.platform.WallpaperStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** تنها نقطه‌ی تماس رابط کاربری با منطق؛ UI هیچ‌جا مستقیم به مخزن یا سرویس‌ها دست نمی‌زند. */
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val c = (app as FlowApp).container
+    private val wallpaperStore = WallpaperStore(app)
 
     val data: StateFlow<AppData> get() = c.repo.data
     val ambientPlaying: StateFlow<String?> get() = c.ambient.playing
@@ -91,6 +98,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val timerOwnsAmbient = d.timer.status == com.flow.focus.data.TimerStatus.RUNNING &&
             d.timer.phase == PhaseType.FOCUS && d.settings.ambientAuto && d.settings.ambientSound != AmbientSynth.NONE
         if (!timerOwnsAmbient) c.ambient.stop()
+    }
+
+    // ---- پس‌زمینه ----
+    fun selectWallpaper(id: String) {
+        updateSettings { it.copy(wallpaperId = id) }
+    }
+
+    /** تصویر انتخابی ابتدا به نسخه‌ی بهینه‌شده در حافظه‌ی خصوصی برنامه تبدیل می‌شود. */
+    fun importWallpaper(uri: Uri, onComplete: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val path = withContext(Dispatchers.IO) { wallpaperStore.import(uri) }
+            if (path != null) {
+                updateSettings { it.copy(wallpaperId = "custom", wallpaperPath = path) }
+            }
+            onComplete(path != null)
+        }
     }
 
     // ---- داده‌ها ----

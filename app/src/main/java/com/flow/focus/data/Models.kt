@@ -20,6 +20,9 @@ enum class GlassQuality { LOW, MEDIUM, HIGH }
 @Serializable
 enum class GoalPeriod { DAILY, WEEKLY }
 
+@Serializable
+enum class WallpaperFit { CROP, FIT }
+
 /** دسته‌بندی‌های پیش‌فرض برنامه (ثابت؛ داده‌ی کاربر نیستند). */
 data class Category(val id: String, val name: String, val color: Long)
 
@@ -106,6 +109,13 @@ data class Settings(
     val ambientVolume: Float = 0.5f,
     val ambientAuto: Boolean = true,
     val dailyGoalMin: Int = 120,
+    /** شناسه‌ی پس‌زمینه: gradient, aurora, midnight, dusk یا custom */
+    val wallpaperId: String = "gradient",
+    /** مسیر نسخه‌ی بهینه‌شده‌ی تصویر شخصی در حافظه‌ی خصوصی برنامه */
+    val wallpaperPath: String? = null,
+    val wallpaperFit: WallpaperFit = WallpaperFit.CROP,
+    val wallpaperDim: Float = 0.18f,
+    val wallpaperBlurDp: Int = 0,
 ) {
     fun durationMs(phase: PhaseType): Long = when (phase) {
         PhaseType.FOCUS -> focusMin

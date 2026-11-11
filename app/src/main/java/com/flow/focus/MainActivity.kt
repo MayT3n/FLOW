@@ -81,7 +81,7 @@ fun FlowRoot(vm: AppViewModel) {
     FlowTheme(data.settings) {
         SystemBars(Flow.colors.isDark)
         RequestNotificationPermission(data.settings.notifications)
-        GlassBackdropHost {
+        GlassBackdropHost(data.settings) {
             AppScaffold(vm, data)
         }
     }

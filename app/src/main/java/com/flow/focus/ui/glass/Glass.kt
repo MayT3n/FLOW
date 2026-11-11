@@ -1,5 +1,6 @@
 package com.flow.focus.ui.glass
 
+import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -34,6 +35,9 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -45,12 +49,17 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.flow.focus.data.GlassQuality
+import com.flow.focus.data.Settings
+import com.flow.focus.data.WallpaperFit
 import com.flow.focus.ui.theme.Flow
 import com.flow.focus.ui.theme.FlowColors
 import com.flow.focus.ui.theme.LocalGlass
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -70,6 +79,14 @@ enum class GlassLevel { Subtle, Regular, Strong }
 
 val LocalRootSize = compositionLocalOf<State<IntSize>?> { null }
 
+data class RootBackdropFrame(
+    val image: State<ImageBitmap?>,
+    val phase: State<Float>,
+    val settings: Settings,
+)
+
+val LocalRootBackdrop = compositionLocalOf<RootBackdropFrame?> { null }
+
 fun DrawScope.drawFlowBackground(c: FlowColors, phase: Float, w: Float, h: Float) {
     drawRect(Brush.verticalGradient(listOf(c.bgTop, c.bgMid, c.bgBottom), startY = 0f, endY = h), size = androidx.compose.ui.geometry.Size(w, h))
     val a = if (c.isDark) 0.55f else 0.75f
@@ -85,20 +102,107 @@ fun DrawScope.drawFlowBackground(c: FlowColors, phase: Float, w: Float, h: Float
     blob(c.blobC, w * (0.25f + 0.06f * cos(t + 1f)), h * (0.92f + 0.03f * sin(t)), w * 0.85f)
 }
 
-/** پس‌زمینه‌ی مشترک برنامه؛ فقط یک بار در ریشه ساخته می‌شود. */
+private fun DrawScope.drawBuiltinWallpaper(c: FlowColors, phase: Float, w: Float, h: Float, id: String) {
+    if (id == "gradient" || id == "custom") {
+        drawFlowBackground(c, phase, w, h)
+        return
+    }
+    val palette = when (id) {
+        "aurora" -> listOf(Color(0xFF07172B), Color(0xFF173B59), Color(0xFF382B65))
+        "midnight" -> listOf(Color(0xFF070D1B), Color(0xFF172A42), Color(0xFF26364B))
+        "dusk" -> listOf(Color(0xFF241B37), Color(0xFF69435E), Color(0xFF273D5C))
+        else -> listOf(c.bgTop, c.bgMid, c.bgBottom)
+    }
+    drawRect(Brush.verticalGradient(palette, startY = 0f, endY = h), size = androidx.compose.ui.geometry.Size(w, h))
+    val motion = phase * 2f * PI.toFloat()
+    val glow = when (id) {
+        "aurora" -> Color(0xFF68C8D6)
+        "midnight" -> Color(0xFF547DB4)
+        else -> Color(0xFFD18B9A)
+    }
+    val center = Offset(w * (0.78f + 0.04f * cos(motion)), h * 0.2f)
+    drawCircle(
+        Brush.radialGradient(listOf(glow.copy(alpha = 0.36f), glow.copy(alpha = 0f)), center = center, radius = w * 0.78f),
+        radius = w * 0.78f, center = center,
+    )
+    drawCircle(
+        Brush.radialGradient(listOf(c.blobB.copy(alpha = 0.26f), Color.Transparent), center = Offset(w * 0.1f, h * 0.84f), radius = w * 0.72f),
+        radius = w * 0.72f, center = Offset(w * 0.1f, h * 0.84f),
+    )
+}
+
+private fun DrawScope.drawWallpaperImage(image: ImageBitmap, w: Float, h: Float, fit: WallpaperFit, fallback: Color) {
+    drawRect(fallback, size = androidx.compose.ui.geometry.Size(w, h))
+    val scale = if (fit == WallpaperFit.CROP) maxOf(w / image.width, h / image.height) else minOf(w / image.width, h / image.height)
+    val dstWidth = (image.width * scale).toInt().coerceAtLeast(1)
+    val dstHeight = (image.height * scale).toInt().coerceAtLeast(1)
+    drawImage(
+        image = image,
+        dstOffset = IntOffset((w.toInt() - dstWidth) / 2, (h.toInt() - dstHeight) / 2),
+        dstSize = IntSize(dstWidth, dstHeight),
+        filterQuality = FilterQuality.Medium,
+    )
+}
+
+private fun DrawScope.drawBackdrop(
+    c: FlowColors,
+    phase: Float,
+    w: Float,
+    h: Float,
+    image: ImageBitmap?,
+    settings: Settings,
+) {
+    if (settings.wallpaperId == "custom" && image != null) {
+        drawWallpaperImage(image, w, h, settings.wallpaperFit, c.bgBottom)
+    } else {
+        drawBuiltinWallpaper(c, phase, w, h, settings.wallpaperId)
+    }
+    if (settings.wallpaperId != "gradient" && settings.wallpaperDim > 0f) {
+        drawRect(Color.Black.copy(alpha = settings.wallpaperDim.coerceIn(0f, 0.65f)))
+    }
+}
+
+/** Shared wallpaper renderer. The decoded image is loaded once and reused by glass sampling. */
 @Composable
-fun GlassBackdropHost(content: @Composable BoxScope.() -> Unit) {
+fun GlassBackdropHost(settings: Settings, content: @Composable BoxScope.() -> Unit) {
     val c = Flow.colors
     val g = LocalGlass.current
     val size = remember { mutableStateOf(IntSize.Zero) }
-    // فاز انیمیشن فقط در مرحله‌ی رسم خوانده می‌شود، پس هر فریم Recomposition ندارد.
+    val image = remember { mutableStateOf<ImageBitmap?>(null) }
+
+    LaunchedEffect(settings.wallpaperId, settings.wallpaperPath) {
+        val path = settings.wallpaperPath
+        image.value = if (settings.wallpaperId == "custom" && !path.isNullOrBlank()) {
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    if (java.io.File(path).isFile) BitmapFactory.decodeFile(path)?.asImageBitmap() else null
+                }.getOrNull()
+            }
+        } else null
+    }
+
+    // The phase is read by drawing, not by the composition on every frame.
     val phase: State<Float> = if (g.animations && g.quality != GlassQuality.LOW) {
         rememberInfiniteTransition(label = "bg")
             .animateFloat(0f, 1f, infiniteRepeatable(tween(60_000, easing = LinearEasing), RepeatMode.Restart), label = "bgPhase")
     } else remember { mutableStateOf(0f) }
+
+    val frame = RootBackdropFrame(image, phase, settings)
     Box(Modifier.fillMaxSize().onSizeChanged { size.value = it }) {
-        Canvas(Modifier.fillMaxSize()) { drawFlowBackground(c, phase.value, this.size.width, this.size.height) }
-        CompositionLocalProvider(LocalRootSize provides size) { content() }
+        Canvas(
+            Modifier.fillMaxSize().graphicsLayer {
+                renderEffect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && settings.wallpaperBlurDp > 0) {
+                    val radius = settings.wallpaperBlurDp.dp.toPx()
+                    BlurEffect(radius, radius)
+                } else null
+            },
+        ) {
+            drawBackdrop(c, phase.value, this.size.width, this.size.height, image.value, settings)
+        }
+        CompositionLocalProvider(
+            LocalRootSize provides size,
+            LocalRootBackdrop provides frame,
+        ) { content() }
     }
 }
 
@@ -114,8 +218,9 @@ fun GlassSurface(
     val c = Flow.colors
     val g = LocalGlass.current
     val rootSize = LocalRootSize.current
+    val rootBackdrop = LocalRootBackdrop.current
     val blurOn = g.quality == GlassQuality.HIGH && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-        rootSize != null && g.blurDp > 0 && level != GlassLevel.Subtle
+        rootSize != null && rootBackdrop != null && g.blurDp > 0 && level != GlassLevel.Subtle
     var origin by remember { mutableStateOf(Offset.Zero) }
 
     val baseFill = when {
@@ -138,13 +243,15 @@ fun GlassSurface(
                 Modifier
                     .matchParentSize()
                     .graphicsLayer {
-                        val r = g.blurDp.dp.toPx()
+                        val extra = rootBackdrop!!.settings.wallpaperBlurDp.dp.toPx()
+                        val r = g.blurDp.dp.toPx() + extra
                         renderEffect = BlurEffect(r, r)
                     }
                     .drawBehind {
                         val s = rootSize!!.value
+                        val frame = rootBackdrop!!
                         translate(-origin.x, -origin.y) {
-                            drawFlowBackground(c, 0f, s.width.toFloat(), s.height.toFloat())
+                            drawBackdrop(c, frame.phase.value, s.width.toFloat(), s.height.toFloat(), frame.image.value, frame.settings)
                         }
                     },
             )
