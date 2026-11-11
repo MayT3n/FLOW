@@ -20,13 +20,23 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.UUID
 
 private val Context.matFocusMusicStore by preferencesDataStore(name = "matfocus_music_v1")
+
+@Serializable
+data class MusicPlaylist(
+    val id: String,
+    val name: String,
+    val trackIds: List<String> = emptyList(),
+    val createdAt: Long = System.currentTimeMillis(),
+)
 
 data class MusicSnapshot(
     val connected: Boolean = false,
@@ -52,8 +62,12 @@ class MusicManager(
     private val _downloadProgress = MutableStateFlow<Map<String, Float>>(emptyMap())
     val downloadProgress: StateFlow<Map<String, Float>> = _downloadProgress.asStateFlow()
 
+    private val _playlists = MutableStateFlow<List<MusicPlaylist>>(emptyList())
+    val playlists: StateFlow<List<MusicPlaylist>> = _playlists.asStateFlow()
+
     private val store = context.matFocusMusicStore
     private val favoritesKey = stringPreferencesKey("favorite_track_ids")
+    private val playlistsKey = stringPreferencesKey("user_playlists")
     private val json = Json { ignoreUnknownKeys = true }
     private var controller: MediaController? = null
     private var controllerFuture: ListenableFuture<MediaController>? = null
@@ -86,6 +100,11 @@ class MusicManager(
                     _favorites.value = prefs[favoritesKey]?.let {
                         runCatching { json.decodeFromString<List<String>>(it).toSet() }.getOrNull()
                     } ?: emptySet()
+                    _playlists.value = prefs[playlistsKey]?.let {
+                        runCatching { json.decodeFromString<List<MusicPlaylist>>(it) }.getOrNull()
+                    }.orEmpty().map { playlist ->
+                        playlist.copy(trackIds = playlist.trackIds.filter { id -> MusicCatalog.tracks.any { it.id == id } }.distinct())
+                    }
                 }
         }
         scope.launch {
@@ -154,6 +173,87 @@ class MusicManager(
                 prefs[favoritesKey] = json.encodeToString(if (trackId in current) current - trackId else current + trackId)
             }
         }
+    }
+
+    fun createPlaylist(name: String): String? {
+        val clean = name.trim().take(48)
+        if (clean.isBlank()) return null
+        val id = UUID.randomUUID().toString()
+        scope.launch {
+            store.edit { prefs ->
+                val current = prefs[playlistsKey]?.let {
+                    runCatching { json.decodeFromString<List<MusicPlaylist>>(it) }.getOrNull()
+                }.orEmpty()
+                prefs[playlistsKey] = json.encodeToString(current + MusicPlaylist(id = id, name = clean))
+            }
+        }
+        return id
+    }
+
+    fun renamePlaylist(id: String, name: String) {
+        val clean = name.trim().take(48)
+        if (clean.isBlank()) return
+        scope.launch {
+            store.edit { prefs ->
+                val current = prefs[playlistsKey]?.let {
+                    runCatching { json.decodeFromString<List<MusicPlaylist>>(it) }.getOrNull()
+                }.orEmpty()
+                prefs[playlistsKey] = json.encodeToString(current.map { if (it.id == id) it.copy(name = clean) else it })
+            }
+        }
+    }
+
+    fun deletePlaylist(id: String) {
+        scope.launch {
+            store.edit { prefs ->
+                val current = prefs[playlistsKey]?.let {
+                    runCatching { json.decodeFromString<List<MusicPlaylist>>(it) }.getOrNull()
+                }.orEmpty()
+                prefs[playlistsKey] = json.encodeToString(current.filterNot { it.id == id })
+            }
+        }
+    }
+
+    fun addTrackToPlaylist(playlistId: String, trackId: String) {
+        if (MusicCatalog.tracks.none { it.id == trackId }) return
+        scope.launch {
+            store.edit { prefs ->
+                val current = prefs[playlistsKey]?.let {
+                    runCatching { json.decodeFromString<List<MusicPlaylist>>(it) }.getOrNull()
+                }.orEmpty()
+                prefs[playlistsKey] = json.encodeToString(current.map {
+                    if (it.id == playlistId && trackId !in it.trackIds) it.copy(trackIds = it.trackIds + trackId) else it
+                })
+            }
+        }
+    }
+
+    fun removeTrackFromPlaylist(playlistId: String, trackId: String) {
+        scope.launch {
+            store.edit { prefs ->
+                val current = prefs[playlistsKey]?.let {
+                    runCatching { json.decodeFromString<List<MusicPlaylist>>(it) }.getOrNull()
+                }.orEmpty()
+                prefs[playlistsKey] = json.encodeToString(current.map {
+                    if (it.id == playlistId) it.copy(trackIds = it.trackIds - trackId) else it
+                })
+            }
+        }
+    }
+
+    fun playPlaylist(playlistId: String) {
+        val ids = _playlists.value.firstOrNull { it.id == playlistId }?.trackIds.orEmpty()
+        val tracks = ids.mapNotNull { id -> MusicCatalog.tracks.firstOrNull { it.id == id } }
+        if (tracks.isEmpty()) return
+        val player = controller
+        if (player == null) {
+            pendingPlayTrackId = tracks.first().id
+            return
+        }
+        player.setMediaItems(tracks.map { MusicCatalog.mediaItem(it, downloadedFile(it)) }, 0, C.TIME_UNSET)
+        player.prepare()
+        player.play()
+        publish()
     }
 
     fun isDownloaded(trackId: String): Boolean =
