@@ -83,7 +83,7 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
     val calendarColors = Flow.colors
     val holidayColor = calendarColors.danger
     val occasionColor = calendarColors.accent
-    var mode by rememberSaveable { mutableStateOf(0) } // ۰ روزانه، ۱ هفتگی، ۲ ماهانه
+    var mode by rememberSaveable(key = "calendar-first-v1") { mutableStateOf(2) }
     var selected by rememberSaveable { mutableStateOf(today.toEpochDay()) }
     var monthAnchor by rememberSaveable { mutableStateOf(firstOfMonth(today).toEpochDay()) }
     var editing by remember { mutableStateOf<Task?>(null) }
@@ -108,14 +108,14 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                 .padding(horizontal = 18.dp).padding(top = 8.dp, bottom = 130.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            ScreenHeader("برنامه‌ریزی")
+            ScreenHeader("تقویم و برنامه")
+            SegmentedControl(listOf("روزانه", "هفتگی", "ماهانه"), mode, { mode = it })
             Text(
                 if (hasOfflineYearData) "مناسبت‌ها و تعطیلات آفلاین سال $selectedYear"
                 else "داده‌ی مناسبت آفلاین برای سال $selectedYear در این نسخه موجود نیست",
                 style = Flow.type.caption,
                 color = Flow.colors.textSecondary,
             )
-            SegmentedControl(listOf("روزانه", "هفتگی", "ماهانه"), mode, { mode = it })
 
             AnimatedContent(
                 targetState = mode,
