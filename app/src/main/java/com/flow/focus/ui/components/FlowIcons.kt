@@ -104,6 +104,7 @@ object FlowIcons {
     val ChevronNext by lazy { build("chevronNext", listOf("M9.5 6l6 6-6 6"), mirror = true) }
     val ChevronPrev by lazy { build("chevronPrev", listOf("M14.5 6l-6 6 6 6"), mirror = true) }
     val ChevronDown by lazy { build("chevronDown", listOf("M6 9.5l6 6 6-6")) }
+    val ChevronUp by lazy { build("chevronUp", listOf("M6 14.5l6-6 6 6")) }
     val Trash by lazy { build("trash", listOf("M5 7h14", "M9.5 7V4.8h5V7", "M7 7l.8 12h8.4L17 7", "M10 11v5", "M14 11v5")) }
     val Edit by lazy { build("edit", listOf("M4.5 19.5l1-4L16 5a1.8 1.8 0 0 1 2.5 0l.5.5a1.8 1.8 0 0 1 0 2.5L8.5 18.5z", "M14 7l3 3")) }
     val Clock by lazy { build("clock", listOf("M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z", "M12 8v4.2l2.8 1.8")) }
