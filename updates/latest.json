@@ -11,5 +11,6 @@
   "sha256": "",
   "minimumSupportedVersion": 1,
   "mandatory": false,
-  "updateAvailable": false
+  "updateAvailable": false,
+  "applicationId": "com.flow.focus"
 }
