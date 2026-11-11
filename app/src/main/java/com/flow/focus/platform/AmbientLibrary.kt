@@ -51,6 +51,12 @@ object AmbientLibrary {
             "https://creativecommons.org/publicdomain/zero/1.0/",
         ),
         AmbientRecording(
+            "fire", "آتش شومینه", "ضبط واقعی سوختن هیزم در شومینه‌ی روباز · ۲۵ ثانیه؛ لوپ نیازمند آزمون شنیداری",
+            "https://commons.wikimedia.org/wiki/Special:Redirect/file/Dry_grass_burning_in_open_fireplace.ogg",
+            "https://commons.wikimedia.org/wiki/File:Dry_grass_burning_in_open_fireplace.ogg", "ezwa", "00:25", "Public Domain",
+            "https://creativecommons.org/publicdomain/zero/1.0/",
+        ),
+        AmbientRecording(
             "shore", "موج کنار ساحل", "ضبط نزدیک موج و سنگ‌ریزه‌های ساحل · ۲:۰۰",
             "https://commons.wikimedia.org/wiki/Special:Redirect/file/Oceanwavescrushing.ogg",
             "https://commons.wikimedia.org/wiki/File:Oceanwavescrushing.ogg", "Luftrum", "02:00", "CC BY 3.0",
