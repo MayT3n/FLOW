@@ -95,5 +95,4 @@ object IranianCalendarData {
             )
         }.distinctBy { it.id }
     }
-    }
 }
