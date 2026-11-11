@@ -26,7 +26,7 @@ class NotificationHelper(private val ctx: Context) {
             NotificationChannel(CH_RUNNING, "تایمر در حال اجرا", NotificationManager.IMPORTANCE_LOW).apply { setShowBadge(false) },
         )
         m.createNotificationChannel(
-            NotificationChannel(CH_AMBIENT, "صدای محیط", NotificationManager.IMPORTANCE_LOW).apply { setShowBadge(false) },
+            NotificationChannel(CH_AMBIENT, "صدای محیط MatFocus", NotificationManager.IMPORTANCE_LOW).apply { setShowBadge(false) },
         )
         // کانال صدا/لرزش بعد از ساخت قابل تغییر نیست؛ برای هر ترکیب یک کانال داریم.
         for (sound in listOf(true, false)) for (vib in listOf(true, false)) {
@@ -53,7 +53,7 @@ class NotificationHelper(private val ctx: Context) {
         else -> " (بی‌صدا)"
     }
 
-    private fun doneChannelId(sound: Boolean, vib: Boolean) = "flow_done_${if (sound) 1 else 0}${if (vib) 1 else 0}"
+    private fun doneChannelId(sound: Boolean, vib: Boolean) = "matfocus_done_${if (sound) 1 else 0}${if (vib) 1 else 0}"
 
     private fun openApp(): PendingIntent = PendingIntent.getActivity(
         ctx, 0,
@@ -150,15 +150,15 @@ class NotificationHelper(private val ctx: Context) {
     fun ambientNotification(): android.app.Notification =
         NotificationCompat.Builder(ctx, CH_AMBIENT)
             .setSmallIcon(R.drawable.ic_stat_flow)
-            .setContentTitle("صدای محیط در حال پخش است")
+            .setContentTitle("MatFocus · صدای محیط در حال پخش است")
             .setOngoing(true)
             .setSilent(true)
             .setContentIntent(openApp())
             .build()
 
     companion object {
-        const val CH_RUNNING = "flow_running"
-        const val CH_AMBIENT = "flow_ambient"
+        const val CH_RUNNING = "matfocus_running"
+        const val CH_AMBIENT = "matfocus_ambient"
         const val ID_RUNNING = 1
         const val ID_DONE = 2
         const val ID_AMBIENT = 3
