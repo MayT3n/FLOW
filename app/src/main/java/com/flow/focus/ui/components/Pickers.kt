@@ -3,6 +3,7 @@ package com.flow.focus.ui.components
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -33,6 +34,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -58,6 +60,7 @@ import com.flow.focus.ui.glass.springClick
 import com.flow.focus.ui.theme.Flow
 import java.time.LocalDate
 import kotlin.math.abs
+import kotlinx.coroutines.delay
 
 /** تقویم ماهانه‌ی شمسی؛ شنبه در ستون راست، با تغییر ماه و انتخاب روز انیمیشنی. */
 @Composable
@@ -271,7 +274,18 @@ data class MenuAction(
 
 @Composable
 fun GlassMenu(expanded: Boolean, onDismiss: () -> Unit, actions: List<MenuAction>) {
-    if (!expanded) return
+    var keepPopup by remember { mutableStateOf(expanded) }
+    LaunchedEffect(expanded) {
+        if (expanded) {
+            keepPopup = true
+        } else if (keepPopup) {
+            // Keep the popup mounted until its exit transition finishes.
+            delay(155)
+            keepPopup = false
+        }
+    }
+    if (!keepPopup) return
+
     val density = androidx.compose.ui.platform.LocalDensity.current
     androidx.compose.ui.window.Popup(
         alignment = Alignment.TopEnd,
@@ -279,70 +293,67 @@ fun GlassMenu(expanded: Boolean, onDismiss: () -> Unit, actions: List<MenuAction
         onDismissRequest = onDismiss,
         properties = androidx.compose.ui.window.PopupProperties(focusable = true),
     ) {
-        androidx.compose.runtime.CompositionLocalProvider(
-            com.flow.focus.ui.glass.LocalRootSize provides null,
+        AnimatedVisibility(
+            visible = expanded,
+            enter = fadeIn(tween(125)) + scaleIn(initialScale = 0.94f, animationSpec = tween(155)),
+            exit = fadeOut(tween(110)) + scaleOut(targetScale = 0.97f, animationSpec = tween(130)),
         ) {
-            AnimatedVisibility(
-                visible = true,
-                enter = fadeIn(tween(125)) + scaleIn(initialScale = 0.96f, animationSpec = tween(145)),
+            com.flow.focus.ui.glass.GlassSurface(
+                Modifier.padding(4.dp).width(246.dp),
+                shape = RoundedCornerShape(24.dp),
+                level = com.flow.focus.ui.glass.GlassLevel.Strong,
+                elevated = true,
             ) {
-                com.flow.focus.ui.glass.GlassSurface(
-                    Modifier.padding(6.dp).width(270.dp),
-                    shape = RoundedCornerShape(25.dp),
-                    level = com.flow.focus.ui.glass.GlassLevel.Strong,
-                    elevated = true,
-                ) {
-                    Column(Modifier.padding(vertical = 7.dp)) {
-                        actions.forEachIndexed { index, action ->
-                            val tint = when {
-                                action.destructive -> Flow.colors.danger
-                                action.selected -> Flow.colors.accent
-                                else -> Flow.colors.textSecondary
-                            }
-                            Row(
+                Column(Modifier.padding(vertical = 5.dp)) {
+                    actions.forEachIndexed { index, action ->
+                        val tint = when {
+                            action.destructive -> Flow.colors.danger
+                            action.selected -> Flow.colors.accent
+                            else -> Flow.colors.textSecondary
+                        }
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable(role = Role.Button) {
+                                    onDismiss()
+                                    action.onClick()
+                                }
+                                .padding(horizontal = 11.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Box(
                                 Modifier
-                                    .fillMaxWidth()
-                                    .clickable(role = Role.Button) {
-                                        onDismiss()
-                                        action.onClick()
-                                    }
-                                    .padding(horizontal = 13.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(11.dp),
+                                    .size(32.dp)
+                                    .clip(RoundedCornerShape(11.dp))
+                                    .background(tint.copy(alpha = 0.12f)),
+                                contentAlignment = Alignment.Center,
                             ) {
-                                Box(
-                                    Modifier
-                                        .size(36.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(tint.copy(alpha = 0.12f)),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    FlowIcon(action.icon, tint = tint, size = 19.dp)
-                                }
-                                Column(
-                                    Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(1.dp),
-                                ) {
-                                    Text(
-                                        action.label,
-                                        style = Flow.type.bodyStrong,
-                                        color = if (action.destructive) Flow.colors.danger else Flow.colors.textPrimary,
-                                        maxLines = 1,
-                                    )
-                                    action.subtitle?.let {
-                                        Text(it, style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 1)
-                                    }
-                                }
-                                if (action.selected) {
-                                    FlowIcon(FlowIcons.Check, tint = Flow.colors.accent, size = 18.dp)
-                                }
+                                FlowIcon(action.icon, tint = tint, size = 18.dp)
                             }
-                            if (index != actions.lastIndex) {
-                                Box(
-                                    Modifier.padding(start = 60.dp, end = 14.dp)
-                                        .fillMaxWidth().height(1.dp).background(Flow.colors.track),
+                            Column(
+                                Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(1.dp),
+                            ) {
+                                Text(
+                                    action.label,
+                                    style = Flow.type.bodyStrong,
+                                    color = if (action.destructive) Flow.colors.danger else Flow.colors.textPrimary,
+                                    maxLines = 1,
                                 )
+                                action.subtitle?.let {
+                                    Text(it, style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 1)
+                                }
                             }
+                            if (action.selected) {
+                                FlowIcon(FlowIcons.Check, tint = Flow.colors.accent, size = 17.dp)
+                            }
+                        }
+                        if (index != actions.lastIndex) {
+                            Box(
+                                Modifier.padding(start = 53.dp, end = 12.dp)
+                                    .fillMaxWidth().height(1.dp).background(Flow.colors.track),
+                            )
                         }
                     }
                 }
