@@ -168,8 +168,8 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
         }
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                .navigationBarsPadding().padding(horizontal = 18.dp, vertical = 12.dp)
                 .onSizeChanged { dockAreaHeightPx = it.height }
+                .navigationBarsPadding().padding(horizontal = 18.dp, vertical = 12.dp)
                 .pointerInput(musicShelfExpanded) {
                     var dragDistance = 0f
                     detectVerticalDragGestures(
