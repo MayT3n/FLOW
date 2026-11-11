@@ -252,50 +252,108 @@ private fun MusicPlaylistsDialog(
     onDismiss: () -> Unit,
 ) {
     var name by remember { mutableStateOf("") }
-    FlowDialog(onDismiss, "فهرست‌های من") {
-        Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Flow.colors.track.copy(alpha = 0.28f)).padding(horizontal = 12.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            BasicTextField(
-                value = name,
-                onValueChange = { name = it.take(48) },
-                modifier = Modifier.weight(1f),
-                singleLine = true,
-                cursorBrush = SolidColor(Flow.colors.accent),
-                textStyle = Flow.type.body.copy(color = Flow.colors.textPrimary),
-                decorationBox = { inner ->
-                    Box {
-                        if (name.isEmpty()) Text("نام فهرست جدید…", style = Flow.type.body, color = Flow.colors.textSecondary)
-                        inner()
+    var selectedPlaylistId by remember { mutableStateOf<String?>(null) }
+    var editingPlaylistId by remember { mutableStateOf<String?>(null) }
+    var editingName by remember { mutableStateOf("") }
+    val selectedPlaylist = playlists.firstOrNull { it.id == selectedPlaylistId }
+
+    FlowDialog(onDismiss, selectedPlaylist?.name ?: "فهرست‌های من") {
+        if (selectedPlaylist != null) {
+            Text("${selectedPlaylist.trackIds.size} آهنگ در این فهرست", style = Flow.type.caption, color = Flow.colors.textSecondary)
+            selectedPlaylist.trackIds.forEach { trackId ->
+                val track = MusicCatalog.tracks.firstOrNull { it.id == trackId } ?: return@forEach
+                GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(15.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        MusicCover(track, Modifier.size(36.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(track.title, style = Flow.type.label, color = Flow.colors.textPrimary, maxLines = 1)
+                            Text(track.mood, style = Flow.type.caption, color = Flow.colors.textSecondary)
+                        }
+                        GlassIconButton(FlowIcons.Trash, { vm.removeMusicTrackFromPlaylist(selectedPlaylist.id, trackId) }, size = 32.dp, iconSize = 15.dp, contentDescription = "حذف آهنگ از فهرست")
                     }
-                },
-            )
-            GlassIconButton(
-                FlowIcons.Plus,
-                { vm.createMusicPlaylist(name)?.let { name = "" } },
-                size = 34.dp,
-                iconSize = 17.dp,
-                enabled = name.isNotBlank(),
-                contentDescription = "ساخت فهرست",
-            )
-        }
-        if (playlists.isEmpty()) {
-            Text("هنوز فهرستی نساخته‌ای. می‌توانی برای Focus، Break یا هر حال‌وهوایی فهرست جدا بسازی.", style = Flow.type.caption, color = Flow.colors.textSecondary)
-        }
-        playlists.forEach { playlist ->
-            GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(17.dp)) {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(playlist.name, style = Flow.type.label, color = Flow.colors.textPrimary, maxLines = 1)
-                        Text("${playlist.trackIds.size} آهنگ", style = Flow.type.caption, color = Flow.colors.textSecondary)
+                }
+            }
+            if (selectedPlaylist.trackIds.isEmpty()) {
+                Text("این فهرست هنوز خالی است. از کتابخانه آهنگ‌ها را به آن اضافه کن.", style = Flow.type.caption, color = Flow.colors.textSecondary)
+            }
+            GlassButton("بازگشت به فهرست‌ها", { selectedPlaylistId = null }, Modifier.fillMaxWidth(), icon = FlowIcons.ChevronPrev)
+        } else {
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Flow.colors.track.copy(alpha = 0.28f)).padding(horizontal = 12.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                BasicTextField(
+                    value = name,
+                    onValueChange = { name = it.take(48) },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    cursorBrush = SolidColor(Flow.colors.accent),
+                    textStyle = Flow.type.body.copy(color = Flow.colors.textPrimary),
+                    decorationBox = { inner ->
+                        Box {
+                            if (name.isEmpty()) Text("نام فهرست جدید…", style = Flow.type.body, color = Flow.colors.textSecondary)
+                            inner()
+                        }
+                    },
+                )
+                GlassIconButton(
+                    FlowIcons.Plus,
+                    { vm.createMusicPlaylist(name)?.let { name = "" } },
+                    size = 34.dp,
+                    iconSize = 17.dp,
+                    enabled = name.isNotBlank(),
+                    contentDescription = "ساخت فهرست",
+                )
+            }
+            if (playlists.isEmpty()) {
+                Text("هنوز فهرستی نساخته‌ای. می‌توانی برای Focus، Break یا هر حال‌وهوایی فهرست جدا بسازی.", style = Flow.type.caption, color = Flow.colors.textSecondary)
+            }
+            playlists.forEach { playlist ->
+                GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(17.dp)) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(7.dp),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(playlist.name, style = Flow.type.label, color = Flow.colors.textPrimary, maxLines = 1)
+                                Text("${playlist.trackIds.size} آهنگ", style = Flow.type.caption, color = Flow.colors.textSecondary)
+                            }
+                            GlassIconButton(FlowIcons.Play, { vm.playMusicPlaylist(playlist.id) }, size = 34.dp, iconSize = 16.dp, contentDescription = "پخش فهرست")
+                            GlassIconButton(FlowIcons.Edit, {
+                                editingPlaylistId = if (editingPlaylistId == playlist.id) null else playlist.id
+                                editingName = playlist.name
+                            }, size = 34.dp, iconSize = 16.dp, contentDescription = "تغییر نام")
+                            GlassIconButton(FlowIcons.Trash, { vm.deleteMusicPlaylist(playlist.id) }, size = 34.dp, iconSize = 16.dp, contentDescription = "حذف فهرست")
+                            GlassIconButton(FlowIcons.ChevronNext, { selectedPlaylistId = playlist.id }, size = 34.dp, iconSize = 16.dp, contentDescription = "مشاهده آهنگ‌ها")
+                        }
+                        if (editingPlaylistId == playlist.id) {
+                            Row(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp)).background(Flow.colors.track.copy(alpha = 0.22f)).padding(7.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                BasicTextField(
+                                    value = editingName,
+                                    onValueChange = { editingName = it.take(48) },
+                                    modifier = Modifier.weight(1f).padding(horizontal = 5.dp),
+                                    singleLine = true,
+                                    cursorBrush = SolidColor(Flow.colors.accent),
+                                    textStyle = Flow.type.caption.copy(color = Flow.colors.textPrimary),
+                                )
+                                GlassIconButton(FlowIcons.Check, {
+                                    vm.renameMusicPlaylist(playlist.id, editingName)
+                                    editingPlaylistId = null
+                                }, size = 30.dp, iconSize = 14.dp, enabled = editingName.isNotBlank(), contentDescription = "ذخیره نام")
+                            }
+                        }
                     }
-                    GlassIconButton(FlowIcons.Play, { vm.playMusicPlaylist(playlist.id) }, size = 34.dp, iconSize = 16.dp, contentDescription = "پخش فهرست")
-                    GlassIconButton(FlowIcons.Trash, { vm.deleteMusicPlaylist(playlist.id) }, size = 34.dp, iconSize = 16.dp, contentDescription = "حذف فهرست")
                 }
             }
         }
