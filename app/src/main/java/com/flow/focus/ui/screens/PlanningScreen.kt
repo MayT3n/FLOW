@@ -76,6 +76,7 @@ import java.time.LocalDate
 @Composable
 fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifier) {
     val today = rememberToday()
+    val animations = Flow.glass.animations
     var mode by rememberSaveable { mutableStateOf(0) } // ۰ روزانه، ۱ هفتگی، ۲ ماهانه
     var selected by rememberSaveable { mutableStateOf(today.toEpochDay()) }
     var monthAnchor by rememberSaveable { mutableStateOf(firstOfMonth(today).toEpochDay()) }
@@ -100,7 +101,7 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             AnimatedContent(
                 targetState = mode,
                 transitionSpec = {
-                    if (Flow.glass.animations) {
+                    if (animations) {
                         val direction = if (targetState > initialState) 1 else -1
                         (fadeIn(tween(180)) + slideInVertically(tween(220)) { it / 18 * direction }) togetherWith
                             (fadeOut(tween(140)) + slideOutVertically(tween(180)) { -it / 18 * direction })
