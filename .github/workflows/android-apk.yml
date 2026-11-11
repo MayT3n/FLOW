@@ -2,7 +2,7 @@ name: MatFocus Android APK
 
 on:
   push:
-    branches: [main, master, matfocus-1.2]
+    branches: [main, master]
     tags: ['v*']
   pull_request:
   workflow_dispatch:
