@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -169,8 +170,8 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                 )
             }
             Text("جای‌گیری تصویر", style = Flow.type.body, color = Flow.colors.textPrimary)
-            SegmentedControl(listOf("برش", "جا دادن"), if (st.wallpaperFit == WallpaperFit.CROP) 0 else 1, {
-                vm.updateSettings { it.copy(wallpaperFit = if (it == 0) WallpaperFit.CROP else WallpaperFit.FIT) }
+            SegmentedControl(listOf("برش", "جا دادن"), if (st.wallpaperFit == WallpaperFit.CROP) 0 else 1, { index ->
+                vm.updateSettings { current -> current.copy(wallpaperFit = if (index == 0) WallpaperFit.CROP else WallpaperFit.FIT) }
             })
             SettingRow("تاریک‌سازی تصویر") {
                 Text(num("${(st.wallpaperDim * 100).toInt()}%"), style = Flow.type.caption, color = Flow.colors.textSecondary)
