@@ -79,150 +79,149 @@ fun JalaliMonthView(
     modifier: Modifier = Modifier,
 ) {
     val c = Flow.colors
-    val animations = Flow.glass.animations
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val monthKey = year * 12 + month - 1
+    val first = JalaliDate(year, month, 1).toLocalDate()
+    val offset = JalaliDate.weekdayIndex(first)
+    val length = JalaliDate.monthLength(year, month)
+
+    val selectedDate = LocalDate.ofEpochDay(selectedEpochDay ?: todayEpochDay)
+    val selectedJalali = JalaliDate.of(selectedDate)
+    val compactFocusDate = if (
+        selectedJalali.year == year && selectedJalali.month == month
+    ) selectedDate else first
+    val compactWeekStart = JalaliDate.startOfWeek(compactFocusDate)
 
     Column(
-        modifier.fillMaxWidth().animateContentSize(if (animations) tween(240) else snap()),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        AnimatedContent(
-            targetState = monthKey,
-            transitionSpec = {
-                if (animations) {
-                    fadeIn(tween(190)) togetherWith fadeOut(tween(150))
-                } else {
-                    ContentTransform(EnterTransition.None, ExitTransition.None)
-                }
+        modifier
+            .fillMaxWidth()
+            .pointerInput(monthKey, isRtl) {
+                var dragDistance = 0f
+                detectHorizontalDragGestures(
+                    onHorizontalDrag = { _, delta -> dragDistance += delta },
+                    onDragEnd = {
+                        if (abs(dragDistance) > 56f) {
+                            val towardNext = if (isRtl) dragDistance > 0f else dragDistance < 0f
+                            if (towardNext) onNext() else onPrev()
+                        }
+                        dragDistance = 0f
+                    },
+                    onDragCancel = { dragDistance = 0f },
+                )
             },
-            modifier = Modifier
-                .fillMaxWidth()
-                .pointerInput(monthKey, isRtl) {
-                    var dragDistance = 0f
-                    detectHorizontalDragGestures(
-                        onHorizontalDrag = { _, delta -> dragDistance += delta },
-                        onDragEnd = {
-                            if (abs(dragDistance) > 56f) {
-                                val towardNext = if (isRtl) dragDistance > 0f else dragDistance < 0f
-                                if (towardNext) onNext() else onPrev()
-                            }
-                            dragDistance = 0f
-                        },
-                        onDragCancel = { dragDistance = 0f },
-                    )
-                },
-            label = "jalali-month",
-        ) { key ->
-            val displayYear = Math.floorDiv(key, 12)
-            val displayMonth = Math.floorMod(key, 12) + 1
-            val first = JalaliDate(displayYear, displayMonth, 1).toLocalDate()
-            val offset = JalaliDate.weekdayIndex(first)
-            val length = JalaliDate.monthLength(displayYear, displayMonth)
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    GlassIconButton(FlowIcons.ChevronPrev, onPrev, size = 38.dp, iconSize = 18.dp, contentDescription = "ماه قبل")
-                    Text(
-                        num(DateFormats.monthYear(JalaliDate(displayYear, displayMonth, 1))),
-                        style = Flow.type.heading,
-                        color = c.textPrimary,
-                        modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    )
-                    GlassIconButton(FlowIcons.ChevronNext, onNext, size = 38.dp, iconSize = 18.dp, contentDescription = "ماه بعد")
-                    if (onToggleExpanded != null) {
-                        GlassIconButton(
-                            if (compact) FlowIcons.ChevronDown else FlowIcons.ChevronUp,
-                            onToggleExpanded,
-                            size = 36.dp,
-                            iconSize = 17.dp,
-                            contentDescription = if (compact) "باز کردن تقویم" else "جمع کردن تقویم",
-                        )
-                    }
-                }
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            GlassIconButton(
+                FlowIcons.ChevronPrev,
+                onPrev,
+                size = 38.dp,
+                iconSize = 18.dp,
+                contentDescription = "ماه قبل",
+            )
+            Text(
+                num(DateFormats.monthYear(JalaliDate(year, month, 1))),
+                modifier = Modifier.weight(1f),
+                style = Flow.type.heading,
+                color = c.textPrimary,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
+            GlassIconButton(
+                FlowIcons.ChevronNext,
+                onNext,
+                size = 38.dp,
+                iconSize = 18.dp,
+                contentDescription = "ماه بعد",
+            )
+            if (onToggleExpanded != null) {
+                GlassIconButton(
+                    if (compact) FlowIcons.ChevronDown else FlowIcons.ChevronUp,
+                    onToggleExpanded,
+                    size = 36.dp,
+                    iconSize = 17.dp,
+                    contentDescription = if (compact) "باز کردن تقویم" else "جمع کردن تقویم",
+                )
+            }
+        }
 
-                Row(Modifier.fillMaxWidth()) {
-                    JalaliDate.weekdayInitials.forEach {
-                        Text(
-                            it,
-                            Modifier.weight(1f),
-                            style = Flow.type.caption,
-                            color = c.textSecondary,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                        )
-                    }
-                }
+        Row(Modifier.fillMaxWidth()) {
+            JalaliDate.weekdayInitials.forEach { weekday ->
+                Text(
+                    weekday,
+                    modifier = Modifier.weight(1f),
+                    style = Flow.type.caption,
+                    color = c.textSecondary,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                )
+            }
+        }
 
-                val selectedDate = LocalDate.ofEpochDay(selectedEpochDay ?: todayEpochDay)
-                val selectedJalali = JalaliDate.of(selectedDate)
-                val compactFocusDate = if (
-                    selectedJalali.year == displayYear && selectedJalali.month == displayMonth
-                ) selectedDate else first
-                val compactWeekStart = JalaliDate.startOfWeek(compactFocusDate)
-                val visibleRows = if (compact) 1 else 6
-                for (row in 0 until visibleRows) {
-                    Row(Modifier.fillMaxWidth()) {
-                        for (column in 0 until 7) {
-                            val date = if (compact) {
-                                compactWeekStart.plusDays(column.toLong())
-                            } else {
-                                val dayNum = row * 7 + column - offset + 1
-                                if (dayNum in 1..length) JalaliDate(displayYear, displayMonth, dayNum).toLocalDate() else null
-                            }
-                            if (date == null) {
-                                Spacer(Modifier.weight(1f).aspectRatio(1f))
-                            } else {
-                                val dayNum = JalaliDate.of(date).day
-                                val epochDay = date.toEpochDay()
-                                val selected = epochDay == selectedEpochDay
-                                val isToday = epochDay == todayEpochDay
-                                val selectionScale by animateFloatAsState(
-                                    targetValue = if (selected) 1f else 0f,
-                                    animationSpec = if (animations) spring(dampingRatio = 0.72f, stiffness = 520f) else snap(),
-                                    label = "selected-day",
+        val visibleRows = if (compact) 1 else 6
+        for (row in 0 until visibleRows) {
+            Row(Modifier.fillMaxWidth()) {
+                for (column in 0..6) {
+                    val date = if (compact) {
+                        compactWeekStart.plusDays(column.toLong())
+                    } else {
+                        val dayNum = row * 7 + column - offset + 1
+                        if (dayNum in 1..length) JalaliDate(year, month, dayNum).toLocalDate() else null
+                    }
+
+                    if (date == null) {
+                        Spacer(Modifier.weight(1f).aspectRatio(1f))
+                    } else {
+                        val dayNum = JalaliDate.of(date).day
+                        val epochDay = date.toEpochDay()
+                        val isSelected = epochDay == selectedEpochDay
+                        val isToday = epochDay == todayEpochDay
+                        Box(
+                            Modifier
+                                .weight(1f)
+                                .aspectRatio(1f)
+                                .padding(2.dp)
+                                .semantics { this.selected = isSelected }
+                                .springClick(
+                                    role = Role.RadioButton,
+                                    scaleDown = 0.94f,
+                                    onClick = { onSelect(date) },
                                 )
-                                Box(
-                                    Modifier
-                                        .weight(1f)
-                                        .aspectRatio(1f)
-                                        .padding(2.dp)
-                                        .semantics { this.selected = selected }
-                                        .springClick(role = Role.RadioButton, scaleDown = 0.94f, onClick = { onSelect(date) })
-                                        .drawBehind {
-                                            if (selectionScale > 0.001f) {
-                                                drawCircle(
-                                                    Brush.linearGradient(listOf(c.accent, c.accentAlt)),
-                                                    radius = size.minDimension * 0.48f * selectionScale,
-                                                )
-                                            } else if (isToday) {
-                                                drawCircle(c.accent, style = Stroke(2f))
-                                            }
-                                        },
-                                    contentAlignment = Alignment.Center,
+                                .drawBehind {
+                                    if (isSelected) {
+                                        drawCircle(
+                                            Brush.linearGradient(listOf(c.accent, c.accentAlt)),
+                                            radius = size.minDimension * 0.48f,
+                                        )
+                                    } else if (isToday) {
+                                        drawCircle(c.accent, style = Stroke(2f))
+                                    }
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                num(dayNum),
+                                style = Flow.type.label,
+                                color = if (isSelected) c.textOnAccent else c.textPrimary,
+                                maxLines = 1,
+                            )
+                            val dayDots = eventColors[epochDay].orEmpty().take(3)
+                            if (epochDay in marked || dayDots.isNotEmpty()) {
+                                Row(
+                                    Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
                                 ) {
-                                    Text(
-                                        num(dayNum),
-                                        style = Flow.type.label,
-                                        color = if (selected) c.textOnAccent else c.textPrimary,
-                                        maxLines = 1,
-                                    )
-                                    val dayDots = eventColors[epochDay].orEmpty().take(3)
-                                    if (epochDay in marked || dayDots.isNotEmpty()) {
-                                        Row(
-                                            Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                        ) {
-                                            val dots = dayDots.ifEmpty { listOf(c.accent) }
-                                            dots.forEach { dotColor ->
-                                                Box(
-                                                    Modifier.size(4.dp).clip(CircleShape)
-                                                        .background(if (selected) c.textOnAccent else dotColor),
-                                                )
-                                            }
-                                        }
+                                    val dots = dayDots.ifEmpty { listOf(c.accent) }
+                                    dots.forEach { dotColor ->
+                                        Box(
+                                            Modifier.size(4.dp).clip(CircleShape)
+                                                .background(if (isSelected) c.textOnAccent else dotColor),
+                                        )
                                     }
                                 }
                             }
