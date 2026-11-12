@@ -144,9 +144,7 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                 targetState = mode,
                 transitionSpec = {
                     if (animations) {
-                        val direction = if (targetState > initialState) 1 else -1
-                        (fadeIn(tween(180)) + slideInVertically(tween(220)) { it / 18 * direction }) togetherWith
-                            (fadeOut(tween(140)) + slideOutVertically(tween(180)) { -it / 18 * direction })
+                        fadeIn(tween(180)) togetherWith fadeOut(tween(150))
                     } else {
                         ContentTransform(EnterTransition.None, ExitTransition.None)
                     }
@@ -279,7 +277,13 @@ private fun UnscheduledTasksSection(
                         CheckCircle(task.done, { vm.setTaskDone(task.id, !task.done) }, size = 27.dp)
                         Column(Modifier.weight(1f)) {
                             Text(task.title, style = Flow.type.bodyStrong, color = Flow.colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(Categories.byId(task.categoryId).name, style = Flow.type.caption, color = Flow.colors.textSecondary)
+                            Text(
+                                Categories.byId(task.categoryId).name,
+                                style = Flow.type.caption,
+                                color = Flow.colors.textSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
                         FlowIcon(FlowIcons.Edit, tint = Flow.colors.textSecondary, size = 17.dp)
                     }
@@ -314,15 +318,19 @@ private fun DailyView(
                 AnimatedContent(
                     targetState = num(DateFormats.full(day)),
                     transitionSpec = {
-                        (fadeIn(tween(140)) + slideInVertically(tween(165)) { it / 4 }) togetherWith
-                            (fadeOut(tween(105)) + slideOutVertically(tween(125)) { -it / 4 })
+                        fadeIn(tween(140)) togetherWith fadeOut(tween(110))
                     },
                     label = "planning-selected-date",
                 ) { label ->
                     Text(label, style = Flow.type.bodyStrong, color = c.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                if (day != today) Text(num(relativeDay(day.toEpochDay(), today)), style = Flow.type.caption, color = c.textSecondary)
-                else Text("امروز", style = Flow.type.caption, color = c.accent)
+                if (day != today) Text(
+                    num(relativeDay(day.toEpochDay(), today)),
+                    style = Flow.type.caption,
+                    color = c.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                ) else Text("امروز", style = Flow.type.caption, color = c.accent, maxLines = 1)
             }
         }
         GlassIconButton(FlowIcons.ChevronNext, { onDay(day.plusDays(1)) }, size = 40.dp, iconSize = 18.dp, contentDescription = "روز بعد")
@@ -407,39 +415,62 @@ private fun EntryList(vm: AppViewModel, data: AppData, day: LocalDate, onEdit: (
 private fun EntryRow(vm: AppViewModel, e: PlanEntry, day: LocalDate, onEdit: (Task) -> Unit, onMove: (Task) -> Unit) {
     val c = Flow.colors
     val cat = Categories.byId(e.categoryId)
+    val metadata = cat.name + (e.minute?.let { " · " + DateFormats.clock(it) } ?: "")
     Row(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(13.dp))
             .springClick(enabled = e is TaskEntry, scaleDown = 0.99f, onClick = { if (e is TaskEntry) onEdit(e.task) })
             .padding(horizontal = 7.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-            CheckCircle(
-                e.done,
-                { if (e is TaskEntry) vm.setTaskDone(e.task.id, !e.task.done) else if (e is RoutineEntry) vm.toggleRoutine(e.routine.id, day.toEpochDay()) },
-                size = 28.dp,
-                color = Color(cat.color),
-                contentDescription = "تغییر وضعیت ${e.title}",
+        CheckCircle(
+            e.done,
+            { if (e is TaskEntry) vm.setTaskDone(e.task.id, !e.task.done) else if (e is RoutineEntry) vm.toggleRoutine(e.routine.id, day.toEpochDay()) },
+            modifier = Modifier.size(44.dp),
+            size = 27.dp,
+            color = Color(cat.color),
+            contentDescription = "تغییر وضعیت ${e.title}",
+        )
+        Column(
+            Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Text(
+                e.title,
+                modifier = Modifier.fillMaxWidth(),
+                style = Flow.type.bodyStrong,
+                color = if (e.done) c.textSecondary else c.textPrimary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
-            Column(Modifier.weight(1f)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                if (e is RoutineEntry) FlowIcon(FlowIcons.Repeat, tint = c.textSecondary, size = 14.dp)
+                Box(Modifier.size(7.dp).clip(CircleShape).background(Color(cat.color)))
                 Text(
-                    e.title, style = Flow.type.bodyStrong,
-                    color = if (e.done) c.textSecondary else c.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    num(metadata),
+                    modifier = Modifier.weight(1f),
+                    style = Flow.type.caption,
+                    color = c.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (e is RoutineEntry) FlowIcon(FlowIcons.Repeat, tint = c.textSecondary, size = 14.dp)
-                    Box(Modifier.size(7.dp).clip(CircleShape).background(Color(cat.color)))
-                    Text(
-                        num(cat.name + (e.minute?.let { " · " + DateFormats.clock(it) } ?: "")),
-                        style = Flow.type.caption, color = c.textSecondary,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    )
-                }
             }
-            if (e is TaskEntry && !e.task.done) {
-                GlassIconButton(FlowIcons.Move, { onMove(e.task) }, size = 34.dp, iconSize = 16.dp, contentDescription = "جابه‌جایی به تاریخ دیگر")
-            }
+        }
+        if (e is TaskEntry && !e.task.done) {
+            GlassIconButton(
+                FlowIcons.Move,
+                { onMove(e.task) },
+                modifier = Modifier.size(40.dp),
+                size = 32.dp,
+                iconSize = 16.dp,
+                contentDescription = "جابه‌جایی به تاریخ دیگر",
+            )
+        }
     }
 }
 
@@ -467,7 +498,15 @@ private fun WeeklyView(
     ) {
         GlassIconButton(FlowIcons.ChevronPrev, { onShiftWeek(-1) }, size = 40.dp, iconSize = 18.dp, contentDescription = "هفته‌ی قبل")
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(num(DateFormats.short(start) + " تا " + DateFormats.short(end)), style = Flow.type.heading, color = c.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                num(DateFormats.short(start) + " تا " + DateFormats.short(end)),
+                style = Flow.type.heading,
+                color = c.textPrimary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
             Text("نمای هفتگی", style = Flow.type.caption, color = c.textSecondary)
         }
         GlassIconButton(FlowIcons.ChevronNext, { onShiftWeek(1) }, size = 40.dp, iconSize = 18.dp, contentDescription = "هفته‌ی بعد")
@@ -506,11 +545,13 @@ private fun WeeklyView(
                         JalaliDate.weekdayInitials[i],
                         style = Flow.type.caption,
                         color = if (selected) c.textOnAccent.copy(alpha = 0.82f) else c.textSecondary,
+                        maxLines = 1,
                     )
                     Text(
                         num(JalaliDate.of(day).day),
                         style = Flow.type.bodyStrong,
                         color = if (selected) c.textOnAccent else c.textPrimary,
+                        maxLines = 1,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                         if (entries.isEmpty()) {
