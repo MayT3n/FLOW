@@ -61,6 +61,8 @@ class MusicManager(
 
     private val _downloadProgress = MutableStateFlow<Map<String, Float>>(emptyMap())
     val downloadProgress: StateFlow<Map<String, Float>> = _downloadProgress.asStateFlow()
+    private val _downloadRevision = MutableStateFlow(0)
+    val downloadRevision: StateFlow<Int> = _downloadRevision.asStateFlow()
 
     private val _playlists = MutableStateFlow<List<MusicPlaylist>>(emptyList())
     val playlists: StateFlow<List<MusicPlaylist>> = _playlists.asStateFlow()
@@ -321,6 +323,7 @@ class MusicManager(
                 if (target.exists()) target.delete()
                 check(part.renameTo(target)) { "ذخیره‌ی فایل صوتی ناموفق بود." }
                 _downloadProgress.value = _downloadProgress.value - trackId
+                _downloadRevision.value = _downloadRevision.value + 1
                 target
             } catch (error: Exception) {
                 part.delete()
@@ -334,7 +337,9 @@ class MusicManager(
     fun removeDownload(trackId: String): Boolean {
         val track = MusicCatalog.tracks.firstOrNull { it.id == trackId } ?: return false
         val file = downloadedFile(track) ?: return false
-        return !file.exists() || file.delete()
+        val removed = !file.exists() || file.delete()
+        if (removed) _downloadRevision.value = _downloadRevision.value + 1
+        return removed
     }
 
     fun downloadedFile(track: MusicTrack): File? =
