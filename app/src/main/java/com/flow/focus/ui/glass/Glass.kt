@@ -51,7 +51,7 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.layout.positionOnScreen
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
@@ -393,7 +393,7 @@ fun GlassSurface(
     val outer = modifier
         .then(if (elevated && g.quality != GlassQuality.LOW) Modifier.shadow(18.dp, shape, ambientColor = c.shadow, spotColor = c.shadow) else Modifier)
         .clip(shape)
-        .then(if (blurOn) Modifier.onGloballyPositioned { origin = it.positionOnScreen() } else Modifier)
+        .then(if (blurOn) Modifier.onGloballyPositioned { origin = it.positionInRoot() } else Modifier)
 
     Box(outer) {
         if (blurOn) {
