@@ -3,7 +3,6 @@ package com.flow.focus
 import android.app.Application
 import com.flow.focus.data.FlowRepository
 import com.flow.focus.data.JsonStore
-import com.flow.focus.music.MusicManager
 import com.flow.focus.platform.AlarmScheduler
 import com.flow.focus.platform.AmbientPlayer
 import com.flow.focus.platform.NotificationHelper
@@ -25,8 +24,7 @@ class AppContainer(app: Application) {
     val notifier = NotificationHelper(app)
     val alarms = AlarmScheduler(app)
     val ambient = AmbientPlayer(app)
-    val music = MusicManager(app, scope)
-    val timer = TimerController(repo, alarms, notifier, ambient, music)
+    val timer = TimerController(repo, alarms, notifier, ambient)
 
     val remote = RemoteContentRepository(app, scope)
     val updater = UpdateManager(app)
@@ -38,9 +36,11 @@ class FlowApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // Remove files and preferences created by the retired offline music library.
+        File(filesDir, "audio/music").deleteRecursively()
+        File(filesDir, "datastore/matfocus_music_v1.preferences_pb").delete()
         container = AppContainer(this)
         container.notifier.ensureChannels()
-        container.music.setVolume(container.repo.current.settings.musicVolume)
         container.timer.restore()
         container.alarms.rescheduleAllReminders(container.repo.current)
         RemoteContentScheduler.schedule(this)

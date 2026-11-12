@@ -30,6 +30,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
@@ -72,13 +74,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.flow.focus.core.DateFormats
-import com.flow.focus.core.formatClock
 import com.flow.focus.data.AppData
 import com.flow.focus.data.GlassQuality
 import com.flow.focus.data.PhaseType
@@ -116,6 +116,7 @@ import java.time.ZoneId
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+import java.util.Locale
 
 private enum class HomeDialog { PICK_TASK, DURATION, AMBIENT, REMINDER, NEW_TASK }
 
@@ -132,7 +133,6 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
     var dialog by remember { mutableStateOf<HomeDialog?>(null) }
     var menu by remember { mutableStateOf(false) }
     var notificationsOpen by remember { mutableStateOf(false) }
-    var musicOpen by remember { mutableStateOf(false) }
     val playing by vm.ambientPlaying.collectAsStateWithLifecycle()
     val newsItems by vm.newsItems.collectAsStateWithLifecycle()
     val newsReadIds by vm.newsReadIds.collectAsStateWithLifecycle()
@@ -200,7 +200,6 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
                         MenuAction("تغییر وظیفه", FlowIcons.Edit) { dialog = HomeDialog.PICK_TASK },
                         MenuAction("مدت تمرکز", FlowIcons.Clock) { dialog = HomeDialog.DURATION },
                         MenuAction("صدای محیط", FlowIcons.Music) { dialog = HomeDialog.AMBIENT },
-                        MenuAction("موزیک پلیر", FlowIcons.Music) { musicOpen = true },
                         MenuAction("افزودن یادآور", FlowIcons.Bell) { dialog = HomeDialog.REMINDER },
                         MenuAction("آمار جلسه", FlowIcons.Stats) { onNavigate(3) },
                         MenuAction("تنظیمات تایمر", FlowIcons.Settings) { onNavigate(4) },
@@ -352,7 +351,6 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
     }
 
     if (notificationsOpen) MatFocusNotificationsDialog(vm) { notificationsOpen = false }
-    if (musicOpen) MusicPlayerDialog { musicOpen = false }
 }
 
 @Composable
@@ -512,6 +510,17 @@ private fun TimerStatusPill(timer: TimerState, rounds: Int) {
 private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier: Modifier) {
     val c = Flow.colors
     val glass = LocalGlass.current
+    val breathing = remember { Animatable(0f) }
+    LaunchedEffect(timer.status, glass.animations) {
+        if (timer.status == TimerStatus.RUNNING && glass.animations) {
+            while (true) {
+                breathing.animateTo(1f, tween(2_500, easing = FastOutSlowInEasing))
+                breathing.animateTo(0f, tween(2_500, easing = FastOutSlowInEasing))
+            }
+        } else {
+            breathing.snapTo(0f)
+        }
+    }
     val breakPhase = timer.phase != PhaseType.FOCUS
     val running = timer.status == TimerStatus.RUNNING
     val c1 by animateColorAsState(if (breakPhase) c.success else c.accent, tween(Motion.Long), label = "ringA")

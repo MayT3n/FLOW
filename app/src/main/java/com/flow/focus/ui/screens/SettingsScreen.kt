@@ -76,7 +76,6 @@ import com.flow.focus.ui.components.FlowSlider
 import com.flow.focus.ui.components.GlassButton
 import com.flow.focus.ui.components.PrimaryButton
 import com.flow.focus.ui.components.ScreenHeader
-import com.flow.focus.ui.components.SectionTitle
 import com.flow.focus.ui.components.SegmentedControl
 import com.flow.focus.ui.components.SettingRow
 import com.flow.focus.ui.components.Stepper
@@ -295,7 +294,6 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
     var wallpaperPreviewId by remember { mutableStateOf<String?>(null) }
     var pendingWallpaperPath by remember { mutableStateOf<String?>(null) }
     var selectedPage by rememberSaveable { mutableStateOf("root") }
-    var musicOpen by remember { mutableStateOf(false) }
     BackHandler(enabled = selectedPage != "root") { selectedPage = "root" }
 
     // پیش‌شنوایی با خروج از صفحه قطع شود
@@ -368,10 +366,6 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                     "صدای محیط", "انتخاب صدا و تنظیم پخش خودکار",
                     FlowIcons.Music,
                 ) { selectedPage = "ambient" }
-                SettingsDestination(
-                    "موسیقی آنلاین", "باز کردن سرویس‌های رسمی موسیقی",
-                    FlowIcons.Music,
-                ) { selectedPage = "music" }
             }
             Section("داده و برنامه") {
                 SettingsDestination(
@@ -398,7 +392,6 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                 "pomodoro" -> "پومودورو"
                 "notifications" -> "اعلان‌ها"
                 "ambient" -> "صدای محیط"
-                "music" -> "موسیقی و پخش‌کننده"
                 "data" -> "مدیریت داده‌ها"
                 else -> "درباره‌ی MatFocus"
             }
@@ -545,16 +538,6 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             )
         }
 
-        AnimatedSettingsSection(selectedPage == "music", "موسیقی") {
-            MusicSettings()
-            GlassButton(
-                "نمایش سرویس‌های موسیقی آنلاین",
-                { musicOpen = true },
-                Modifier.fillMaxWidth(),
-                icon = FlowIcons.Play,
-            )
-        }
-
         AnimatedSettingsSection(selectedPage == "data", "مدیریت داده‌ها") {
             Text(
                 num("${data.tasks.size} وظیفه · ${data.sessions.size} جلسه‌ی ثبت‌شده · ${data.routines.size} روتین"),
@@ -578,8 +561,6 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             )
         }
         }
-
-    if (musicOpen) MusicPlayerDialog { musicOpen = false }
 
     wallpaperPreviewId?.let { previewId ->
         FlowDialog(

@@ -68,7 +68,7 @@ val DarkColors = FlowColors(
     isDark = true,
     bgTop = Color(0xFF101318), bgMid = Color(0xFF171C24), bgBottom = Color(0xFF202833),
     blobA = Color(0xFF526B86), blobB = Color(0xFF625A78), blobC = Color(0xFF477A7B),
-    glassFill = Color(0xFFB8C8DC).copy(alpha = 0.065f),
+    glassFill = Color(0xFFB8C8DC).copy(alpha = 0.10f),
     glassFillStrong = Color(0xFF252E39).copy(alpha = 0.46f),
     glassTintTop = Color.White.copy(alpha = 0.14f),
     glassEdge = Color.White,

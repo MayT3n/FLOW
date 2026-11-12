@@ -83,6 +83,12 @@ data class RoutineStep(val title: String, val minutes: Int = 10)
  * روتین‌های قدیمی بدون [steps] به‌صورت یک مرحله‌ی تمرکز (pomodoros × مدت تمرکز) اجرا می‌شوند.
  */
 @Serializable
+data class RoutineStep(
+    val title: String,
+    val durationMin: Int = 10,
+)
+
+@Serializable
 data class Routine(
     val id: String,
     val title: String,

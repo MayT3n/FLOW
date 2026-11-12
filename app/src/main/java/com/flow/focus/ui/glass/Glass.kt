@@ -55,7 +55,7 @@ import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.layout.positionOnScreen
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
@@ -400,9 +400,9 @@ fun GlassSurface(
             GlassQuality.LOW -> false
         }
     val levelBlur = when (level) {
-        GlassLevel.Subtle -> 0.55f
-        GlassLevel.Regular -> 1f
-        GlassLevel.Strong -> 1.15f
+        GlassLevel.Subtle -> 0.58f
+        GlassLevel.Regular -> 0.82f
+        GlassLevel.Strong -> 1f
     }
     var origin by remember { mutableStateOf(Offset.Zero) }
 
@@ -422,7 +422,7 @@ fun GlassSurface(
     val baseFill = when {
         g.quality == GlassQuality.LOW -> c.glassFillStrong
         level == GlassLevel.Strong -> c.glassFillStrong
-        level == GlassLevel.Subtle -> c.glassFill.copy(alpha = c.glassFill.alpha * 0.6f)
+        level == GlassLevel.Subtle -> c.glassFill.copy(alpha = c.glassFill.alpha * 0.82f)
         else -> c.glassFill
     }.let { surface -> surface.copy(alpha = (surface.alpha + contrastBoost).coerceAtMost(0.76f)) }
     val fill = baseFill.copy(alpha = (baseFill.alpha * g.opacity.coerceIn(0.65f, 1.18f)).coerceIn(0f, 0.88f))
@@ -458,8 +458,8 @@ fun GlassSurface(
                 Modifier
                     .matchParentSize()
                     .graphicsLayer {
-                        val extra = rootBackdrop!!.settings.wallpaperBlurDp.dp.toPx() * 0.35f
-                        // Prevent extreme settings from turning each surface into an expensive full-screen blur pass.
+                        val extra = rootBackdrop!!.settings.wallpaperBlurDp.dp.toPx() * 0.18f
+                        // Bound per-surface blur: many cards can be visible during a scroll.
                         val requested = g.blurDp.dp.toPx() * blurStrength * levelBlur + extra * blurStrength
                         val maxRadius = if (g.quality == GlassQuality.MEDIUM) 22.dp.toPx() else 40.dp.toPx()
                         val radius = requested.coerceAtMost(maxRadius)
@@ -512,8 +512,8 @@ fun GlassSurface(
             },
         )
         val edgeStrength = when (level) {
-            GlassLevel.Subtle -> 0.58f
-            GlassLevel.Regular -> 0.82f
+            GlassLevel.Subtle -> 0.78f
+            GlassLevel.Regular -> 0.90f
             GlassLevel.Strong -> 1f
         }
         Box(

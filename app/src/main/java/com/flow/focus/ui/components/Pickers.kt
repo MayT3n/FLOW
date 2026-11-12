@@ -10,9 +10,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -51,7 +48,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -87,12 +83,23 @@ fun JalaliMonthView(
     onPrev: () -> Unit,
     onNext: () -> Unit,
     eventColors: Map<Long, List<Color>> = emptyMap(),
+    compact: Boolean = false,
+    onToggleExpanded: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val c = Flow.colors
-    val animations = Flow.glass.animations
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val monthKey = year * 12 + month - 1
+    val first = JalaliDate(year, month, 1).toLocalDate()
+    val offset = JalaliDate.weekdayIndex(first)
+    val length = JalaliDate.monthLength(year, month)
+
+    val selectedDate = LocalDate.ofEpochDay(selectedEpochDay ?: todayEpochDay)
+    val selectedJalali = JalaliDate.of(selectedDate)
+    val compactFocusDate = if (
+        selectedJalali.year == year && selectedJalali.month == month
+    ) selectedDate else first
+    val compactWeekStart = JalaliDate.startOfWeek(compactFocusDate)
 
     fun monthTransition(distanceDivisor: Int): AnimatedContentTransitionScope<Int>.() -> ContentTransform = {
         if (animations) {

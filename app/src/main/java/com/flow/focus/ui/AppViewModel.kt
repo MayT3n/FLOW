@@ -15,8 +15,6 @@ import com.flow.focus.data.Routine
 import com.flow.focus.data.Settings
 import com.flow.focus.data.Task
 import com.flow.focus.data.FlowRepository
-import com.flow.focus.music.MusicCatalog
-import com.flow.focus.music.MusicSnapshot
 import com.flow.focus.platform.AmbientSynth
 import com.flow.focus.platform.WallpaperStore
 import com.flow.focus.remote.NewsItem
@@ -67,34 +65,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             runCatching { c.updater.installDownloaded() }
         }
-    }
-
-    // Media3 playback
-    val musicSnapshot: StateFlow<MusicSnapshot> get() = c.music.snapshot
-    val musicFavorites: StateFlow<Set<String>> get() = c.music.favorites
-    val musicPlaylists get() = c.music.playlists
-    val musicDownloadProgress get() = c.music.downloadProgress
-    val musicTracks get() = MusicCatalog.tracks
-    fun playMusic(id: String) = c.music.play(id)
-    fun toggleMusicPlayback() = c.music.togglePlayPause()
-    fun nextMusic() = c.music.next()
-    fun previousMusic() = c.music.previous()
-    fun seekMusic(positionMs: Long) = c.music.seekTo(positionMs)
-    fun setMusicVolume(value: Float) = c.music.setVolume(value)
-    fun toggleMusicShuffle() = c.music.toggleShuffle()
-    fun cycleMusicRepeat() = c.music.cycleRepeat()
-    fun toggleMusicFavorite(id: String) = c.music.toggleFavorite(id)
-    fun createMusicPlaylist(name: String) = c.music.createPlaylist(name)
-    fun renameMusicPlaylist(id: String, name: String) = c.music.renamePlaylist(id, name)
-    fun deleteMusicPlaylist(id: String) = c.music.deletePlaylist(id)
-    fun addMusicTrackToPlaylist(playlistId: String, trackId: String) = c.music.addTrackToPlaylist(playlistId, trackId)
-    fun removeMusicTrackFromPlaylist(playlistId: String, trackId: String) = c.music.removeTrackFromPlaylist(playlistId, trackId)
-    fun playMusicPlaylist(playlistId: String) = c.music.playPlaylist(playlistId)
-    fun isMusicDownloaded(id: String) = c.music.isDownloaded(id)
-    fun downloadedMusicBytes() = c.music.downloadedBytes()
-    fun removeMusicDownload(id: String) = c.music.removeDownload(id)
-    fun downloadMusicTrack(id: String) {
-        viewModelScope.launch { runCatching { c.music.downloadTrack(id) } }
     }
 
     // ---- تایمر ----
@@ -155,7 +125,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (durationsChanged) c.timer.syncIdle() else if (effectsChanged) c.timer.refresh()
         if (before.notifications != after.notifications) c.alarms.rescheduleAllReminders(c.repo.current)
         if (before.ambientVolume != after.ambientVolume) c.ambient.setVolume(after.ambientVolume)
-        if (before.musicVolume != after.musicVolume) c.music.setVolume(after.musicVolume)
     }
 
     /** پیش‌شنوایی صدای محیط در تنظیمات (جدا از پخش خودکار تایمر) */
