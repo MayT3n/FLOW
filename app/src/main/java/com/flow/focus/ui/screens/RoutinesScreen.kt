@@ -19,7 +19,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -31,6 +33,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.dp
 import com.flow.focus.core.DateFormats
 import com.flow.focus.core.JalaliDate
+import com.flow.focus.core.formatClock
 import com.flow.focus.data.AppData
 import com.flow.focus.data.Routine
 import com.flow.focus.ui.AppViewModel
@@ -38,6 +41,8 @@ import com.flow.focus.ui.components.CheckCircle
 import com.flow.focus.ui.components.EmptyState
 import com.flow.focus.ui.components.FlowIcon
 import com.flow.focus.ui.components.FlowIcons
+import com.flow.focus.ui.components.FlowDialog
+import com.flow.focus.ui.components.FlowProgressBar
 import com.flow.focus.ui.components.GlassButton
 import com.flow.focus.ui.components.GlassIconButton
 import com.flow.focus.ui.components.PrimaryButton
@@ -50,6 +55,7 @@ import com.flow.focus.ui.glass.springClick
 import com.flow.focus.ui.rememberToday
 import com.flow.focus.ui.theme.Flow
 import com.flow.focus.ui.theme.LocalDockContentPadding
+import kotlinx.coroutines.delay
 
 @Composable
 fun RoutinesScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifier) {
@@ -64,6 +70,7 @@ fun RoutinesScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
     }
     var creating by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Routine?>(null) }
+    var runningRoutine by remember { mutableStateOf<Routine?>(null) }
 
     Column(
         modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState())
@@ -118,6 +125,7 @@ fun RoutinesScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                         doneToday = done,
                         onToggleToday = { vm.toggleRoutine(routine.id, epochDay) },
                         onEdit = { editing = routine },
+                        onRun = { runningRoutine = routine },
                     )
                 }
             }
@@ -133,6 +141,7 @@ fun RoutinesScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                     doneToday = false,
                     onToggleToday = {},
                     onEdit = { editing = routine },
+                    onRun = { runningRoutine = routine },
                 )
             }
         }
@@ -154,6 +163,13 @@ fun RoutinesScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             onDismiss = { editing = null },
         )
     }
+    runningRoutine?.let { routine ->
+        RoutineRunnerDialog(
+            routine = routine,
+            onComplete = { vm.toggleRoutine(routine.id, epochDay) },
+            onDismiss = { runningRoutine = null },
+        )
+    }
 }
 
 @Composable
@@ -163,6 +179,7 @@ private fun RoutineCard(
     doneToday: Boolean,
     onToggleToday: () -> Unit,
     onEdit: () -> Unit,
+    onRun: () -> Unit,
 ) {
     var expanded by rememberSaveable(routine.id) { mutableStateOf(false) }
     val weekdays = if (routine.weekdays.size == 7) "هر روز"
@@ -216,7 +233,118 @@ private fun RoutineCard(
                             )
                         }
                     }
+                    if (scheduledToday && routine.steps.isNotEmpty() && !doneToday) {
+                        PrimaryButton(
+                            "شروع روتین",
+                            onRun,
+                            Modifier.fillMaxWidth(),
+                            icon = FlowIcons.Play,
+                        )
+                    }
                 }
+            }
+        }
+    }
+}
+@Composable
+private fun RoutineRunnerDialog(
+    routine: Routine,
+    onComplete: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val steps = routine.steps
+    var stepIndex by rememberSaveable(routine.id) { mutableStateOf(0) }
+    var running by rememberSaveable(routine.id) { mutableStateOf(false) }
+    var remainingMs by rememberSaveable(routine.id) {
+        mutableLongStateOf((steps.firstOrNull()?.durationMin ?: 1) * 60_000L)
+    }
+    var endAtMs by rememberSaveable(routine.id) { mutableLongStateOf(0L) }
+    var finished by rememberSaveable(routine.id) { mutableStateOf(false) }
+    val step = steps.getOrNull(stepIndex)
+    val totalDuration = step?.durationMin?.times(60_000L) ?: 1L
+
+    LaunchedEffect(running, stepIndex, endAtMs) {
+        if (running) {
+            while (true) {
+                val left = (endAtMs - System.currentTimeMillis()).coerceAtLeast(0L)
+                remainingMs = left
+                if (left == 0L) {
+                    running = false
+                    if (stepIndex < steps.lastIndex) {
+                        stepIndex += 1
+                        remainingMs = steps[stepIndex].durationMin * 60_000L
+                        endAtMs = 0L
+                    } else {
+                        finished = true
+                    }
+                    break
+                }
+                delay(250L)
+            }
+        }
+    }
+
+    FlowDialog(onDismiss, routine.title) {
+        if (finished) {
+            Text("تمام مراحل این روتین به پایان رسید.", style = Flow.type.body, color = Flow.colors.textPrimary)
+            Text("برای ثبت انجام روتین امروز، دکمهٔ زیر را بزن.", style = Flow.type.caption, color = Flow.colors.textSecondary)
+            PrimaryButton("ثبت انجام روتین", {
+                onComplete()
+                onDismiss()
+            }, Modifier.fillMaxWidth(), icon = FlowIcons.Check)
+        } else if (step != null) {
+            Text(
+                num("مرحلهٔ ${stepIndex + 1} از ${steps.size}"),
+                style = Flow.type.caption,
+                color = Flow.colors.textSecondary,
+            )
+            Text(step.title, style = Flow.type.heading, color = Flow.colors.textPrimary)
+            Text(
+                num(formatClock((remainingMs + 999L) / 1_000L)),
+                style = Flow.type.display,
+                color = Flow.colors.textPrimary,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            FlowProgressBar(
+                (1f - remainingMs.toFloat() / totalDuration.coerceAtLeast(1L)).coerceIn(0f, 1f),
+                Modifier.fillMaxWidth(),
+                height = 5.dp,
+            )
+            Text(
+                num("${step.durationMin} دقیقه برای این مرحله"),
+                style = Flow.type.caption,
+                color = Flow.colors.textSecondary,
+            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PrimaryButton(
+                    if (running) "توقف" else if (remainingMs < totalDuration) "ادامه" else "شروع",
+                    {
+                        if (running) {
+                            remainingMs = (endAtMs - System.currentTimeMillis()).coerceAtLeast(0L)
+                            running = false
+                        } else {
+                            endAtMs = System.currentTimeMillis() + remainingMs
+                            running = true
+                        }
+                    },
+                    Modifier.weight(1f),
+                    icon = if (running) FlowIcons.Pause else FlowIcons.Play,
+                )
+                GlassButton(
+                    if (stepIndex == steps.lastIndex) "پایان" else "مرحله بعد",
+                    {
+                        running = false
+                        if (stepIndex < steps.lastIndex) {
+                            stepIndex += 1
+                            remainingMs = steps[stepIndex].durationMin * 60_000L
+                            endAtMs = 0L
+                        } else {
+                            finished = true
+                        }
+                    },
+                    Modifier.weight(1f),
+                )
             }
         }
     }

@@ -10,6 +10,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
@@ -484,6 +486,17 @@ private fun TimerStatusPill(timer: TimerState, rounds: Int) {
 private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier: Modifier) {
     val c = Flow.colors
     val glass = LocalGlass.current
+    val breathing = remember { Animatable(0f) }
+    LaunchedEffect(timer.status, glass.animations) {
+        if (timer.status == TimerStatus.RUNNING && glass.animations) {
+            while (true) {
+                breathing.animateTo(1f, tween(2_500, easing = FastOutSlowInEasing))
+                breathing.animateTo(0f, tween(2_500, easing = FastOutSlowInEasing))
+            }
+        } else {
+            breathing.snapTo(0f)
+        }
+    }
     val breakPhase = timer.phase != PhaseType.FOCUS
     val c1 by animateColorAsState(if (breakPhase) c.success else c.accent, tween(500), label = "ringA")
     val c2 by animateColorAsState(if (breakPhase) c.accent else c.accentAlt, tween(500), label = "ringB")
@@ -501,6 +514,13 @@ private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier
             val inset = stroke / 2f + 4.dp.toPx()
             val arc = Size(size.width - 2 * inset, size.height - 2 * inset)
             val tl = Offset(inset, inset)
+            if (timer.status == TimerStatus.RUNNING && glass.quality != GlassQuality.LOW) {
+                drawCircle(
+                    color = c1.copy(alpha = 0.025f + 0.055f * breathing.value),
+                    radius = arc.width / 2f + stroke / 2f + 2.dp.toPx(),
+                    style = Stroke(width = 3.dp.toPx()),
+                )
+            }
             drawArc(c.track, 0f, 360f, false, tl, arc, style = Stroke(stroke))
             val p = progress
             if (p > 0f) {
