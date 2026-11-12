@@ -118,7 +118,6 @@ private fun Section(title: String, content: @Composable () -> Unit) {
         "اعلان‌ها" -> FlowIcons.Bell
         "صدای محیط" -> FlowIcons.Music
         "مدیریت داده‌ها" -> FlowIcons.Export
-        "موسیقی" -> FlowIcons.Music
         "شخصی‌سازی" -> FlowIcons.Sun
         "تمرکز" -> FlowIcons.Clock
         "داده و برنامه" -> FlowIcons.Layers
