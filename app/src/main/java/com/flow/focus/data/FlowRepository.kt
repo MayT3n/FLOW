@@ -131,7 +131,6 @@ class FlowRepository(private val store: JsonStore, scope: CoroutineScope) {
             glassBlurDp = settings.glassBlurDp.coerceIn(4, 48),
             glassShine = bounded(settings.glassShine, 0f..1f, 0.7f),
             ambientVolume = bounded(settings.ambientVolume, 0f..1f, 0.5f),
-            musicVolume = bounded(settings.musicVolume, 0f..1f, 0.8f),
             wallpaperDim = bounded(settings.wallpaperDim, 0f..0.5f, 0.18f),
             wallpaperBlurDp = settings.wallpaperBlurDp.coerceIn(0, 24),
             ambientSound = settings.ambientSound.takeIf { it in supportedAmbientIds } ?: "none",
