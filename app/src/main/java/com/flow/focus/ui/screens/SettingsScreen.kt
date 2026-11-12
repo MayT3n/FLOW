@@ -369,7 +369,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                     FlowIcons.Music,
                 ) { selectedPage = "ambient" }
                 SettingsDestination(
-                    "موسیقی آنلاین", "باز کردن سرویس‌های رسمی موسیقی",
+                    "موسیقی و پخش‌کننده", "کتابخانه‌ی آفلاین و کنترل پخش",
                     FlowIcons.Music,
                 ) { selectedPage = "music" }
             }
