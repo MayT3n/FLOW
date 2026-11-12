@@ -76,7 +76,6 @@ import com.flow.focus.ui.components.FlowSlider
 import com.flow.focus.ui.components.GlassButton
 import com.flow.focus.ui.components.PrimaryButton
 import com.flow.focus.ui.components.ScreenHeader
-import com.flow.focus.ui.components.SectionTitle
 import com.flow.focus.ui.components.SegmentedControl
 import com.flow.focus.ui.components.SettingRow
 import com.flow.focus.ui.components.Stepper
