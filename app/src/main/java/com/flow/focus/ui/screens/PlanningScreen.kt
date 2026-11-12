@@ -139,18 +139,7 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                     )
                 }
             }
-            AnimatedContent(
-                targetState = mode,
-                transitionSpec = {
-                    if (animations) {
-                        fadeIn(tween(180)) togetherWith fadeOut(tween(150))
-                    } else {
-                        ContentTransform(EnterTransition.None, ExitTransition.None)
-                    }
-                },
-                label = "planning-mode",
-            ) { activeMode ->
-                when (activeMode) {
+            when (mode) {
                 0 -> DailyView(
                     vm, data, selDate, today,
                     onDay = { selected = it.toEpochDay() },
@@ -186,7 +175,7 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                             }
                         }
                     }
-                    GlassSurface(Modifier.fillMaxWidth().animateContentSize(if (animations) tween(260) else snap())) {
+                    GlassSurface(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(14.dp)) {
                             JalaliMonthView(
                                 a.year, a.month, selected, today.toEpochDay(), marked,
@@ -206,9 +195,8 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                         selected = today.toEpochDay()
                         monthAnchor = firstOfMonth(today).toEpochDay()
                     }, Modifier.fillMaxWidth())
-                    SectionTitle(num(DateFormats.full(selDate)))
+                    SectionTitle(num(DateFormats.full(selDate)), modifier = Modifier.padding(top = 2.dp))
                     EntryList(vm, data, selDate, onEdit = { editing = it }, onMove = { moveTask = it })
-                }
                 }
             }
 
@@ -314,15 +302,13 @@ private fun DailyView(
             shape = RoundedCornerShape(20.dp), level = GlassLevel.Subtle,
         ) {
             Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                AnimatedContent(
-                    targetState = num(DateFormats.full(day)),
-                    transitionSpec = {
-                        fadeIn(tween(140)) togetherWith fadeOut(tween(110))
-                    },
-                    label = "planning-selected-date",
-                ) { label ->
-                    Text(label, style = Flow.type.bodyStrong, color = c.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
+                Text(
+                    num(DateFormats.full(day)),
+                    style = Flow.type.bodyStrong,
+                    color = c.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 if (day != today) Text(
                     num(relativeDay(day.toEpochDay(), today)),
                     style = Flow.type.caption,
