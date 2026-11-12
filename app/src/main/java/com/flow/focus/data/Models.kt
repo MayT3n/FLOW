@@ -129,12 +129,6 @@ data class Settings(
     val ambientSound: String = "none",
     val ambientVolume: Float = 0.5f,
     val ambientAuto: Boolean = true,
-    val musicTrackId: String = "quiet-room",
-    val breakMusicTrackId: String = "afterglow-vast",
-    val musicVolume: Float = 0.8f,
-    val musicAutoFocus: Boolean = false,
-    val musicSwitchOnBreak: Boolean = false,
-    val musicPauseWithTimer: Boolean = false,
     val dailyGoalMin: Int = 120,
     /** شناسه‌ی پس‌زمینه: gradient, aurora, midnight, dusk یا custom */
     val wallpaperId: String = "gradient",
