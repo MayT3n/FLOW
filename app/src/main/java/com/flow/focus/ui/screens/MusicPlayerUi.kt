@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -202,7 +203,7 @@ fun MusicPlayerDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                                 onDownload = { vm.downloadMusicTrack(track.id) },
                             )
                             if (index < visibleTracks.lastIndex) {
-                                Box(Modifier.fillMaxWidth().padding(start = 54.dp).size(width = 1.dp, height = 1.dp).background(Flow.colors.track))
+                                Box(Modifier.fillMaxWidth().padding(start = 54.dp).height(1.dp).background(Flow.colors.track))
                             }
                         }
                     }
@@ -400,4 +401,14 @@ private fun formatBytes(value: Long): String = when {
     value >= 1024L * 1024L -> "${"%.1f".format(java.util.Locale.US, value / (1024f * 1024f))} MB"
     value >= 1024L -> "${value / 1024L} KB"
     else -> "${value} B"
+}
+
+
+@Composable
+fun MusicSettings() {
+    Text(
+        "کتابخانه‌ی موسیقی شامل قطعه‌های منتخب با مجوز CC0 است. دانلود اختیاری است و کنترل‌های پخش پس‌زمینه از سیستم اندروید استفاده می‌کنند.",
+        style = Flow.type.caption,
+        color = Flow.colors.textSecondary,
+    )
 }
