@@ -53,6 +53,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
@@ -71,6 +72,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -115,7 +121,7 @@ import kotlin.math.sin
 private enum class HomeDialog { PICK_TASK, DURATION, AMBIENT, REMINDER, NEW_TASK }
 
 @Composable
-fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modifier: Modifier = Modifier) {
+fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, onOpenMusic: () -> Unit = {}, modifier: Modifier = Modifier) {
     val c = Flow.colors
     val timer = data.timer
     val settings = data.settings
@@ -193,6 +199,7 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
                     listOf(
                         MenuAction("تغییر وظیفه", FlowIcons.Edit) { dialog = HomeDialog.PICK_TASK },
                         MenuAction("مدت تمرکز", FlowIcons.Clock) { dialog = HomeDialog.DURATION },
+                        MenuAction("آهنگ محیطی", FlowIcons.Music) { onOpenMusic() },
                         MenuAction("صدای محیط", FlowIcons.Music) { dialog = HomeDialog.AMBIENT },
                         MenuAction("افزودن یادآور", FlowIcons.Bell) { dialog = HomeDialog.REMINDER },
                         MenuAction("آمار جلسه", FlowIcons.Stats) { onNavigate(3) },
@@ -610,19 +617,20 @@ private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier
                 val safeSeconds = seconds.coerceAtLeast(0)
                 val displayMinutes = safeSeconds / 60L
                 val displaySeconds = (safeSeconds % 60L).toInt()
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                ) {
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
                     Text(
                         num("%02d".format(java.util.Locale.ROOT, displayMinutes)),
-                        style = Flow.type.display.copy(fontFeatureSettings = "tnum"),
+                        style = Flow.type.display.copy(fontFeatureSettings = "tnum", textDirection = TextDirection.Ltr),
                         color = c.textPrimary,
                         maxLines = 1,
                     )
                     Text(
                         ":",
-                        style = Flow.type.display.copy(fontFeatureSettings = "tnum"),
+                        style = Flow.type.display.copy(fontFeatureSettings = "tnum", textDirection = TextDirection.Ltr),
                         color = c.textPrimary,
                         maxLines = 1,
                     )
@@ -637,10 +645,11 @@ private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier
                         Text(
                             num(value),
                             Modifier.graphicsLayer { alpha = 0.72f + 0.28f * live.value },
-                            style = Flow.type.display.copy(fontFeatureSettings = "tnum"),
+                            style = Flow.type.display.copy(fontFeatureSettings = "tnum", textDirection = TextDirection.Ltr),
                             color = c.textPrimary,
                             maxLines = 1,
                         )
+                    }
                     }
                 }
             }
