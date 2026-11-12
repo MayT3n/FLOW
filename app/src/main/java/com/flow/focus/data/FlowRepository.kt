@@ -89,6 +89,12 @@ class FlowRepository(private val store: JsonStore, scope: CoroutineScope) {
         d.copy(routineChecks = if (key in d.routineChecks) d.routineChecks - key else d.routineChecks + key)
     }
 
+    /** ثبت انجام‌شدن روتین برای یک روز؛ تکرارپذیر (اگر قبلاً ثبت شده باشد تغییری نمی‌دهد). */
+    fun markRoutineDone(routineId: String, epochDay: Long) = update { d ->
+        val key = "$routineId|$epochDay"
+        if (key in d.routineChecks) d else d.copy(routineChecks = d.routineChecks + key)
+    }
+
     // ---- اهداف ----
     fun addGoal(goal: Goal) = update { it.copy(goals = it.goals + goal) }
     fun toggleGoal(id: String) = update { d -> d.copy(goals = d.goals.map { if (it.id == id) it.copy(done = !it.done) else it }) }
@@ -139,6 +145,7 @@ class FlowRepository(private val store: JsonStore, scope: CoroutineScope) {
                 dueDay = validDay,
                 dueMinute = validDay?.let { task.dueMinute?.takeIf { minute -> minute in 0 until 24 * 60 } },
                 estimatedPomodoros = task.estimatedPomodoros.coerceIn(1, 20),
+                durationMin = if (validDay != null && task.dueMinute != null) task.durationMin?.coerceIn(5, 720) else null,
             )
         }
         val migratedRoutines = data.routines.map { routine ->
@@ -146,6 +153,7 @@ class FlowRepository(private val store: JsonStore, scope: CoroutineScope) {
                 weekdays = routine.weekdays.filter { it in 0..6 }.distinct().sorted(),
                 minute = routine.minute?.takeIf { it in 0 until 24 * 60 },
                 pomodoros = routine.pomodoros.coerceIn(1, 20),
+                steps = routine.steps.take(12).map { it.copy(title = it.title.take(60), minutes = it.minutes.coerceIn(1, 240)) },
             )
         }
         // Preserve IDs, notes, sessions, checks, goals and active timer while normalizing values

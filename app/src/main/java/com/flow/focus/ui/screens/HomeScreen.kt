@@ -1,5 +1,25 @@
 package com.flow.focus.ui.screens
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
+import com.flow.focus.data.TimerStatus
+import com.flow.focus.ui.motion.Motion
+import kotlin.math.abs
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.togetherWith
@@ -480,76 +500,128 @@ private fun TimerStatusPill(timer: TimerState, rounds: Int) {
     }
 }
 
+/**
+ * حلقه‌ی تایمر: ۶۰ نقطه‌ی شعاعی که با گذر زمان واقعی «خاموش» می‌شوند (نقاط روشن = زمان باقی‌مانده)،
+ * یک نقطه‌ی سرِ بزرگ‌تر لحظه‌ی حال را نشان می‌دهد. حرکت پیوسته‌ی تند وجود ندارد؛ فقط
+ *  - پیشرفت با ساعت دیواری هم‌گام است (tween خطی کوتاه، و فنر نرم هنگام پرش مثل ریست)،
+ *  - هنگام شروع/توقف/ادامه/اتمام یک موج ملایم از مرکز پخش می‌شود،
+ *  - در حال اجرا، دیسک مرکزی با تنفس بسیار کند (۶ ثانیه) جان می‌گیرد؛ در حالت توقف همه‌چیز آرام و کم‌نور می‌شود.
+ * همه‌ی مقدارهای متحرک فقط در مرحله‌ی رسم خوانده می‌شوند، پس Recomposition اضافه ندارد.
+ */
 @Composable
 private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier: Modifier) {
     val c = Flow.colors
     val glass = LocalGlass.current
     val breakPhase = timer.phase != PhaseType.FOCUS
-    val c1 by animateColorAsState(if (breakPhase) c.success else c.accent, tween(500), label = "ringA")
-    val c2 by animateColorAsState(if (breakPhase) c.accent else c.accentAlt, tween(500), label = "ringB")
+    val running = timer.status == TimerStatus.RUNNING
+    val c1 by animateColorAsState(if (breakPhase) c.success else c.accent, tween(Motion.Long), label = "ringA")
+    val c2 by animateColorAsState(if (breakPhase) c.accent else c.accentAlt, tween(Motion.Long), label = "ringB")
     // فقط وقتی «ثانیه» عوض می‌شود Recomposition رخ می‌دهد، نه با هر تیک
     val seconds by remember(timer) { derivedStateOf { (PomodoroEngine.remaining(timer, now.value) + 999L) / 1000L } }
-    val progress by animateFloatAsState(
-        targetValue = PomodoroEngine.progress(timer, now.value),
-        animationSpec = if (glass.animations) tween(900, easing = LinearEasing) else snap(),
-        label = "timer-ring-progress",
+
+    val target = PomodoroEngine.progress(timer, now.value)
+    var lastTarget by remember { mutableFloatStateOf(target) }
+    val jumped = abs(target - lastTarget) > 0.03f
+    SideEffect { lastTarget = target }
+    val progress = animateFloatAsState(
+        targetValue = target,
+        animationSpec = when {
+            !glass.animations -> snap()
+            jumped -> Motion.soft()
+            else -> tween(260, easing = LinearEasing)
+        },
+        label = "timer-progress",
     )
+    val live = animateFloatAsState(
+        targetValue = if (running) 1f else 0f,
+        animationSpec = if (glass.animations) tween(Motion.Long) else snap(),
+        label = "timer-live",
+    )
+    val breath: State<Float> = if (running && glass.animations && glass.quality != GlassQuality.LOW) {
+        rememberInfiniteTransition(label = "timer-breath").animateFloat(
+            0f, 1f, infiniteRepeatable(tween(6000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "breath",
+        )
+    } else remember { mutableFloatStateOf(0f) }
+    val pulse = remember { Animatable(1f) }
+    LaunchedEffect(timer.status, timer.phase) {
+        if (glass.animations) {
+            pulse.snapTo(0f)
+            pulse.animateTo(1f, tween(1100, easing = Motion.Decelerate))
+        }
+    }
 
     Box(modifier, contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
-            val stroke = 12.dp.toPx()
-            val inset = stroke / 2f + 4.dp.toPx()
-            val arc = Size(size.width - 2 * inset, size.height - 2 * inset)
-            val tl = Offset(inset, inset)
-            drawArc(c.track, 0f, 360f, false, tl, arc, style = Stroke(stroke))
-            val p = progress
-            if (p > 0f) {
-                val sweep = 360f * p
-                rotate(-90f, center) {
-                    if (glass.quality != GlassQuality.LOW) {
-                        drawArc(c1.copy(alpha = 0.22f), 0f, sweep, false, tl, arc, style = Stroke(stroke * 2.1f, cap = StrokeCap.Round))
-                    }
-                    drawArc(Brush.sweepGradient(listOf(c1, c2, c1), center), 0f, sweep, false, tl, arc, style = Stroke(stroke, cap = StrokeCap.Round))
-                }
-                val ang = (-90f + sweep) * (PI.toFloat() / 180f)
-                val r = arc.width / 2f
-                drawCircle(Color.White, stroke * 0.28f, Offset(center.x + r * cos(ang), center.y + r * sin(ang)))
+            val dots = 60
+            val outer = size.minDimension / 2f - 7.dp.toPx()
+            val p = progress.value
+            val liveness = 0.5f + 0.5f * live.value
+            for (i in 0 until dots) {
+                val frac = (i + 0.5f) / dots
+                val ang = (-90f + 360f * i / dots) * (PI.toFloat() / 180f)
+                val elapsed = frac <= p
+                val head = (1f - abs(frac - p) * dots / 2.6f).coerceIn(0f, 1f)
+                val major = i % 5 == 0
+                val radius = (if (major) 2.9.dp else 2.0.dp).toPx() * (1f + 0.85f * head * live.value)
+                val color = if (elapsed) c.track else lerp(c1, c2, frac).copy(alpha = (0.5f + 0.5f * head) * liveness)
+                drawCircle(color, radius, Offset(center.x + outer * cos(ang), center.y + outer * sin(ang)))
+            }
+            val t = pulse.value
+            if (t < 1f) {
+                drawCircle(
+                    c1.copy(alpha = (1f - t) * 0.28f),
+                    radius = lerp(outer * 0.66f, outer + 10.dp.toPx(), t),
+                    style = Stroke(2.dp.toPx()),
+                )
             }
         }
-        GlassSurface(Modifier.size(222.dp), shape = CircleShape, level = GlassLevel.Subtle) {
+        GlassSurface(
+            Modifier.size(206.dp).graphicsLayer {
+                val scale = 1f + 0.012f * breath.value
+                scaleX = scale
+                scaleY = scale
+            },
+            shape = CircleShape,
+            level = GlassLevel.Subtle,
+        ) {
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                FlowIcon(
-                    when (timer.phase) {
-                        PhaseType.FOCUS -> FlowIcons.Leaf
-                        PhaseType.SHORT_BREAK -> FlowIcons.Wind
-                        PhaseType.LONG_BREAK -> FlowIcons.Moon
+                AnimatedContent(
+                    targetState = timer.phase,
+                    transitionSpec = {
+                        if (glass.animations) fadeIn(Motion.enter(Motion.Medium)) togetherWith fadeOut(Motion.exit(Motion.Short))
+                        else ContentTransform(EnterTransition.None, ExitTransition.None)
                     },
-                    tint = c1, size = 26.dp,
-                )
-                Text(
-                    when (timer.phase) {
-                        PhaseType.FOCUS -> "تمرکز"
-                        PhaseType.SHORT_BREAK -> "استراحت کوتاه"
-                        PhaseType.LONG_BREAK -> "استراحت بلند"
-                    },
-                    style = Flow.type.label,
-                    color = c1,
-                )
-                Spacer(Modifier.height(2.dp))
-                if (glass.animations) {
-                    AnimatedContent(
-                        targetState = num(formatClock(seconds)),
-                        transitionSpec = {
-                            (fadeIn(tween(120)) + slideInVertically(tween(145)) { it / 3 }) togetherWith
-                                (fadeOut(tween(90)) + slideOutVertically(tween(115)) { -it / 3 })
-                        },
-                        label = "timer-digits",
-                    ) { value ->
-                        Text(value, style = Flow.type.display, color = c.textPrimary, maxLines = 1)
+                    label = "timer-phase",
+                ) { phase ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        FlowIcon(
+                            when (phase) {
+                                PhaseType.FOCUS -> FlowIcons.Leaf
+                                PhaseType.SHORT_BREAK -> FlowIcons.Wind
+                                PhaseType.LONG_BREAK -> FlowIcons.Moon
+                            },
+                            tint = c1, size = 24.dp,
+                        )
+                        Text(
+                            when (phase) {
+                                PhaseType.FOCUS -> "تمرکز"
+                                PhaseType.SHORT_BREAK -> "استراحت کوتاه"
+                                PhaseType.LONG_BREAK -> "استراحت بلند"
+                            },
+                            style = Flow.type.label,
+                            color = c1,
+                        )
                     }
-                } else {
-                    Text(num(formatClock(seconds)), style = Flow.type.display, color = c.textPrimary, maxLines = 1)
                 }
+                Spacer(Modifier.height(2.dp))
+                // رقم‌های هم‌عرض: بدون لرزش با هر ثانیه و بدون انیمیشن حواس‌پرت‌کن
+                Text(
+                    num(formatClock(seconds)),
+                    Modifier.graphicsLayer { alpha = 0.72f + 0.28f * live.value },
+                    style = Flow.type.display.copy(fontFeatureSettings = "tnum"),
+                    color = c.textPrimary,
+                    maxLines = 1,
+                )
             }
         }
     }

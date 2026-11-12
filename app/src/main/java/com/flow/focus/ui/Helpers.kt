@@ -71,3 +71,10 @@ fun dueLabel(t: Task, today: LocalDate): String? {
 
 fun isOverdue(t: Task, today: LocalDate): Boolean = !t.done && t.dueDay != null && t.dueDay < today.toEpochDay()
 
+
+/** «۹۰ دقیقه» → «۱ ساعت و ۳۰ دقیقه»؛ خروجی بدون تبدیل ارقام است (نمایش با num()). */
+fun durationLabel(minutes: Int): String = when {
+    minutes < 60 -> "$minutes دقیقه"
+    minutes % 60 == 0 -> "${minutes / 60} ساعت"
+    else -> "${minutes / 60} ساعت و ${minutes % 60} دقیقه"
+}

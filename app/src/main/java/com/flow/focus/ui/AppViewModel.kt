@@ -133,6 +133,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun saveRoutine(r: Routine) = c.repo.upsertRoutine(r)
     fun deleteRoutine(id: String) = c.repo.deleteRoutine(id)
     fun toggleRoutine(routineId: String, epochDay: Long) = c.repo.toggleRoutineCheck(routineId, epochDay)
+    fun markRoutineDone(routineId: String, epochDay: Long) = c.repo.markRoutineDone(routineId, epochDay)
 
     fun addGoal(title: String, period: GoalPeriod, periodStartDay: Long) {
         if (title.isBlank()) return

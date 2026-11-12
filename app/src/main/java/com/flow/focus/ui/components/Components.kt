@@ -86,6 +86,10 @@ import androidx.compose.ui.window.DialogProperties
 import com.flow.focus.core.withDigits
 import com.flow.focus.ui.glass.GlassLevel
 import com.flow.focus.ui.glass.GlassSurface
+import com.flow.focus.ui.glass.LocalBackdropLayer
+import com.flow.focus.ui.motion.Motion
+import com.flow.focus.ui.motion.rememberEnterState
+import androidx.compose.runtime.CompositionLocalProvider
 import com.flow.focus.ui.glass.dpSpring
 import com.flow.focus.ui.glass.floatSpring
 import com.flow.focus.ui.glass.springClick
@@ -444,10 +448,10 @@ fun SectionTitle(text: String, modifier: Modifier = Modifier, trailing: (@Compos
 fun EmptyState(icon: ImageVector, title: String, subtitle: String, modifier: Modifier = Modifier) {
     val animations = LocalGlass.current.animations
     AnimatedVisibility(
-        visible = true,
+        visibleState = rememberEnterState(true),
         enter = if (animations) {
-            fadeIn(tween(190)) + scaleIn(initialScale = 0.96f, animationSpec = tween(220)) +
-                slideInVertically(tween(220)) { it / 14 }
+            fadeIn(Motion.enter(Motion.Medium)) + scaleIn(initialScale = 0.96f, animationSpec = Motion.enter(Motion.Medium)) +
+                slideInVertically(Motion.enter(Motion.Medium)) { it / 14 }
         } else EnterTransition.None,
     ) {
         Column(
@@ -482,6 +486,7 @@ fun Chip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifie
 fun FlowDialog(onDismiss: () -> Unit, title: String? = null, content: @Composable ColumnScope.() -> Unit) {
     val animations = LocalGlass.current.animations
     var visible by remember { mutableStateOf(true) }
+    val enterState = rememberEnterState(visible)
     val requestDismiss = {
         if (visible) visible = false
     }
@@ -492,10 +497,11 @@ fun FlowDialog(onDismiss: () -> Unit, title: String? = null, content: @Composabl
         }
     }
     Dialog(onDismissRequest = requestDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        CompositionLocalProvider(LocalBackdropLayer provides null) {
         AnimatedVisibility(
-            visible = visible,
-            enter = if (animations) fadeIn(tween(150)) + scaleIn(initialScale = 0.965f, animationSpec = tween(180)) else EnterTransition.None,
-            exit = if (animations) fadeOut(tween(115)) + scaleOut(targetScale = 0.965f, animationSpec = tween(135)) else ExitTransition.None,
+            visibleState = enterState,
+            enter = if (animations) fadeIn(Motion.enter(Motion.Short)) + scaleIn(initialScale = 0.94f, animationSpec = Motion.soft()) else EnterTransition.None,
+            exit = if (animations) fadeOut(Motion.exit(Motion.Fast)) + scaleOut(targetScale = 0.965f, animationSpec = Motion.exit(Motion.Short)) else ExitTransition.None,
         ) {
             GlassSurface(
                 Modifier.widthIn(max = 440.dp).fillMaxWidth().padding(horizontal = 18.dp, vertical = 22.dp),
@@ -534,6 +540,7 @@ fun FlowDialog(onDismiss: () -> Unit, title: String? = null, content: @Composabl
                     content()
                 }
             }
+        }
         }
     }
 }

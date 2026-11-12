@@ -352,7 +352,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                 ) { selectedPage = "wallpaper" }
                 SettingsDestination(
                     "Liquid Glass", "کیفیت، شفافیت، تاری و درخشش",
-                    FlowIcons.Layers, when (st.glassQuality) { GlassQuality.LOW -> "کم"; GlassQuality.MEDIUM -> "متوسط"; GlassQuality.HIGH -> "بالا" },
+                    FlowIcons.Layers, when (st.glassQuality) { GlassQuality.LOW -> "عملکرد"; GlassQuality.MEDIUM -> "متعادل"; GlassQuality.HIGH -> "کیفیت" },
                 ) { selectedPage = "glass" }
             }
             Section("تمرکز") {
@@ -485,7 +485,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
         }
 
         AnimatedSettingsSection(selectedPage == "glass", "کیفیت Liquid Glass") {
-            SegmentedControl(listOf("کم", "متوسط", "بالا"), st.glassQuality.ordinal, { vm.updateSettings { s -> s.copy(glassQuality = GlassQuality.entries[it]) } })
+            SegmentedControl(listOf("عملکرد", "متعادل", "کیفیت"), st.glassQuality.ordinal, { vm.updateSettings { s -> s.copy(glassQuality = GlassQuality.entries[it]) } })
             Text(
                 when (st.glassQuality) {
                     GlassQuality.LOW -> "سطح ساده و کم‌مصرف؛ مناسب دستگاه‌های ضعیف."
@@ -494,12 +494,19 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                 },
                 style = Flow.type.caption, color = Flow.colors.textSecondary,
             )
+            val effectiveQ = LocalGlass.current.quality
+            if (effectiveQ != st.glassQuality) {
+                Text(
+                    "برای روان ماندن اپ روی این دستگاه، اکنون با سطح «" + when (effectiveQ) { GlassQuality.LOW -> "عملکرد"; GlassQuality.MEDIUM -> "متعادل"; GlassQuality.HIGH -> "کیفیت" } + "» اجرا می‌شود.",
+                    style = Flow.type.caption, color = Flow.colors.warning,
+                )
+            }
             if (st.glassQuality != GlassQuality.LOW) {
                 SettingRow("شفافیت") { Text(num("${(st.glassOpacity * 100).toInt()}%"), style = Flow.type.caption, color = Flow.colors.textSecondary) }
                 FlowSlider(st.glassOpacity, { v -> vm.updateSettings { it.copy(glassOpacity = v) } }, 0.4f..1.6f)
                 SettingRow("درخشش نور") { Text(num("${(st.glassShine * 100).toInt()}%"), style = Flow.type.caption, color = Flow.colors.textSecondary) }
                 FlowSlider(st.glassShine, { v -> vm.updateSettings { it.copy(glassShine = v) } }, 0f..1f)
-                if (st.glassQuality == GlassQuality.HIGH) {
+                if (st.glassQuality != GlassQuality.LOW) {
                     SettingRow("شدت تاری") { Text(num("${st.glassBlurDp}"), style = Flow.type.caption, color = Flow.colors.textSecondary) }
                     FlowSlider(st.glassBlurDp.toFloat(), { v -> vm.updateSettings { it.copy(glassBlurDp = v.toInt()) } }, 4f..48f)
                 }

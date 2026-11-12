@@ -1,6 +1,12 @@
 package com.flow.focus.ui.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.animateColorAsState
+import com.flow.focus.ui.motion.Motion
+import com.flow.focus.ui.motion.rememberEnterState
+import com.flow.focus.ui.glass.LocalBackdropLayer
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
@@ -10,6 +16,7 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.animateFloatAsState
@@ -64,7 +71,11 @@ import java.time.LocalDate
 import kotlin.math.abs
 import kotlinx.coroutines.delay
 
-/** تقویم ماهانه‌ی شمسی؛ شنبه در ستون راست، با تغییر ماه و انتخاب روز انیمیشنی. */
+/**
+ * تقویم ماهانه‌ی شمسی؛ شنبه در ستون راست. همیشه ۶ ردیف رسم می‌شود تا ارتفاع بین ماه‌ها ثابت بماند و
+ * هیچ اطلاعاتی (نقطه‌ی رویداد، انتخاب) اندازه‌ی تقویم را تغییر ندهد. هدر ثابت است و فقط عنوان و شبکه
+ * با حرکت جهت‌دار عوض می‌شوند.
+ */
 @Composable
 fun JalaliMonthView(
     year: Int,
@@ -83,22 +94,47 @@ fun JalaliMonthView(
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val monthKey = year * 12 + month - 1
 
-    Column(
-        modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
+    fun monthTransition(distanceDivisor: Int): AnimatedContentTransitionScope<Int>.() -> ContentTransform = {
+        if (animations) {
+            val forward = targetState > initialState
+            val enterSign = if (forward xor isRtl) 1 else -1
+            (fadeIn(Motion.enter(Motion.Medium)) + slideInHorizontally(Motion.enter(Motion.Medium)) { it * enterSign / distanceDivisor }) togetherWith
+                (fadeOut(Motion.exit(Motion.Short)) + slideOutHorizontally(Motion.exit(Motion.Short)) { -it * enterSign / distanceDivisor })
+        } else {
+            ContentTransform(EnterTransition.None, ExitTransition.None)
+        }
+    }
+
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            GlassIconButton(FlowIcons.ChevronPrev, onPrev, size = 38.dp, iconSize = 18.dp, contentDescription = "ماه قبل")
+            AnimatedContent(
+                targetState = monthKey,
+                modifier = Modifier.weight(1f),
+                transitionSpec = monthTransition(3),
+                label = "jalali-month-title",
+            ) { key ->
+                Text(
+                    num(DateFormats.monthYear(JalaliDate(Math.floorDiv(key, 12), Math.floorMod(key, 12) + 1, 1))),
+                    Modifier.fillMaxWidth(),
+                    style = Flow.type.heading,
+                    color = c.textPrimary,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                )
+            }
+            GlassIconButton(FlowIcons.ChevronNext, onNext, size = 38.dp, iconSize = 18.dp, contentDescription = "ماه بعد")
+        }
+
+        Row(Modifier.fillMaxWidth()) {
+            JalaliDate.weekdayInitials.forEach {
+                Text(it, Modifier.weight(1f), style = Flow.type.caption, color = c.textSecondary, textAlign = TextAlign.Center, maxLines = 1)
+            }
+        }
+
         AnimatedContent(
             targetState = monthKey,
-            transitionSpec = {
-                if (animations) {
-                    val forward = targetState > initialState
-                    val enterSign = if (forward xor isRtl) 1 else -1
-                    (fadeIn(tween(190)) + slideInHorizontally(tween(230)) { it * enterSign }) togetherWith
-                        (fadeOut(tween(150)) + slideOutHorizontally(tween(190)) { -it * enterSign })
-                } else {
-                    ContentTransform(EnterTransition.None, ExitTransition.None)
-                }
-            },
+            transitionSpec = monthTransition(5),
             modifier = Modifier
                 .fillMaxWidth()
                 .pointerInput(monthKey, isRtl) {
@@ -115,96 +151,86 @@ fun JalaliMonthView(
                         onDragCancel = { dragDistance = 0f },
                     )
                 },
-            label = "jalali-month",
+            label = "jalali-month-grid",
         ) { key ->
-            val displayYear = Math.floorDiv(key, 12)
-            val displayMonth = Math.floorMod(key, 12) + 1
-            val first = JalaliDate(displayYear, displayMonth, 1).toLocalDate()
-            val offset = JalaliDate.weekdayIndex(first)
-            val length = JalaliDate.monthLength(displayYear, displayMonth)
-            val rows = (offset + length + 6) / 7
+            MonthGrid(
+                Math.floorDiv(key, 12), Math.floorMod(key, 12) + 1,
+                selectedEpochDay, todayEpochDay, marked, eventColors, onSelect,
+            )
+        }
+    }
+}
 
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    GlassIconButton(FlowIcons.ChevronPrev, onPrev, size = 38.dp, iconSize = 18.dp, contentDescription = "ماه قبل")
-                    Text(
-                        num(DateFormats.monthYear(JalaliDate(displayYear, displayMonth, 1))),
-                        style = Flow.type.heading,
-                        color = c.textPrimary,
-                        modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                    )
-                    GlassIconButton(FlowIcons.ChevronNext, onNext, size = 38.dp, iconSize = 18.dp, contentDescription = "ماه بعد")
-                }
-
-                Row(Modifier.fillMaxWidth()) {
-                    JalaliDate.weekdayInitials.forEach {
-                        Text(
-                            it,
-                            Modifier.weight(1f),
-                            style = Flow.type.caption,
-                            color = c.textSecondary,
-                            textAlign = TextAlign.Center,
+@Composable
+private fun MonthGrid(
+    year: Int,
+    month: Int,
+    selectedEpochDay: Long?,
+    todayEpochDay: Long,
+    marked: Set<Long>,
+    eventColors: Map<Long, List<Color>>,
+    onSelect: (LocalDate) -> Unit,
+) {
+    val c = Flow.colors
+    val animations = Flow.glass.animations
+    val first = JalaliDate(year, month, 1).toLocalDate()
+    val offset = JalaliDate.weekdayIndex(first)
+    val length = JalaliDate.monthLength(year, month)
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        for (row in 0 until 6) {
+            Row(Modifier.fillMaxWidth()) {
+                for (column in 0 until 7) {
+                    val dayNum = row * 7 + column - offset + 1
+                    if (dayNum < 1 || dayNum > length) {
+                        Spacer(Modifier.weight(1f).aspectRatio(1f))
+                    } else {
+                        val date = JalaliDate(year, month, dayNum).toLocalDate()
+                        val epochDay = date.toEpochDay()
+                        val selected = epochDay == selectedEpochDay
+                        val isToday = epochDay == todayEpochDay
+                        val selectionScale by animateFloatAsState(
+                            targetValue = if (selected) 1f else 0f,
+                            animationSpec = if (animations) Motion.snappy() else snap(),
+                            label = "selected-day",
                         )
-                    }
-                }
-
-                for (row in 0 until rows) {
-                    Row(Modifier.fillMaxWidth()) {
-                        for (column in 0 until 7) {
-                            val dayNum = row * 7 + column - offset + 1
-                            if (dayNum < 1 || dayNum > length) {
-                                Spacer(Modifier.weight(1f).aspectRatio(1f))
-                            } else {
-                                val date = JalaliDate(displayYear, displayMonth, dayNum).toLocalDate()
-                                val epochDay = date.toEpochDay()
-                                val selected = epochDay == selectedEpochDay
-                                val isToday = epochDay == todayEpochDay
-                                val selectionScale by animateFloatAsState(
-                                    targetValue = if (selected) 1f else 0f,
-                                    animationSpec = if (animations) spring(dampingRatio = 0.72f, stiffness = 520f) else snap(),
-                                    label = "selected-day",
-                                )
-
-                                Box(
-                                    Modifier
-                                        .weight(1f)
-                                        .aspectRatio(1f)
-                                        .padding(2.dp)
-                                        .semantics { this.selected = selected }
-                                        .springClick(role = Role.RadioButton, scaleDown = 0.9f, onClick = { onSelect(date) })
-                                        .drawBehind {
-                                            if (selectionScale > 0.001f) {
-                                                drawCircle(
-                                                    Brush.linearGradient(listOf(c.accent, c.accentAlt)),
-                                                    radius = size.minDimension * 0.48f * selectionScale,
-                                                )
-                                            } else if (isToday) {
-                                                drawCircle(c.accent, style = Stroke(2f))
-                                            }
-                                        },
-                                    contentAlignment = Alignment.Center,
+                        val labelColor by animateColorAsState(
+                            targetValue = if (selected) c.textOnAccent else c.textPrimary,
+                            animationSpec = if (animations) tween(Motion.Short) else snap(),
+                            label = "day-label",
+                        )
+                        Box(
+                            Modifier
+                                .weight(1f)
+                                .aspectRatio(1f)
+                                .padding(2.dp)
+                                .semantics { this.selected = selected }
+                                .springClick(role = Role.RadioButton, scaleDown = 0.9f, onClick = { onSelect(date) })
+                                .drawBehind {
+                                    if (selectionScale > 0.001f) {
+                                        drawCircle(
+                                            Brush.linearGradient(listOf(c.accent, c.accentAlt)),
+                                            radius = size.minDimension * 0.48f * selectionScale,
+                                        )
+                                    }
+                                    if (isToday && selectionScale < 0.999f) {
+                                        drawCircle(c.accent.copy(alpha = 1f - selectionScale), style = Stroke(2f))
+                                    }
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(num(dayNum), style = Flow.type.label, color = labelColor, maxLines = 1)
+                            val dayDots = eventColors[epochDay].orEmpty().take(3)
+                            if (epochDay in marked || dayDots.isNotEmpty()) {
+                                Row(
+                                    Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
                                 ) {
-                                    Text(
-                                        num(dayNum),
-                                        style = Flow.type.label,
-                                        color = if (selected) c.textOnAccent else c.textPrimary,
-                                    )
-                                    val dayDots = eventColors[epochDay].orEmpty().take(3)
-                                    if (epochDay in marked || dayDots.isNotEmpty()) {
-                                        Row(
-                                            Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                        ) {
-                                            val dots = dayDots.ifEmpty { listOf(c.accent) }
-                                            dots.forEach { dotColor ->
-                                                Box(
-                                                    Modifier.size(4.dp).clip(CircleShape)
-                                                        .background(if (selected) c.textOnAccent else dotColor),
-                                                )
-                                            }
-                                        }
+                                    val dots = dayDots.ifEmpty { listOf(c.accent) }
+                                    dots.forEach { dotColor ->
+                                        Box(
+                                            Modifier.size(4.dp).clip(CircleShape)
+                                                .background(if (selected) c.textOnAccent else dotColor),
+                                        )
                                     }
                                 }
                             }
@@ -288,6 +314,7 @@ fun GlassMenu(expanded: Boolean, onDismiss: () -> Unit, actions: List<MenuAction
             keepPopup = false
         }
     }
+    val menuState = rememberEnterState(expanded)
     if (!keepPopup) return
 
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -297,10 +324,21 @@ fun GlassMenu(expanded: Boolean, onDismiss: () -> Unit, actions: List<MenuAction
         onDismissRequest = onDismiss,
         properties = androidx.compose.ui.window.PopupProperties(focusable = true),
     ) {
+        val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+        val origin = androidx.compose.ui.graphics.TransformOrigin(if (rtl) 0f else 1f, 0f)
+        val animations = com.flow.focus.ui.theme.LocalGlass.current.animations
+        CompositionLocalProvider(LocalBackdropLayer provides null) {
         AnimatedVisibility(
-            visible = expanded,
-            enter = fadeIn(tween(125)) + scaleIn(initialScale = 0.94f, animationSpec = tween(155)),
-            exit = fadeOut(tween(110)) + scaleOut(targetScale = 0.97f, animationSpec = tween(130)),
+            visibleState = menuState,
+            enter = if (animations) {
+                fadeIn(Motion.enter(Motion.Short)) +
+                    scaleIn(initialScale = 0.82f, transformOrigin = origin, animationSpec = Motion.snappy()) +
+                    slideInVertically(Motion.enter(Motion.Medium)) { -it / 10 }
+            } else EnterTransition.None,
+            exit = if (animations) {
+                fadeOut(Motion.exit(Motion.Fast)) +
+                    scaleOut(targetScale = 0.9f, transformOrigin = origin, animationSpec = Motion.exit(Motion.Short))
+            } else ExitTransition.None,
         ) {
             com.flow.focus.ui.glass.GlassSurface(
                 Modifier.padding(4.dp).width(246.dp),
@@ -362,6 +400,7 @@ fun GlassMenu(expanded: Boolean, onDismiss: () -> Unit, actions: List<MenuAction
                     }
                 }
             }
+        }
         }
     }
 }

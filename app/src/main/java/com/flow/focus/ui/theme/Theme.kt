@@ -1,6 +1,17 @@
 package com.flow.focus.ui.theme
 
 import android.content.Context
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import com.flow.focus.ui.glass.GlassGovernor
+import com.flow.focus.ui.motion.Motion
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
@@ -149,17 +160,49 @@ private fun scheme(c: FlowColors): ColorScheme =
     )
 
 @Composable
-fun FlowTheme(settings: Settings, content: @Composable () -> Unit) {
+private fun animColor(target: Color, spec: AnimationSpec<Color>): Color =
+    animateColorAsState(target, spec, label = "flow-color").value
+
+/** انتقال رنگی هماهنگ تمام فیلدهای پالت؛ تغییر تم بدون پرش و بدون فریم سیاه. */
+@Composable
+private fun animateFlowColors(t: FlowColors, animate: Boolean): FlowColors {
+    val spec: AnimationSpec<Color> = if (animate) tween(Motion.ThemeSwitch) else snap()
+    return FlowColors(
+        isDark = t.isDark,
+        bgTop = animColor(t.bgTop, spec), bgMid = animColor(t.bgMid, spec), bgBottom = animColor(t.bgBottom, spec),
+        blobA = animColor(t.blobA, spec), blobB = animColor(t.blobB, spec), blobC = animColor(t.blobC, spec),
+        glassFill = animColor(t.glassFill, spec), glassFillStrong = animColor(t.glassFillStrong, spec),
+        glassTintTop = animColor(t.glassTintTop, spec), glassEdge = animColor(t.glassEdge, spec),
+        textPrimary = animColor(t.textPrimary, spec), textSecondary = animColor(t.textSecondary, spec),
+        textOnAccent = animColor(t.textOnAccent, spec),
+        accent = animColor(t.accent, spec), accentAlt = animColor(t.accentAlt, spec), accentSoft = animColor(t.accentSoft, spec),
+        success = animColor(t.success, spec), warning = animColor(t.warning, spec), danger = animColor(t.danger, spec),
+        track = animColor(t.track, spec), shadow = animColor(t.shadow, spec),
+    )
+}
+
+/** مقیاس انیمیشن سیستم (Developer options) صفر باشد یعنی کاربر Reduced Motion می‌خواهد. */
+private fun systemAnimationsEnabled(ctx: Context): Boolean = runCatching {
+    android.provider.Settings.Global.getFloat(ctx.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
+}.getOrDefault(true)
+
+@Composable
+fun FlowTheme(settings: Settings, degradeLevel: Int = 0, content: @Composable () -> Unit) {
     val dark = when (settings.theme) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
         ThemeMode.DARK -> true
         ThemeMode.LIGHT -> false
     }
-    val colors = if (dark) DarkColors else LightColors
     val ctx = LocalContext.current
+    var systemAnimations by remember { mutableStateOf(systemAnimationsEnabled(ctx)) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { systemAnimations = systemAnimationsEnabled(ctx) }
+    val animations = settings.animations && systemAnimations
+    val colors = animateFlowColors(if (dark) DarkColors else LightColors, animations)
     val family = remember { loadFontFamily(ctx) }
     val type = remember(family) { FlowTypography(family) }
-    val glass = GlassConfig(settings.glassQuality, settings.glassOpacity, settings.glassBlurDp, settings.glassShine, settings.animations)
+    val cap = remember { GlassGovernor.deviceCap(ctx) }
+    val quality = GlassGovernor.effective(settings.glassQuality, cap, degradeLevel)
+    val glass = GlassConfig(quality, settings.glassOpacity, settings.glassBlurDp, settings.glassShine, animations)
     MaterialTheme(colorScheme = scheme(colors)) {
         // رابط کاربری همیشه راست‌چین است، مستقل از زبان دستگاه.
         CompositionLocalProvider(

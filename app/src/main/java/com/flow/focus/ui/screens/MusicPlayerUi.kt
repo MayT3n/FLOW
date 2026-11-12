@@ -142,6 +142,8 @@ fun MusicShelfRestoreButton(onExpand: () -> Unit) {
 @Composable
 fun MusicPlayerDialog(onDismiss: () -> Unit) {
     val animations = LocalGlass.current.animations
+    val visibleState = remember { androidx.compose.animation.core.MutableTransitionState(false) }
+    LaunchedEffect(Unit) { visibleState.targetState = true }
     var visible by remember { mutableStateOf(true) }
     val requestDismiss = { if (visible) visible = false }
     LaunchedEffect(visible) {
@@ -154,8 +156,9 @@ fun MusicPlayerDialog(onDismiss: () -> Unit) {
         onDismissRequest = requestDismiss,
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
     ) {
+      androidx.compose.runtime.CompositionLocalProvider(com.flow.focus.ui.glass.LocalBackdropLayer provides null) {
         AnimatedVisibility(
-            visible = visible,
+            visibleState = visibleState.also { if (!visible) it.targetState = false },
             enter = if (animations) fadeIn(tween(160)) + scaleIn(initialScale = 0.97f, animationSpec = tween(190)) else EnterTransition.None,
             exit = if (animations) fadeOut(tween(115)) + scaleOut(targetScale = 0.97f, animationSpec = tween(140)) else ExitTransition.None,
         ) {
@@ -194,6 +197,7 @@ fun MusicPlayerDialog(onDismiss: () -> Unit) {
                 }
             }
         }
+      }
     }
 }
 

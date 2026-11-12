@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalUriHandler
 import com.flow.focus.core.DateFormats
 import com.flow.focus.core.JalaliDate
+import com.flow.focus.data.ActivityKind
 import com.flow.focus.data.Categories
 import com.flow.focus.data.Goal
 import com.flow.focus.data.Priority
@@ -43,6 +44,7 @@ import com.flow.focus.ui.components.EmptyState
 import com.flow.focus.ui.components.FlowDialog
 import com.flow.focus.ui.components.FlowIcon
 import com.flow.focus.ui.components.FlowIcons
+import com.flow.focus.ui.components.FlowSheet
 import com.flow.focus.ui.components.FlowSlider
 import com.flow.focus.ui.components.FlowTextField
 import com.flow.focus.ui.components.GlassButton
@@ -86,11 +88,14 @@ fun TaskEditorDialog(
     var category by remember { mutableStateOf(base?.categoryId ?: "study") }
     var pomodoros by remember { mutableStateOf(base?.estimatedPomodoros ?: 1) }
     var done by remember { mutableStateOf(base?.done ?: false) }
+    var kind by remember { mutableStateOf(base?.kind ?: ActivityKind.TASK) }
+    var duration by remember { mutableStateOf(base?.durationMin) }
     var pickDate by remember { mutableStateOf(false) }
     val today = LocalDate.now()
 
-    FlowDialog(onDismiss, if (initial == null) "وظیفه‌ی جدید" else "ویرایش وظیفه") {
-        FlowTextField(title, { title = it }, "عنوان وظیفه")
+    FlowSheet(onDismiss, if (initial == null) "افزودن به برنامه" else "ویرایش") {
+        FlowTextField(title, { title = it }, "عنوان")
+        SegmentedControl(ActivityKind.entries.map { it.label }, kind.ordinal, { kind = ActivityKind.entries[it] })
         FlowTextField(notes, { notes = it }, "توضیحات (اختیاری)", singleLine = false, minLines = 2)
 
         Label("تاریخ")
@@ -104,6 +109,10 @@ fun TaskEditorDialog(
         if (dueDay != null) {
             SwitchRow("ساعت مشخص", minute != null, { minute = if (it) (minute ?: 9 * 60) else null }, subtitle = "برای یادآوری در همان ساعت")
             minute?.let { m -> TimeEditor(m, { minute = it }) }
+            if (minute != null) {
+                SwitchRow("مدت‌زمان", duration != null, { duration = if (it) (duration ?: 30) else null }, subtitle = "برای نمایش بازه‌ی زمانی در جدول روز")
+                duration?.let { d -> Stepper(d, { duration = it }, 5..720, step = 5, suffix = "دقیقه") }
+            }
         }
         if (initial != null) {
             SwitchRow(
@@ -139,6 +148,8 @@ fun TaskEditorDialog(
                         title = title.trim(), notes = notes.trim(), dueDay = dueDay,
                         dueMinute = if (dueDay != null) minute else null,
                         priority = priority, categoryId = category, estimatedPomodoros = pomodoros,
+                        kind = kind,
+                        durationMin = if (dueDay != null && minute != null) duration else null,
                         done = done,
                         doneAt = if (done) initial?.doneAt ?: System.currentTimeMillis() else null,
                     )
@@ -149,7 +160,7 @@ fun TaskEditorDialog(
             GlassButton("انصراف", onDismiss, Modifier.weight(1f))
         }
         if (initial != null && onDelete != null) {
-            GlassButton("حذف وظیفه", { onDelete(initial) }, Modifier.fillMaxWidth(), icon = FlowIcons.Trash, danger = true)
+            GlassButton("حذف", { onDelete(initial) }, Modifier.fillMaxWidth(), icon = FlowIcons.Trash, danger = true)
         }
     }
     if (pickDate) {
@@ -190,47 +201,6 @@ fun TaskPickerDialog(
         }
         GlassButton("بدون وظیفه", { onPick(null) }, Modifier.fillMaxWidth())
         PrimaryButton("وظیفه‌ی جدید", onCreate, Modifier.fillMaxWidth(), icon = FlowIcons.Plus)
-    }
-}
-
-@Composable
-fun RoutineEditorDialog(initial: Routine?, onSave: (Routine) -> Unit, onDelete: ((Routine) -> Unit)?, onDismiss: () -> Unit) {
-    var title by remember { mutableStateOf(initial?.title ?: "") }
-    var days by remember { mutableStateOf(initial?.weekdays?.toSet() ?: setOf(0, 1, 2, 3, 4, 5, 6)) }
-    var minute by remember { mutableStateOf(initial?.minute?.takeIf { it in 0 until 24 * 60 }) }
-    var category by remember { mutableStateOf(initial?.categoryId ?: "personal") }
-    FlowDialog(onDismiss, if (initial == null) "روتین جدید" else "ویرایش روتین") {
-        FlowTextField(title, { title = it }, "نام روتین (مثلاً ورزش صبحگاهی)")
-        Label("روزهای تکرار")
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            JalaliDate.weekdayNames.forEachIndexed { i, name ->
-                Chip(name.take(2), i in days, { days = if (i in days) days - i else days + i }, Modifier.weight(1f))
-            }
-        }
-        SwitchRow("ساعت مشخص", minute != null, { minute = if (it) (minute ?: 7 * 60) else null })
-        minute?.let { m -> TimeEditor(m, { minute = it }) }
-        Label("دسته‌بندی")
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Categories.all.forEach { cat -> Chip(cat.name, category == cat.id, { category = cat.id }, dot = Color(cat.color)) }
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            PrimaryButton(
-                "ذخیره",
-                {
-                    onSave(
-                        Routine(
-                            id = initial?.id ?: FlowRepository.newId(), title = title.trim(),
-                            weekdays = days.sorted(), minute = minute, categoryId = category,
-                        ),
-                    )
-                },
-                Modifier.weight(1f), enabled = title.isNotBlank() && days.isNotEmpty(),
-            )
-            GlassButton("انصراف", onDismiss, Modifier.weight(1f))
-        }
-        if (initial != null && onDelete != null) {
-            GlassButton("حذف روتین", { onDelete(initial) }, Modifier.fillMaxWidth(), icon = FlowIcons.Trash, danger = true)
-        }
     }
 }
 

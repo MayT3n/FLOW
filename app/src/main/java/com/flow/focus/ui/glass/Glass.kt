@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlurEffect
@@ -49,6 +50,9 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionOnScreen
@@ -90,10 +94,19 @@ data class RootBackdropFrame(
     val phase: State<Float>,
     val tone: State<Color?>,
     val palette: State<List<Color>>,
+    /** مختصات صفحه‌ی گوشه‌ی بالا-چپ ریشه؛ برای محاسبه‌ی دقیق offset سطح‌ها در پنجره‌های جدا */
+    val rootOrigin: State<Offset>,
     val settings: Settings,
 )
 
 val LocalRootBackdrop = compositionLocalOf<RootBackdropFrame?> { null }
+
+/**
+ * لایه‌ی زنده‌ی پشت شیشه: پس‌زمینه + محتوای صفحه‌ی فعلی. فقط عناصر شناور (Dock، مینی‌پلیر) آن را می‌بینند،
+ * پس محتوای واقعی که زیرشان اسکرول می‌شود تار می‌شود. دیالوگ‌ها و منوها (پنجره‌ی جدا) null می‌گیرند و
+ * از پس‌زمینه‌ی ثابت نمونه می‌گیرند.
+ */
+val LocalBackdropLayer = compositionLocalOf<GraphicsLayer?> { null }
 
 fun DrawScope.drawFlowBackground(c: FlowColors, phase: Float, w: Float, h: Float) {
     drawRect(Brush.verticalGradient(listOf(c.bgTop, c.bgMid, c.bgBottom), startY = 0f, endY = h), size = androidx.compose.ui.geometry.Size(w, h))
@@ -272,16 +285,25 @@ private fun builtinWallpaperTone(id: String): Color? = when (id) {
     else -> null
 }
 
-/** Shared wallpaper renderer. The decoded image is loaded once and reused by glass sampling. */
+/**
+ * ریشه‌ی Liquid Glass. [source] (پس‌زمینه + صفحه‌ها) در یک GraphicsLayer ضبط می‌شود و [chrome]
+ * (Dock و مینی‌پلیر) روی آن قرار می‌گیرد و از همان لایه‌ی زنده برای تاری استفاده می‌کند.
+ */
 @Composable
-fun GlassBackdropHost(settings: Settings, content: @Composable BoxScope.() -> Unit) {
+fun GlassBackdropHost(
+    settings: Settings,
+    source: @Composable BoxScope.() -> Unit,
+    chrome: @Composable BoxScope.() -> Unit,
+) {
     val c = Flow.colors
     val g = LocalGlass.current
     val context = LocalContext.current.applicationContext
     val size = remember { mutableStateOf(IntSize.Zero) }
+    val rootOrigin = remember { mutableStateOf(Offset.Zero) }
     val image = remember { mutableStateOf<ImageBitmap?>(null) }
     val tone = remember { mutableStateOf<Color?>(null) }
     val palette = remember { mutableStateOf(builtinWallpaperPalette(settings.wallpaperId)) }
+    val layer = rememberGraphicsLayer()
 
     LaunchedEffect(settings.wallpaperId, settings.wallpaperPath) {
         val path = settings.wallpaperPath
@@ -306,22 +328,43 @@ fun GlassBackdropHost(settings: Settings, content: @Composable BoxScope.() -> Un
             .animateFloat(0f, 1f, infiniteRepeatable(tween(60_000, easing = LinearEasing), RepeatMode.Restart), label = "bgPhase")
     } else remember { mutableStateOf(0f) }
 
-    val frame = RootBackdropFrame(image, phase, tone, palette, settings)
-    Box(Modifier.fillMaxSize().onSizeChanged { size.value = it }) {
-        Canvas(
-            Modifier.fillMaxSize().graphicsLayer {
-                renderEffect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && settings.wallpaperBlurDp > 0) {
-                    val radius = settings.wallpaperBlurDp.dp.toPx()
-                    BlurEffect(radius, radius)
-                } else null
-            },
-        ) {
-            drawBackdrop(c, phase.value, this.size.width, this.size.height, image.value, settings)
-        }
+    val frame = RootBackdropFrame(image, phase, tone, palette, rootOrigin, settings)
+    Box(
+        Modifier.fillMaxSize()
+            .onSizeChanged { size.value = it }
+            .onGloballyPositioned { rootOrigin.value = it.positionOnScreen() },
+    ) {
         CompositionLocalProvider(
             LocalRootSize provides size,
             LocalRootBackdrop provides frame,
-        ) { content() }
+        ) {
+            Box(
+                Modifier.fillMaxSize().drawWithContent {
+                    // The live layer is recorded only when floating chrome can actually sample it.
+                    if (g.quality != GlassQuality.LOW) {
+                        layer.record { this@drawWithContent.drawContent() }
+                        drawLayer(layer)
+                    } else {
+                        drawContent()
+                    }
+                },
+            ) {
+                Canvas(
+                    Modifier.fillMaxSize().graphicsLayer {
+                        renderEffect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && settings.wallpaperBlurDp > 0) {
+                            val radius = settings.wallpaperBlurDp.dp.toPx()
+                            BlurEffect(radius, radius)
+                        } else null
+                    },
+                ) {
+                    drawBackdrop(c, phase.value, this.size.width, this.size.height, image.value, settings)
+                }
+                source()
+            }
+            CompositionLocalProvider(LocalBackdropLayer provides if (g.quality != GlassQuality.LOW) layer else null) {
+                chrome()
+            }
+        }
     }
 }
 
@@ -338,16 +381,24 @@ fun GlassSurface(
     val g = LocalGlass.current
     val rootSize = LocalRootSize.current
     val rootBackdrop = LocalRootBackdrop.current
-    // LOW avoids RenderEffect, MEDIUM uses a restrained blur, HIGH uses the full requested blur.
-    // The exact same root backdrop is sampled by every surface to keep glass coherent while scrolling.
+    val liveLayer = LocalBackdropLayer.current
+    val hasLive = liveLayer != null && rootBackdrop != null
+    // LOW: no blur at all. MEDIUM: restrained blur, only where it is visible (live content or a photo wallpaper).
+    // HIGH: full blur on every non-subtle surface plus depth highlights.
     val blurStrength = when (g.quality) {
         GlassQuality.LOW -> 0f
-        GlassQuality.MEDIUM -> 0.48f
+        GlassQuality.MEDIUM -> 0.55f
         GlassQuality.HIGH -> 1f
     }
+    val photoWallpaper = rootBackdrop?.let { it.settings.wallpaperId == "custom" && it.image.value != null } == true
     // Subtle content rows avoid a separate RenderEffect allocation on every scrolling item.
-    val blurOn = level != GlassLevel.Subtle && blurStrength > 0f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-        rootSize != null && rootBackdrop != null && g.blurDp > 0
+    val blurOn = blurStrength > 0f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+        rootSize != null && rootBackdrop != null && g.blurDp > 0 &&
+        when (g.quality) {
+            GlassQuality.MEDIUM -> hasLive || (photoWallpaper && level != GlassLevel.Subtle)
+            GlassQuality.HIGH -> hasLive || level != GlassLevel.Subtle
+            GlassQuality.LOW -> false
+        }
     val levelBlur = when (level) {
         GlassLevel.Subtle -> 0.55f
         GlassLevel.Regular -> 1f
@@ -392,7 +443,14 @@ fun GlassSurface(
     val outer = modifier
         .then(if (elevated && g.quality != GlassQuality.LOW) Modifier.shadow(18.dp, shape, ambientColor = c.shadow, spotColor = c.shadow) else Modifier)
         .clip(shape)
-        .then(if (blurOn) Modifier.onGloballyPositioned { origin = it.positionOnScreen() } else Modifier)
+        .then(
+            if (blurOn) {
+                Modifier.onGloballyPositioned { coords ->
+                    val root = rootBackdrop?.rootOrigin?.value ?: Offset.Zero
+                    origin = coords.positionOnScreen() - root
+                }
+            } else Modifier,
+        )
 
     Box(outer) {
         if (blurOn) {
@@ -403,7 +461,7 @@ fun GlassSurface(
                         val extra = rootBackdrop!!.settings.wallpaperBlurDp.dp.toPx() * 0.35f
                         // Prevent extreme settings from turning each surface into an expensive full-screen blur pass.
                         val requested = g.blurDp.dp.toPx() * blurStrength * levelBlur + extra * blurStrength
-                        val maxRadius = if (g.quality == GlassQuality.MEDIUM) 20.dp.toPx() else 36.dp.toPx()
+                        val maxRadius = if (g.quality == GlassQuality.MEDIUM) 22.dp.toPx() else 40.dp.toPx()
                         val radius = requested.coerceAtMost(maxRadius)
                         renderEffect = BlurEffect(radius, radius)
                     }
@@ -411,7 +469,11 @@ fun GlassSurface(
                         val s = rootSize!!.value
                         val frame = rootBackdrop!!
                         translate(-origin.x, -origin.y) {
-                            drawBackdrop(c, frame.phase.value, s.width.toFloat(), s.height.toFloat(), frame.image.value, frame.settings)
+                            if (liveLayer != null) {
+                                drawLayer(liveLayer)
+                            } else {
+                                drawBackdrop(c, frame.phase.value, s.width.toFloat(), s.height.toFloat(), frame.image.value, frame.settings)
+                            }
                         }
                     },
             )
@@ -428,6 +490,22 @@ fun GlassSurface(
                             0f to c.glassTintTop.copy(alpha = c.glassTintTop.alpha * animatedShine),
                             0.55f to Color.Transparent,
                             1f to Color.Transparent,
+                        ),
+                    )
+                }
+                if (g.quality == GlassQuality.HIGH) {
+                    // Specular glint from the top corner and a soft inner shade at the bottom give real depth.
+                    drawRect(
+                        Brush.radialGradient(
+                            listOf(Color.White.copy(alpha = (if (c.isDark) 0.10f else 0.22f) * animatedShine), Color.Transparent),
+                            center = Offset(size.width * 0.18f, 0f),
+                            radius = size.maxDimension * 0.85f,
+                        ),
+                    )
+                    drawRect(
+                        Brush.verticalGradient(
+                            0.6f to Color.Transparent,
+                            1f to c.shadow.copy(alpha = c.shadow.alpha * 0.22f),
                         ),
                     )
                 }

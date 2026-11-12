@@ -63,7 +63,10 @@ import com.flow.focus.ui.screens.MusicPlayerDialog
 import com.flow.focus.ui.screens.PlanningScreen
 import com.flow.focus.ui.screens.SettingsScreen
 import com.flow.focus.ui.screens.StatsScreen
-import com.flow.focus.ui.screens.TasksScreen
+import com.flow.focus.ui.screens.RoutinesScreen
+import com.flow.focus.ui.motion.Motion
+import com.flow.focus.ui.glass.rememberGlassDegradeLevel
+import com.flow.focus.data.GlassQuality
 import com.flow.focus.ui.theme.Flow
 import com.flow.focus.ui.theme.FlowTheme
 import com.flow.focus.ui.theme.LocalDockContentPadding
@@ -86,8 +89,8 @@ class MainActivity : ComponentActivity() {
 
 private val dockItems = listOf(
     DockItem("خانه", FlowIcons.Home),
-    DockItem("برنامه", FlowIcons.Calendar),
-    DockItem("وظایف", FlowIcons.Tasks),
+    DockItem("برنامه‌ریزی", FlowIcons.Calendar),
+    DockItem("روتین‌ها", FlowIcons.Repeat),
     DockItem("آمار", FlowIcons.Stats),
     DockItem("تنظیمات", FlowIcons.Settings),
 )
@@ -95,12 +98,11 @@ private val dockItems = listOf(
 @Composable
 fun FlowRoot(vm: AppViewModel) {
     val data by vm.data.collectAsStateWithLifecycle()
-    FlowTheme(data.settings) {
+    val degrade by rememberGlassDegradeLevel(data.settings.glassQuality != GlassQuality.LOW)
+    FlowTheme(data.settings, degrade) {
         SystemBars(Flow.colors.isDark)
         RequestNotificationPermission(data.settings.notifications)
-        GlassBackdropHost(data.settings) {
-            AppScaffold(vm, data)
-        }
+        AppScaffold(vm, data)
     }
 }
 
@@ -142,7 +144,9 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
     BackHandler(enabled = musicOpen) { musicOpen = false }
     BackHandler(enabled = tab != 0) { tab = 0 }
 
-    Box(Modifier.fillMaxSize()) {
+    GlassBackdropHost(
+        data.settings,
+        source = {
         CompositionLocalProvider(LocalDockContentPadding provides contentBottomPadding) {
         AnimatedContent(
             targetState = tab,
@@ -150,8 +154,8 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
             transitionSpec = {
                 if (animations) {
                     val direction = if (targetState > initialState) -1 else 1
-                    (fadeIn(tween(210)) + slideInHorizontally(tween(260)) { it * direction / 18 }) togetherWith
-                        (fadeOut(tween(150)) + slideOutHorizontally(tween(220)) { -it * direction / 18 })
+                    (fadeIn(Motion.enter(Motion.Medium)) + slideInHorizontally(Motion.enter(Motion.Long)) { it * direction / 18 }) togetherWith
+                        (fadeOut(Motion.exit(Motion.Short)) + slideOutHorizontally(Motion.exit(Motion.Medium)) { -it * direction / 18 })
                 } else {
                     ContentTransform(EnterTransition.None, ExitTransition.None)
                 }
@@ -160,12 +164,15 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
         ) { t ->
             when (t) {
                 0 -> HomeScreen(vm, data, onNavigate = { tab = it })
-                1 -> PlanningScreen(vm, data)
-                2 -> TasksScreen(vm, data, onStartFocus = { tab = 0 })
+                1 -> PlanningScreen(vm, data, onStartFocus = { tab = 0 })
+                2 -> RoutinesScreen(vm, data)
                 3 -> StatsScreen(data)
                 else -> SettingsScreen(vm, data)
             }
         }
+        }
+        },
+        chrome = {
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                 .onSizeChanged { dockAreaHeightPx = it.height }
@@ -207,6 +214,6 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
             FlowDock(dockItems, tab, { tab = it }, Modifier.fillMaxWidth())
         }
         if (musicOpen) MusicPlayerDialog { musicOpen = false }
-        }
-    }
+        },
+    )
 }

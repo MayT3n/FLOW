@@ -23,6 +23,10 @@ enum class GoalPeriod { DAILY, WEEKLY }
 @Serializable
 enum class WallpaperFit { CROP, FIT }
 
+/** نوع فعالیت در برنامه‌ریزی یکپارچه؛ مقدار پیش‌فرض TASK برای داده‌های قبلی است. */
+@Serializable
+enum class ActivityKind(val label: String) { TASK("وظیفه"), PLAN("برنامه"), EVENT("رویداد") }
+
 /** دسته‌بندی‌های پیش‌فرض برنامه (ثابت؛ داده‌ی کاربر نیستند). */
 data class Category(val id: String, val name: String, val color: Long)
 
@@ -52,6 +56,10 @@ data class Task(
     val done: Boolean = false,
     val doneAt: Long? = null,
     val createdAt: Long = 0L,
+    /** نوع فعالیت (وظیفه، برنامه، رویداد) */
+    val kind: ActivityKind = ActivityKind.TASK,
+    /** مدت‌زمان به دقیقه؛ فقط وقتی ساعت شروع مشخص است معنا دارد */
+    val durationMin: Int? = null,
 )
 
 @Serializable
@@ -66,7 +74,14 @@ data class FocusSession(
     val completed: Boolean,
 )
 
-/** روتین تکرارشونده؛ weekdays: ۰ = شنبه … ۶ = جمعه */
+/** یک مرحله از روتین چندمرحله‌ای. */
+@Serializable
+data class RoutineStep(val title: String, val minutes: Int = 10)
+
+/**
+ * روتین تکرارشونده؛ weekdays: ۰ = شنبه … ۶ = جمعه.
+ * روتین‌های قدیمی بدون [steps] به‌صورت یک مرحله‌ی تمرکز (pomodoros × مدت تمرکز) اجرا می‌شوند.
+ */
 @Serializable
 data class Routine(
     val id: String,
@@ -75,7 +90,13 @@ data class Routine(
     val minute: Int? = null,
     val categoryId: String = "personal",
     val pomodoros: Int = 1,
-)
+    val steps: List<RoutineStep> = emptyList(),
+) {
+    fun effectiveSteps(focusMin: Int): List<RoutineStep> =
+        steps.ifEmpty { listOf(RoutineStep(title, (pomodoros * focusMin).coerceAtLeast(1))) }
+
+    fun totalMinutes(focusMin: Int): Int = effectiveSteps(focusMin).sumOf { it.minutes }
+}
 
 @Serializable
 data class Goal(
