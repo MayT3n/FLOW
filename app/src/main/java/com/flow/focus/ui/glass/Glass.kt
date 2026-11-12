@@ -346,13 +346,18 @@ fun GlassSurface(
         GlassQuality.HIGH -> 1f
     }
     // Subtle content rows avoid a separate RenderEffect allocation on every scrolling item.
-    val blurOn = (level != GlassLevel.Subtle || g.quality == GlassQuality.HIGH) &&
-        blurStrength > 0f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+    // Medium keeps list cards lightweight: only major surfaces receive a backdrop blur.
+    // High enables blur on regular panels; subtle rows never allocate an offscreen blur pass.
+    val blurOn = when (g.quality) {
+        GlassQuality.LOW -> false
+        GlassQuality.MEDIUM -> level == GlassLevel.Strong
+        GlassQuality.HIGH -> level != GlassLevel.Subtle
+    } && blurStrength > 0f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
         rootSize != null && rootBackdrop != null && g.blurDp > 0
     val levelBlur = when (level) {
-        GlassLevel.Subtle -> 0.55f
-        GlassLevel.Regular -> 1f
-        GlassLevel.Strong -> 1.15f
+        GlassLevel.Subtle -> 0.35f
+        GlassLevel.Regular -> 0.82f
+        GlassLevel.Strong -> 1f
     }
     var origin by remember { mutableStateOf(Offset.Zero) }
 
@@ -401,10 +406,10 @@ fun GlassSurface(
                 Modifier
                     .matchParentSize()
                     .graphicsLayer {
-                        val extra = rootBackdrop!!.settings.wallpaperBlurDp.dp.toPx() * 0.35f
-                        // Prevent extreme settings from turning each surface into an expensive full-screen blur pass.
+                        val extra = rootBackdrop!!.settings.wallpaperBlurDp.dp.toPx() * 0.18f
+                        // Bound per-surface blur: many cards can be visible during a scroll.
                         val requested = g.blurDp.dp.toPx() * blurStrength * levelBlur + extra * blurStrength
-                        val maxRadius = if (g.quality == GlassQuality.MEDIUM) 20.dp.toPx() else 36.dp.toPx()
+                        val maxRadius = if (g.quality == GlassQuality.MEDIUM) 10.dp.toPx() else 24.dp.toPx()
                         val radius = requested.coerceAtMost(maxRadius)
                         renderEffect = BlurEffect(radius, radius)
                     }
