@@ -1,15 +1,9 @@
 package com.flow.focus.ui.screens
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -83,7 +77,6 @@ import java.time.LocalDate
 @Composable
 fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifier) {
     val today = rememberToday()
-    val animations = Flow.glass.animations
     var mode by rememberSaveable(key = "calendar-first-v1") { mutableStateOf(2) }
     var selected by rememberSaveable { mutableStateOf(today.toEpochDay()) }
     var monthAnchor by rememberSaveable { mutableStateOf(firstOfMonth(today).toEpochDay()) }
