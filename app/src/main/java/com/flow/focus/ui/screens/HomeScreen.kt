@@ -198,7 +198,7 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, onOpe
                     listOf(
                         MenuAction("تغییر وظیفه", FlowIcons.Edit) { dialog = HomeDialog.PICK_TASK },
                         MenuAction("مدت تمرکز", FlowIcons.Clock) { dialog = HomeDialog.DURATION },
-                        MenuAction("آهنگ محیطی", FlowIcons.Music) { onOpenMusic() },
+                        MenuAction("موسیقی مطالعه", FlowIcons.Music) { onOpenMusic() },
                         MenuAction("صدای محیط", FlowIcons.Music) { dialog = HomeDialog.AMBIENT },
                         MenuAction("افزودن یادآور", FlowIcons.Bell) { dialog = HomeDialog.REMINDER },
                         MenuAction("آمار جلسه", FlowIcons.Stats) { onNavigate(3) },

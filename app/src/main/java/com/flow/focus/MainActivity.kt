@@ -52,13 +52,11 @@ import com.flow.focus.ui.components.FlowDock
 import com.flow.focus.ui.components.FlowIcons
 import com.flow.focus.ui.glass.GlassBackdropHost
 import com.flow.focus.ui.screens.HomeScreen
-import com.flow.focus.ui.screens.MiniMusicPlayer
-import com.flow.focus.ui.screens.MusicPlayerDialog
+import com.flow.focus.ui.screens.MusicDiscoveryDialog
 import com.flow.focus.ui.screens.PlanningScreen
 import com.flow.focus.ui.screens.RoutinesScreen
 import com.flow.focus.ui.screens.SettingsScreen
 import com.flow.focus.ui.screens.StatsScreen
-import com.flow.focus.ui.screens.RoutinesScreen
 import com.flow.focus.ui.motion.Motion
 import com.flow.focus.ui.glass.rememberGlassDegradeLevel
 import com.flow.focus.data.GlassQuality
@@ -129,7 +127,6 @@ private fun RequestNotificationPermission(wanted: Boolean) {
 private fun AppScaffold(vm: AppViewModel, data: AppData) {
     var tab by rememberSaveable { mutableStateOf(0) }
     var musicOpen by rememberSaveable { mutableStateOf(false) }
-    val music by vm.musicSnapshot.collectAsStateWithLifecycle()
     var dockAreaHeightPx by rememberSaveable { mutableStateOf(0) }
     val contentBottomPadding = with(LocalDensity.current) {
         if (dockAreaHeightPx > 0) dockAreaHeightPx.toDp() + 20.dp else 140.dp
@@ -165,7 +162,7 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
                 else -> SettingsScreen(vm, data)
             }
         }
-        if (musicOpen) MusicPlayerDialog(vm) { musicOpen = false }
+        if (musicOpen) MusicDiscoveryDialog { musicOpen = false }
         }
         },
         chrome = {
@@ -178,9 +175,6 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
                 verticalArrangement = Arrangement.spacedBy(9.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                if (music.connected && music.currentTrackId != null) {
-                    MiniMusicPlayer(vm, music, onOpen = { musicOpen = true })
-                }
                 FlowDock(dockItems, tab, { tab = it }, Modifier.fillMaxWidth())
             }
         },

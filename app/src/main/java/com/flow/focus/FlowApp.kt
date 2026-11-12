@@ -3,7 +3,6 @@ package com.flow.focus
 import android.app.Application
 import com.flow.focus.data.FlowRepository
 import com.flow.focus.data.JsonStore
-import com.flow.focus.music.MusicManager
 import com.flow.focus.platform.AlarmScheduler
 import com.flow.focus.platform.AmbientPlayer
 import com.flow.focus.platform.NotificationHelper
@@ -25,7 +24,6 @@ class AppContainer(app: Application) {
     val notifier = NotificationHelper(app)
     val alarms = AlarmScheduler(app)
     val ambient = AmbientPlayer(app)
-    val music = MusicManager(app, scope)
     val timer = TimerController(repo, alarms, notifier, ambient)
 
     val remote = RemoteContentRepository(app, scope)
