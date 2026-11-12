@@ -75,7 +75,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.flow.focus.core.DateFormats
-import com.flow.focus.core.formatClock
 import com.flow.focus.data.AppData
 import com.flow.focus.data.GlassQuality
 import com.flow.focus.data.PhaseType
@@ -607,14 +606,43 @@ private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier
                     }
                 }
                 Spacer(Modifier.height(2.dp))
-                // رقم‌های هم‌عرض: بدون لرزش با هر ثانیه و بدون انیمیشن حواس‌پرت‌کن
-                Text(
-                    num(formatClock(seconds)),
-                    Modifier.graphicsLayer { alpha = 0.72f + 0.28f * live.value },
-                    style = Flow.type.display.copy(fontFeatureSettings = "tnum"),
-                    color = c.textPrimary,
-                    maxLines = 1,
-                )
+                // دقیقه ثابت می‌ماند؛ فقط دو رقم ثانیه با هر تیک انیمیت می‌شوند.
+                val safeSeconds = seconds.coerceAtLeast(0)
+                val displayMinutes = safeSeconds / 60L
+                val displaySeconds = (safeSeconds % 60L).toInt()
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        num("%02d".format(java.util.Locale.ROOT, displayMinutes)),
+                        style = Flow.type.display.copy(fontFeatureSettings = "tnum"),
+                        color = c.textPrimary,
+                        maxLines = 1,
+                    )
+                    Text(
+                        ":",
+                        style = Flow.type.display.copy(fontFeatureSettings = "tnum"),
+                        color = c.textPrimary,
+                        maxLines = 1,
+                    )
+                    AnimatedContent(
+                        targetState = "%02d".format(java.util.Locale.ROOT, displaySeconds),
+                        transitionSpec = {
+                            (fadeIn(tween(110)) + slideInVertically(tween(135)) { it / 3 }) togetherWith
+                                (fadeOut(tween(85)) + slideOutVertically(tween(105)) { -it / 3 })
+                        },
+                        label = "timer-seconds-only",
+                    ) { value ->
+                        Text(
+                            num(value),
+                            Modifier.graphicsLayer { alpha = 0.72f + 0.28f * live.value },
+                            style = Flow.type.display.copy(fontFeatureSettings = "tnum"),
+                            color = c.textPrimary,
+                            maxLines = 1,
+                        )
+                    }
+                }
             }
         }
     }
