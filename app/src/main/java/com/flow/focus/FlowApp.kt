@@ -36,6 +36,9 @@ class FlowApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // Remove files and preferences created by the retired offline music library.
+        File(filesDir, "audio/music").deleteRecursively()
+        File(filesDir, "datastore/matfocus_music_v1.preferences_pb").delete()
         container = AppContainer(this)
         container.notifier.ensureChannels()
         container.timer.restore()
