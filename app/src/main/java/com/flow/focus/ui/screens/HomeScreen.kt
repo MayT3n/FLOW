@@ -512,8 +512,16 @@ private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier
     val glass = LocalGlass.current
     val breakPhase = timer.phase != PhaseType.FOCUS
     val running = timer.status == TimerStatus.RUNNING
-    val c1 by animateColorAsState(if (breakPhase) c.success else c.accent, tween(Motion.Long), label = "ringA")
-    val c2 by animateColorAsState(if (breakPhase) c.accent else c.accentAlt, tween(Motion.Long), label = "ringB")
+    val c1 by animateColorAsState(
+        if (breakPhase) c.success else c.accent,
+        animationSpec = if (glass.animations) tween(Motion.Long) else snap(),
+        label = "ringA",
+    )
+    val c2 by animateColorAsState(
+        if (breakPhase) c.accent else c.accentAlt,
+        animationSpec = if (glass.animations) tween(Motion.Long) else snap(),
+        label = "ringB",
+    )
     // فقط وقتی «ثانیه» عوض می‌شود Recomposition رخ می‌دهد، نه با هر تیک
     val seconds by remember(timer) { derivedStateOf { (PomodoroEngine.remaining(timer, now.value) + 999L) / 1000L } }
 
@@ -633,16 +641,27 @@ private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier
                         color = c.textPrimary,
                         maxLines = 1,
                     )
-                    AnimatedContent(
-                        targetState = "%02d".format(java.util.Locale.ROOT, displaySeconds),
-                        transitionSpec = {
-                            (fadeIn(tween(110)) + slideInVertically(tween(135)) { it / 3 }) togetherWith
-                                (fadeOut(tween(85)) + slideOutVertically(tween(105)) { -it / 3 })
-                        },
-                        label = "timer-seconds-only",
-                    ) { value ->
+                    val secondsText = "%02d".format(java.util.Locale.ROOT, displaySeconds)
+                    if (glass.animations) {
+                        AnimatedContent(
+                            targetState = secondsText,
+                            transitionSpec = {
+                                (fadeIn(tween(110)) + slideInVertically(tween(135)) { it / 3 }) togetherWith
+                                    (fadeOut(tween(85)) + slideOutVertically(tween(105)) { -it / 3 })
+                            },
+                            label = "timer-seconds-only",
+                        ) { value ->
+                            Text(
+                                num(value),
+                                Modifier.graphicsLayer { alpha = 0.72f + 0.28f * live.value },
+                                style = Flow.type.display.copy(fontFeatureSettings = "tnum", textDirection = TextDirection.Ltr),
+                                color = c.textPrimary,
+                                maxLines = 1,
+                            )
+                        }
+                    } else {
                         Text(
-                            num(value),
+                            num(secondsText),
                             Modifier.graphicsLayer { alpha = 0.72f + 0.28f * live.value },
                             style = Flow.type.display.copy(fontFeatureSettings = "tnum", textDirection = TextDirection.Ltr),
                             color = c.textPrimary,

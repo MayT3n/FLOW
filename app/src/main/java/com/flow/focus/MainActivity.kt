@@ -135,8 +135,9 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
         if (dockAreaHeightPx > 0) dockAreaHeightPx.toDp() + 20.dp else 140.dp
     }
     val animations = data.settings.animations
-    BackHandler(enabled = musicOpen) { musicOpen = false }
-    BackHandler(enabled = tab != 0) { tab = 0 }
+    BackHandler(enabled = musicOpen || tab != 0) {
+        if (musicOpen) musicOpen = false else tab = 0
+    }
 
     GlassBackdropHost(
         data.settings,

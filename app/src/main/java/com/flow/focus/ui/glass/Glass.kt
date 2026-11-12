@@ -396,7 +396,7 @@ fun GlassSurface(
         GlassQuality.MEDIUM -> 0.42f
         GlassQuality.HIGH -> 0.78f
     }
-    val blurOn = blurStrength > 0f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+    val blurOn = level != GlassLevel.Subtle && blurStrength > 0f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
         rootSize != null && rootBackdrop != null && g.blurDp > 0
     val levelBlur = when (level) {
         GlassLevel.Subtle -> 0.52f
