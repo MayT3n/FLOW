@@ -83,9 +83,9 @@ val LightColors = FlowColors(
     bgTop = Color(0xFFF3F6FA), bgMid = Color(0xFFECF1F7), bgBottom = Color(0xFFE3EAF2),
     blobA = Color(0xFFAFC7E1), blobB = Color(0xFFC9BEDB), blobC = Color(0xFFAED4D0),
     // A cool, airy glass palette: translucent highlights, visible edges and readable ink.
-    glassFill = Color(0xFFFCFDFF).copy(alpha = 0.36f),
-    glassFillStrong = Color(0xFFFCFDFF).copy(alpha = 0.60f),
-    glassTintTop = Color.White.copy(alpha = 0.42f),
+    glassFill = Color(0xFFFCFDFF).copy(alpha = 0.22f),
+    glassFillStrong = Color(0xFFFCFDFF).copy(alpha = 0.38f),
+    glassTintTop = Color.White.copy(alpha = 0.18f),
     glassEdge = Color.White,
     textPrimary = Color(0xFF1F2A38), textSecondary = Color(0xFF4B5A6D), textOnAccent = Color.White,
     accent = Color(0xFF477FC5), accentAlt = Color(0xFF7798C7), accentSoft = Color(0xFF477FC5).copy(alpha = 0.14f),

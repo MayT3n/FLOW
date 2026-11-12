@@ -413,9 +413,9 @@ fun GlassSurface(
     // needs a little more light glass. Only the difficult extremes receive this boost.
     val contrastBoost = when {
         c.isDark && wallpaperLuminance != null && wallpaperLuminance > 0.58f -> 0.12f
-        !c.isDark && wallpaperLuminance != null && wallpaperLuminance > 0.72f -> 0.12f
-        !c.isDark && wallpaperLuminance != null && wallpaperLuminance < 0.30f -> 0.18f
-        !c.isDark && wallpaperLuminance != null -> 0.10f
+        !c.isDark && wallpaperLuminance != null && wallpaperLuminance > 0.72f -> 0.05f
+        !c.isDark && wallpaperLuminance != null && wallpaperLuminance < 0.30f -> 0.08f
+        !c.isDark && wallpaperLuminance != null -> 0f
         else -> 0f
     }
     val baseFill = when {
@@ -431,7 +431,7 @@ fun GlassSurface(
     val targetTint = tint?.copy(alpha = 0.16f) ?: Color.Transparent
     val animatedTint by animateColorAsState(targetTint, animationSpec, label = "glass-surface-tint")
     val paletteTint = rootBackdrop?.palette?.value?.firstOrNull() ?: rootBackdrop?.tone?.value
-    val paletteOverlay = paletteTint?.copy(alpha = if (c.isDark) 0.06f else 0.065f) ?: Color.Transparent
+    val paletteOverlay = paletteTint?.copy(alpha = if (c.isDark) 0.06f else 0.025f) ?: Color.Transparent
     val animatedPaletteOverlay by animateColorAsState(paletteOverlay, animationSpec, label = "glass-wallpaper-tint")
     val animatedShine by animateFloatAsState(
         targetValue = shine,
@@ -503,7 +503,7 @@ fun GlassSurface(
                     // Specular glint from the top corner and a soft inner shade at the bottom give real depth.
                     drawRect(
                         Brush.radialGradient(
-                            listOf(Color.White.copy(alpha = (if (c.isDark) 0.10f else 0.22f) * animatedShine), Color.Transparent),
+                            listOf(Color.White.copy(alpha = (if (c.isDark) 0.10f else 0.08f) * animatedShine), Color.Transparent),
                             center = Offset(size.width * 0.18f, 0f),
                             radius = size.maxDimension * 0.85f,
                         ),
