@@ -13,7 +13,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -32,18 +31,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -57,9 +53,6 @@ import com.flow.focus.ui.components.FlowDock
 import com.flow.focus.ui.components.FlowIcons
 import com.flow.focus.ui.glass.GlassBackdropHost
 import com.flow.focus.ui.screens.HomeScreen
-import com.flow.focus.ui.screens.MiniMusicPlayer
-import com.flow.focus.ui.screens.MusicShelfRestoreButton
-import com.flow.focus.ui.screens.MusicPlayerDialog
 import com.flow.focus.ui.screens.PlanningScreen
 import com.flow.focus.ui.screens.RoutinesScreen
 import com.flow.focus.ui.screens.SettingsScreen
@@ -131,86 +124,45 @@ private fun RequestNotificationPermission(wanted: Boolean) {
 @Composable
 private fun AppScaffold(vm: AppViewModel, data: AppData) {
     var tab by rememberSaveable { mutableStateOf(0) }
-    var musicOpen by rememberSaveable { mutableStateOf(false) }
-    var musicShelfExpanded by rememberSaveable { mutableStateOf(false) }
     var dockAreaHeightPx by rememberSaveable { mutableStateOf(0) }
     val contentBottomPadding = with(LocalDensity.current) {
         if (dockAreaHeightPx > 0) dockAreaHeightPx.toDp() + 20.dp else 140.dp
     }
-    val music by vm.musicSnapshot.collectAsStateWithLifecycle()
     val animations = data.settings.animations
-    LaunchedEffect(music.currentTrackId, music.isPlaying) {
-        if (music.currentTrackId != null && music.isPlaying) musicShelfExpanded = true
-    }
-    val hasSelectedTrack = music.connected && music.currentTrackId != null
-    BackHandler(enabled = musicOpen) { musicOpen = false }
-    BackHandler(enabled = tab != 0) { tab = 0 }
 
     Box(Modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalDockContentPadding provides contentBottomPadding) {
-        AnimatedContent(
-            targetState = tab,
-            modifier = Modifier.fillMaxSize(),
-            transitionSpec = {
-                if (animations) {
-                    val direction = if (targetState > initialState) -1 else 1
-                    (fadeIn(tween(210)) + slideInHorizontally(tween(260)) { it * direction / 18 }) togetherWith
-                        (fadeOut(tween(150)) + slideOutHorizontally(tween(220)) { -it * direction / 18 })
-                } else {
-                    ContentTransform(EnterTransition.None, ExitTransition.None)
-                }
-            },
-            label = "tabs",
-        ) { t ->
-            when (t) {
-                0 -> HomeScreen(vm, data, onNavigate = { tab = it })
-                1 -> PlanningScreen(vm, data)
-                2 -> RoutinesScreen(vm, data)
-                3 -> StatsScreen(data)
-                else -> SettingsScreen(vm, data)
-            }
-        }
-        Column(
-            Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                .onSizeChanged { dockAreaHeightPx = it.height }
-                .navigationBarsPadding().padding(horizontal = 18.dp, vertical = 12.dp)
-                .pointerInput(musicShelfExpanded) {
-                    var dragDistance = 0f
-                    detectVerticalDragGestures(
-                        onVerticalDrag = { _, amount -> dragDistance += amount },
-                        onDragEnd = {
-                            if (dragDistance > 42f) musicShelfExpanded = false
-                            if (dragDistance < -42f) musicShelfExpanded = true
-                            dragDistance = 0f
-                        },
-                        onDragCancel = { dragDistance = 0f },
-                    )
+            AnimatedContent(
+                targetState = tab,
+                modifier = Modifier.fillMaxSize(),
+                transitionSpec = {
+                    if (animations) {
+                        val direction = if (targetState > initialState) -1 else 1
+                        (fadeIn(tween(210)) + slideInHorizontally(tween(260)) { it * direction / 18 }) togetherWith
+                            (fadeOut(tween(150)) + slideOutHorizontally(tween(220)) { -it * direction / 18 })
+                    } else {
+                        ContentTransform(EnterTransition.None, ExitTransition.None)
+                    }
                 },
-            verticalArrangement = Arrangement.spacedBy(9.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            AnimatedVisibility(
-                visible = hasSelectedTrack && musicShelfExpanded,
-                enter = fadeIn(tween(160)) + slideInVertically(tween(220)) { it / 2 },
-                exit = fadeOut(tween(110)) + slideOutVertically(tween(170)) { it / 2 },
-            ) {
-                MiniMusicPlayer(
-                    vm,
-                    music,
-                    onOpen = { musicOpen = true },
-                    onCollapse = { musicShelfExpanded = false },
-                )
+                label = "tabs",
+            ) { t ->
+                when (t) {
+                    0 -> HomeScreen(vm, data, onNavigate = { tab = it })
+                    1 -> PlanningScreen(vm, data)
+                    2 -> RoutinesScreen(vm, data)
+                    3 -> StatsScreen(data)
+                    else -> SettingsScreen(vm, data)
+                }
             }
-            AnimatedVisibility(
-                visible = hasSelectedTrack && !musicShelfExpanded,
-                enter = fadeIn(tween(140)) + slideInVertically(tween(180)) { it / 2 },
-                exit = fadeOut(tween(100)) + slideOutVertically(tween(140)) { it / 2 },
+            Box(
+                Modifier.align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .onSizeChanged { dockAreaHeightPx = it.height }
+                    .navigationBarsPadding()
+                    .padding(horizontal = 18.dp, vertical = 12.dp),
             ) {
-                MusicShelfRestoreButton { musicShelfExpanded = true }
+                FlowDock(dockItems, tab, { tab = it }, Modifier.fillMaxWidth())
             }
-            FlowDock(dockItems, tab, { tab = it }, Modifier.fillMaxWidth())
-        }
-        if (musicOpen) MusicPlayerDialog(vm) { musicOpen = false }
         }
     }
 }
