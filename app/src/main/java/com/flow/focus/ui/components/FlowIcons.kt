@@ -87,6 +87,8 @@ object FlowIcons {
     }
     val Cup by lazy { build("cup", listOf("M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z", "M16 10.5h1.5a2 2 0 0 1 0 4H16", "M8 4.5v2", "M12 4.5v2")) }
     val Book by lazy { build("book", listOf("M12 6.5C10.5 5.3 8 5 4.5 5.2V18c3.5-.2 6 .1 7.5 1.3 1.5-1.2 4-1.5 7.5-1.3V5.2C16 5 13.5 5.3 12 6.5z", "M12 6.5v12.8")) }
+    val Heart by lazy { build("heart", listOf("M20.8 8.6a5.2 5.2 0 0 0-8.8-3.7L12 5l-.0-.1a5.2 5.2 0 0 0-8.8 3.7c0 2 1.1 3.5 2.5 4.9L12 20l6.3-6.5c1.4-1.4 2.5-2.9 2.5-4.9z")) }
+    val Download by lazy { build("download", listOf("M12 3.5v10.8", "M7.5 10l4.5 4.5 4.5-4.5", "M4.5 19.5h15")) }
     val Music by lazy {
         build(
             "music",
