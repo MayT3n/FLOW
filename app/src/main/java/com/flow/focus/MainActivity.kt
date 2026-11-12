@@ -24,9 +24,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -129,6 +127,7 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
         if (dockAreaHeightPx > 0) dockAreaHeightPx.toDp() + 20.dp else 140.dp
     }
     val animations = data.settings.animations
+    BackHandler(enabled = tab != 0) { tab = 0 }
 
     Box(Modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalDockContentPadding provides contentBottomPadding) {
