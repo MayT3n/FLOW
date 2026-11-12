@@ -301,26 +301,68 @@ fun GoalsCard(
 ) {
     var text by remember { mutableStateOf("") }
     GlassSurface(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FlowIcon(FlowIcons.Flag, tint = Flow.colors.accent, size = 20.dp)
-                Text(title, Modifier.weight(1f).padding(horizontal = 8.dp), style = Flow.type.heading, color = Flow.colors.textPrimary)
-                if (goals.isNotEmpty()) Text(num("${goals.count { it.done }}/${goals.size}"), style = Flow.type.caption, color = Flow.colors.textSecondary)
+                Text(
+                    title,
+                    Modifier.weight(1f),
+                    style = Flow.type.heading,
+                    color = Flow.colors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (goals.isNotEmpty()) {
+                    Text(
+                        num("${goals.count { it.done }}/${goals.size}"),
+                        style = Flow.type.caption,
+                        color = Flow.colors.textSecondary,
+                        maxLines = 1,
+                    )
+                }
             }
             goals.forEach { g ->
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    CheckCircle(g.done, { onToggle(g.id) }, size = 26.dp, color = Flow.colors.success)
-                    Text(
-                        g.title, Modifier.weight(1f), style = Flow.type.body,
-                        color = if (g.done) Flow.colors.textSecondary else Flow.colors.textPrimary,
-                        maxLines = 2, overflow = TextOverflow.Ellipsis,
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CheckCircle(
+                        g.done,
+                        { onToggle(g.id) },
+                        modifier = Modifier.size(44.dp),
+                        size = 26.dp,
+                        color = Flow.colors.success,
                     )
-                    GlassIconButton(FlowIcons.Close, { onDelete(g.id) }, size = 32.dp, iconSize = 16.dp, contentDescription = "حذف هدف")
+                    Text(
+                        g.title,
+                        Modifier.weight(1f),
+                        style = Flow.type.body,
+                        color = if (g.done) Flow.colors.textSecondary else Flow.colors.textPrimary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    GlassIconButton(
+                        FlowIcons.Close,
+                        { onDelete(g.id) },
+                        modifier = Modifier.size(40.dp),
+                        size = 30.dp,
+                        iconSize = 16.dp,
+                        contentDescription = "حذف هدف",
+                    )
                 }
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FlowTextField(text, { text = it }, "هدف جدید…", Modifier.weight(1f))
-                GlassIconButton(FlowIcons.Plus, { if (text.isNotBlank()) { onAdd(text); text = "" } }, size = 44.dp, enabled = text.isNotBlank(), contentDescription = "افزودن هدف")
+                FlowTextField(
+                    text,
+                    { text = it },
+                    "هدف جدید…",
+                    modifier = Modifier.weight(1f),
+                )
+                GlassIconButton(
+                    FlowIcons.Plus,
+                    { if (text.isNotBlank()) { onAdd(text); text = "" } },
+                    modifier = Modifier.size(44.dp),
+                    size = 38.dp,
+                    enabled = text.isNotBlank(),
+                    contentDescription = "افزودن هدف",
+                )
             }
         }
     }
