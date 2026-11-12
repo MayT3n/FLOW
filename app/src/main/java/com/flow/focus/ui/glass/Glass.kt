@@ -389,7 +389,6 @@ fun GlassSurface(
     val rootSize = LocalRootSize.current
     val rootBackdrop = LocalRootBackdrop.current
     val liveLayer = LocalBackdropLayer.current
-    val hasLive = liveLayer != null && rootBackdrop != null
     // Every surface samples the same root backdrop. LOW remains intentionally blur-free;
     // MEDIUM uses a restrained shared blur and HIGH adds deeper sampling/highlights.
     val blurStrength = when (g.quality) {
