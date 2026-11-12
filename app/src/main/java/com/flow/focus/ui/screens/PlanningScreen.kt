@@ -97,6 +97,11 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
     var moveTask by remember { mutableStateOf<Task?>(null) }
 
     val selDate = LocalDate.ofEpochDay(selected)
+    val selectedEntries = remember(data.tasks, data.routines, data.routineChecks, selected) {
+        Planner.entriesFor(data, selDate)
+    }
+    val selectedCompleted = selectedEntries.count { it.done }
+    val selectedProgress = if (selectedEntries.isEmpty()) 0f else selectedCompleted.toFloat() / selectedEntries.size
 
     Box(modifier.fillMaxSize()) {
         Column(
@@ -106,6 +111,35 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
         ) {
             ScreenHeader("تقویم و برنامه")
             SegmentedControl(listOf("روزانه", "هفتگی", "ماهانه"), mode, { mode = it })
+            GlassSurface(
+                Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(19.dp),
+                level = GlassLevel.Subtle,
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    FlowIcon(FlowIcons.CalendarCheck, tint = Flow.colors.accent, size = 21.dp)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("وضعیت برنامه‌ی انتخاب‌شده", style = Flow.type.label, color = Flow.colors.textPrimary)
+                        Text(
+                            if (selectedEntries.isEmpty()) "برای این روز موردی ثبت نشده" else num("${selectedCompleted} از ${selectedEntries.size} مورد انجام شده"),
+                            style = Flow.type.caption,
+                            color = Flow.colors.textSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        com.flow.focus.ui.components.FlowProgressBar(selectedProgress, Modifier.fillMaxWidth(), height = 3.dp)
+                    }
+                    Text(
+                        num("${(selectedProgress * 100).toInt()}%"),
+                        style = Flow.type.bodyStrong,
+                        color = if (selectedProgress >= 1f && selectedEntries.isNotEmpty()) Flow.colors.success else Flow.colors.accent,
+                    )
+                }
+            }
             AnimatedContent(
                 targetState = mode,
                 transitionSpec = {
