@@ -87,7 +87,7 @@ val LightColors = FlowColors(
     glassFillStrong = Color(0xFFFCFDFF).copy(alpha = 0.60f),
     glassTintTop = Color.White.copy(alpha = 0.42f),
     glassEdge = Color.White,
-    textPrimary = Color(0xFF1F2A38), textSecondary = Color(0xFF66768A), textOnAccent = Color.White,
+    textPrimary = Color(0xFF1F2A38), textSecondary = Color(0xFF4B5A6D), textOnAccent = Color.White,
     accent = Color(0xFF477FC5), accentAlt = Color(0xFF7798C7), accentSoft = Color(0xFF477FC5).copy(alpha = 0.14f),
     success = Color(0xFF238C66), warning = Color(0xFFB87928), danger = Color(0xFFD64D5D),
     track = Color(0xFF26384D).copy(alpha = 0.10f), shadow = Color(0xFF405B78).copy(alpha = 0.20f),

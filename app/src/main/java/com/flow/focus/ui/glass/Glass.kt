@@ -184,9 +184,9 @@ private fun DrawScope.drawBackdrop(
     } else {
         drawBuiltinWallpaper(c, phase, w, h, settings.wallpaperId)
     }
-    if (settings.wallpaperId != "gradient" && settings.wallpaperDim > 0f) {
-        val scrim = if (c.isDark) Color.Black else Color.White
-        drawRect(scrim.copy(alpha = settings.wallpaperDim.coerceIn(0f, 0.65f)))
+    if (c.isDark && settings.wallpaperId != "gradient" && settings.wallpaperDim > 0f) {
+        // Light mode keeps photographs and wallpapers untouched; a white scrim washes out their color.
+        drawRect(Color.Black.copy(alpha = settings.wallpaperDim.coerceIn(0f, 0.65f)))
     }
 }
 
@@ -396,7 +396,7 @@ fun GlassSurface(
         GlassQuality.MEDIUM -> 0.42f
         GlassQuality.HIGH -> 0.78f
     }
-    val blurOn = level != GlassLevel.Subtle && blurStrength > 0f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+    val blurOn = blurStrength > 0f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
         rootSize != null && rootBackdrop != null && g.blurDp > 0
     val levelBlur = when (level) {
         GlassLevel.Subtle -> 0.52f

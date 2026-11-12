@@ -449,10 +449,18 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             SegmentedControl(listOf("برش", "جا دادن"), if (st.wallpaperFit == WallpaperFit.CROP) 0 else 1, { index ->
                 vm.updateSettings { current -> current.copy(wallpaperFit = if (index == 0) WallpaperFit.CROP else WallpaperFit.FIT) }
             })
-            SettingRow("تاریک‌سازی تصویر") {
-                Text(num("${(st.wallpaperDim * 100).toInt()}%"), style = Flow.type.caption, color = Flow.colors.textSecondary)
+            if (Flow.colors.isDark) {
+                SettingRow("تاریک‌سازی تصویر") {
+                    Text(num("${(st.wallpaperDim * 100).toInt()}%"), style = Flow.type.caption, color = Flow.colors.textSecondary)
+                }
+                FlowSlider(st.wallpaperDim, { v -> vm.updateSettings { it.copy(wallpaperDim = v) } }, 0f..0.5f)
+            } else {
+                Text(
+                    "در تم روشن، رنگ اصلی تصویر حفظ می‌شود و لایه‌ی سفید روی والپیپر اعمال نمی‌شود.",
+                    style = Flow.type.caption,
+                    color = Flow.colors.textSecondary,
+                )
             }
-            FlowSlider(st.wallpaperDim, { v -> vm.updateSettings { it.copy(wallpaperDim = v) } }, 0f..0.5f)
             SettingRow("تاری پس‌زمینه") {
                 Text(num("${st.wallpaperBlurDp}"), style = Flow.type.caption, color = Flow.colors.textSecondary)
             }

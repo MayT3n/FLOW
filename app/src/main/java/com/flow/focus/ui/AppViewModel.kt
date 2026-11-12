@@ -16,6 +16,8 @@ import com.flow.focus.data.Settings
 import com.flow.focus.data.Task
 import com.flow.focus.data.FlowRepository
 import com.flow.focus.platform.AmbientSynth
+import com.flow.focus.music.MusicCatalog
+import com.flow.focus.music.MusicSnapshot
 import com.flow.focus.platform.WallpaperStore
 import com.flow.focus.remote.NewsItem
 import com.flow.focus.remote.UpdateDownloadState
@@ -42,6 +44,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val offlineCalendarOccasions: StateFlow<List<CalendarOccasion>> get() = _offlineCalendarOccasions
     val ambientPlaying: StateFlow<String?> get() = c.ambient.playing
     val ambientDownloadProgress get() = c.ambient.downloadProgress
+    val musicSnapshot: StateFlow<MusicSnapshot> get() = c.music.snapshot
+    val musicFavorites: StateFlow<Set<String>> get() = c.music.favorites
+    val musicPlaylists get() = c.music.playlists
+    val musicDownloadProgress get() = c.music.downloadProgress
+    val musicDownloadRevision get() = c.music.downloadRevision
+    private val _musicDownloadErrors = MutableStateFlow<Map<String, String>>(emptyMap())
+    val musicDownloadErrors: StateFlow<Map<String, String>> get() = _musicDownloadErrors
     // News, updates and persistent read state
     val newsItems: StateFlow<List<NewsItem>> get() = c.remote.items
     val newsReadIds: StateFlow<Set<String>> get() = c.remote.readIds
@@ -64,6 +73,37 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun installDownloadedUpdate() {
         viewModelScope.launch {
             runCatching { c.updater.installDownloaded() }
+        }
+    }
+
+    // ---- موسیقی ----
+    fun playMusic(id: String) = c.music.play(id)
+    fun toggleMusicPlayback() = c.music.togglePlayPause()
+    fun nextMusic() = c.music.next()
+    fun previousMusic() = c.music.previous()
+    fun seekMusic(positionMs: Long) = c.music.seekTo(positionMs)
+    fun setMusicVolume(value: Float) = c.music.setVolume(value)
+    fun toggleMusicShuffle() = c.music.toggleShuffle()
+    fun cycleMusicRepeat() = c.music.cycleRepeat()
+    fun toggleMusicFavorite(id: String) = c.music.toggleFavorite(id)
+    fun createMusicPlaylist(name: String) = c.music.createPlaylist(name)
+    fun renameMusicPlaylist(id: String, name: String) = c.music.renamePlaylist(id, name)
+    fun deleteMusicPlaylist(id: String) = c.music.deletePlaylist(id)
+    fun addMusicTrackToPlaylist(playlistId: String, trackId: String) = c.music.addTrackToPlaylist(playlistId, trackId)
+    fun removeMusicTrackFromPlaylist(playlistId: String, trackId: String) = c.music.removeTrackFromPlaylist(playlistId, trackId)
+    fun playMusicPlaylist(playlistId: String) = c.music.playPlaylist(playlistId)
+    fun isMusicDownloaded(id: String) = c.music.isDownloaded(id)
+    fun downloadedMusicBytes() = c.music.downloadedBytes()
+    fun removeMusicDownload(id: String) {
+        c.music.removeDownload(id)
+    }
+    fun downloadMusicTrack(id: String) {
+        viewModelScope.launch {
+            _musicDownloadErrors.value = _musicDownloadErrors.value - id
+            runCatching { c.music.downloadTrack(id) }
+                .onFailure { error ->
+                    _musicDownloadErrors.value = _musicDownloadErrors.value + (id to (error.message ?: "دانلود ناموفق بود"))
+                }
         }
     }
 
