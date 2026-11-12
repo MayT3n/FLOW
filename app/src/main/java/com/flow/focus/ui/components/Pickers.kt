@@ -161,7 +161,11 @@ fun JalaliMonthView(
                 }
 
                 val selectedDate = LocalDate.ofEpochDay(selectedEpochDay ?: todayEpochDay)
-                val compactWeekStart = JalaliDate.startOfWeek(selectedDate)
+                val selectedJalali = JalaliDate.of(selectedDate)
+                val compactFocusDate = if (
+                    selectedJalali.year == displayYear && selectedJalali.month == displayMonth
+                ) selectedDate else first
+                val compactWeekStart = JalaliDate.startOfWeek(compactFocusDate)
                 val visibleRows = if (compact) 1 else 6
                 for (row in 0 until visibleRows) {
                     Row(Modifier.fillMaxWidth()) {

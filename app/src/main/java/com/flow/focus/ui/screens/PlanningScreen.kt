@@ -159,7 +159,10 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                         Column(Modifier.padding(14.dp)) {
                             JalaliMonthView(
                                 a.year, a.month, selected, today.toEpochDay(), marked,
-                                onSelect = { selected = it.toEpochDay() },
+                                onSelect = {
+                                    selected = it.toEpochDay()
+                                    monthAnchor = firstOfMonth(it).toEpochDay()
+                                },
                                 onPrev = { monthAnchor = JalaliDate(a.year, a.month, 1).plusMonths(-1).toLocalDate().toEpochDay() },
                                 onNext = { monthAnchor = JalaliDate(a.year, a.month, 1).plusMonths(1).toLocalDate().toEpochDay() },
                                 eventColors = eventColors,

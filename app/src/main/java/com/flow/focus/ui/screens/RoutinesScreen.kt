@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -81,15 +82,17 @@ fun RoutinesScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                     color = Flow.colors.textSecondary,
                 )
                 val ratio = if (todayRoutines.isEmpty()) 0f else completed.toFloat() / todayRoutines.size
-                Canvas(Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
+                val trackColor = Flow.colors.track
+                val progressColor = Flow.colors.accent
+                Canvas(Modifier.fillMaxWidth().height(14.dp).padding(vertical = 5.dp)) {
                     val h = 5.dp.toPx()
                     drawRoundRect(
-                        color = Flow.colors.track,
+                        color = trackColor,
                         size = Size(size.width, h),
                         cornerRadius = CornerRadius(h / 2f),
                     )
                     drawRoundRect(
-                        color = Flow.colors.accent,
+                        color = progressColor,
                         size = Size(size.width * ratio, h),
                         cornerRadius = CornerRadius(h / 2f),
                     )
