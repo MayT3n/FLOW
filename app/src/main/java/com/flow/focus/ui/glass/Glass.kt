@@ -128,17 +128,23 @@ private fun DrawScope.drawBuiltinWallpaper(c: FlowColors, phase: Float, w: Float
         drawFlowBackground(c, phase, w, h)
         return
     }
-    val palette = when (id) {
-        "aurora" -> listOf(Color(0xFF07172B), Color(0xFF173B59), Color(0xFF382B65))
-        "midnight" -> listOf(Color(0xFF070D1B), Color(0xFF172A42), Color(0xFF26364B))
-        "dusk" -> listOf(Color(0xFF241B37), Color(0xFF69435E), Color(0xFF273D5C))
+    val palette = when {
+        !c.isDark && id == "aurora" -> listOf(Color(0xFFE8F4F8), Color(0xFFDCEAF5), Color(0xFFE8E4F4))
+        !c.isDark && id == "midnight" -> listOf(Color(0xFFE7EDF5), Color(0xFFDCE5F0), Color(0xFFD2DEEC))
+        !c.isDark && id == "dusk" -> listOf(Color(0xFFF4E8EC), Color(0xFFE9DDE9), Color(0xFFDCE6F2))
+        id == "aurora" -> listOf(Color(0xFF07172B), Color(0xFF173B59), Color(0xFF382B65))
+        id == "midnight" -> listOf(Color(0xFF070D1B), Color(0xFF172A42), Color(0xFF26364B))
+        id == "dusk" -> listOf(Color(0xFF241B37), Color(0xFF69435E), Color(0xFF273D5C))
         else -> listOf(c.bgTop, c.bgMid, c.bgBottom)
     }
     drawRect(Brush.verticalGradient(palette, startY = 0f, endY = h), size = androidx.compose.ui.geometry.Size(w, h))
     val motion = phase * 2f * PI.toFloat()
-    val glow = when (id) {
-        "aurora" -> Color(0xFF68C8D6)
-        "midnight" -> Color(0xFF547DB4)
+    val glow = when {
+        !c.isDark && id == "aurora" -> Color(0xFF70BFCB)
+        !c.isDark && id == "midnight" -> Color(0xFF799AC5)
+        !c.isDark -> Color(0xFFC58BA8)
+        id == "aurora" -> Color(0xFF68C8D6)
+        id == "midnight" -> Color(0xFF547DB4)
         else -> Color(0xFFD18B9A)
     }
     val center = Offset(w * (0.78f + 0.04f * cos(motion)), h * 0.2f)
@@ -179,7 +185,8 @@ private fun DrawScope.drawBackdrop(
         drawBuiltinWallpaper(c, phase, w, h, settings.wallpaperId)
     }
     if (settings.wallpaperId != "gradient" && settings.wallpaperDim > 0f) {
-        drawRect(Color.Black.copy(alpha = settings.wallpaperDim.coerceIn(0f, 0.65f)))
+        val scrim = if (c.isDark) Color.Black else Color.White
+        drawRect(scrim.copy(alpha = settings.wallpaperDim.coerceIn(0f, 0.65f)))
     }
 }
 
@@ -383,26 +390,19 @@ fun GlassSurface(
     val rootBackdrop = LocalRootBackdrop.current
     val liveLayer = LocalBackdropLayer.current
     val hasLive = liveLayer != null && rootBackdrop != null
-    // LOW: no blur at all. MEDIUM: restrained blur, only where it is visible (live content or a photo wallpaper).
-    // HIGH: full blur on every non-subtle surface plus depth highlights.
+    // Every surface samples the same root backdrop. LOW remains intentionally blur-free;
+    // MEDIUM uses a restrained shared blur and HIGH adds deeper sampling/highlights.
     val blurStrength = when (g.quality) {
         GlassQuality.LOW -> 0f
-        GlassQuality.MEDIUM -> 0.55f
-        GlassQuality.HIGH -> 1f
+        GlassQuality.MEDIUM -> 0.42f
+        GlassQuality.HIGH -> 0.78f
     }
-    val photoWallpaper = rootBackdrop?.let { it.settings.wallpaperId == "custom" && it.image.value != null } == true
-    // Subtle content rows avoid a separate RenderEffect allocation on every scrolling item.
     val blurOn = blurStrength > 0f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-        rootSize != null && rootBackdrop != null && g.blurDp > 0 &&
-        when (g.quality) {
-            GlassQuality.MEDIUM -> hasLive || (photoWallpaper && level != GlassLevel.Subtle)
-            GlassQuality.HIGH -> hasLive || level != GlassLevel.Subtle
-            GlassQuality.LOW -> false
-        }
+        rootSize != null && rootBackdrop != null && g.blurDp > 0
     val levelBlur = when (level) {
-        GlassLevel.Subtle -> 0.55f
-        GlassLevel.Regular -> 1f
-        GlassLevel.Strong -> 1.15f
+        GlassLevel.Subtle -> 0.52f
+        GlassLevel.Regular -> 0.88f
+        GlassLevel.Strong -> 1f
     }
     var origin by remember { mutableStateOf(Offset.Zero) }
 
@@ -413,16 +413,16 @@ fun GlassSurface(
     // Bright wallpaper needs a slightly stronger dark surface, while dark wallpaper
     // needs a little more light glass. Only the difficult extremes receive this boost.
     val contrastBoost = when {
-        c.isDark && wallpaperLuminance != null && wallpaperLuminance > 0.58f -> 0.14f
-        !c.isDark && wallpaperLuminance != null && wallpaperLuminance > 0.62f -> 0.19f
-        !c.isDark && wallpaperLuminance != null && wallpaperLuminance < 0.30f -> 0.22f
-        !c.isDark && wallpaperLuminance != null -> 0.15f
+        c.isDark && wallpaperLuminance != null && wallpaperLuminance > 0.58f -> 0.12f
+        !c.isDark && wallpaperLuminance != null && wallpaperLuminance > 0.72f -> 0.12f
+        !c.isDark && wallpaperLuminance != null && wallpaperLuminance < 0.30f -> 0.18f
+        !c.isDark && wallpaperLuminance != null -> 0.10f
         else -> 0f
     }
     val baseFill = when {
         g.quality == GlassQuality.LOW -> c.glassFillStrong
         level == GlassLevel.Strong -> c.glassFillStrong
-        level == GlassLevel.Subtle -> c.glassFill.copy(alpha = c.glassFill.alpha * 0.6f)
+        level == GlassLevel.Subtle -> c.glassFill.copy(alpha = c.glassFill.alpha * 0.82f)
         else -> c.glassFill
     }.let { surface -> surface.copy(alpha = (surface.alpha + contrastBoost).coerceAtMost(0.76f)) }
     val fill = baseFill.copy(alpha = (baseFill.alpha * g.opacity.coerceIn(0.65f, 1.18f)).coerceIn(0f, 0.88f))
@@ -432,7 +432,7 @@ fun GlassSurface(
     val targetTint = tint?.copy(alpha = 0.16f) ?: Color.Transparent
     val animatedTint by animateColorAsState(targetTint, animationSpec, label = "glass-surface-tint")
     val paletteTint = rootBackdrop?.palette?.value?.firstOrNull() ?: rootBackdrop?.tone?.value
-    val paletteOverlay = paletteTint?.copy(alpha = if (c.isDark) 0.055f else 0.035f) ?: Color.Transparent
+    val paletteOverlay = paletteTint?.copy(alpha = if (c.isDark) 0.06f else 0.065f) ?: Color.Transparent
     val animatedPaletteOverlay by animateColorAsState(paletteOverlay, animationSpec, label = "glass-wallpaper-tint")
     val animatedShine by animateFloatAsState(
         targetValue = shine,
@@ -440,8 +440,15 @@ fun GlassSurface(
         label = "glass-shine",
     )
 
+    val depth = when {
+        g.quality == GlassQuality.LOW -> if (elevated) 8.dp else 0.dp
+        elevated -> 18.dp
+        level == GlassLevel.Strong -> 8.dp
+        level == GlassLevel.Regular -> 4.dp
+        else -> 2.dp
+    }
     val outer = modifier
-        .then(if (elevated && g.quality != GlassQuality.LOW) Modifier.shadow(18.dp, shape, ambientColor = c.shadow, spotColor = c.shadow) else Modifier)
+        .then(if (depth > 0.dp) Modifier.shadow(depth, shape, ambientColor = c.shadow, spotColor = c.shadow) else Modifier)
         .clip(shape)
         .then(
             if (blurOn) {
@@ -461,7 +468,7 @@ fun GlassSurface(
                         val extra = rootBackdrop!!.settings.wallpaperBlurDp.dp.toPx() * 0.35f
                         // Prevent extreme settings from turning each surface into an expensive full-screen blur pass.
                         val requested = g.blurDp.dp.toPx() * blurStrength * levelBlur + extra * blurStrength
-                        val maxRadius = if (g.quality == GlassQuality.MEDIUM) 22.dp.toPx() else 40.dp.toPx()
+                        val maxRadius = if (g.quality == GlassQuality.MEDIUM) 16.dp.toPx() else 30.dp.toPx()
                         val radius = requested.coerceAtMost(maxRadius)
                         renderEffect = BlurEffect(radius, radius)
                     }
