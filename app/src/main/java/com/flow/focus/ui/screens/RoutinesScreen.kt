@@ -201,6 +201,9 @@ private fun RoutineCard(
                     val time = routine.minute?.let { " · " + DateFormats.clock(it) } ?: ""
                     Text(num(weekdays + time), style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 1)
                 }
+                if (routine.steps.isNotEmpty() && !doneToday) {
+                    GlassIconButton(FlowIcons.Play, onRun, size = 36.dp, iconSize = 16.dp, contentDescription = "شروع روتین")
+                }
                 FlowIcon(if (expanded) FlowIcons.ChevronUp else FlowIcons.ChevronDown, tint = Flow.colors.textSecondary, size = 18.dp)
             }
             AnimatedVisibility(
@@ -233,14 +236,7 @@ private fun RoutineCard(
                             )
                         }
                     }
-                    if (scheduledToday && routine.steps.isNotEmpty() && !doneToday) {
-                        PrimaryButton(
-                            "شروع روتین",
-                            onRun,
-                            Modifier.fillMaxWidth(),
-                            icon = FlowIcons.Play,
-                        )
-                    }
+
                 }
             }
         }

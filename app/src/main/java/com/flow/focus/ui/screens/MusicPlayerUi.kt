@@ -72,7 +72,8 @@ fun MiniMusicPlayer(
     onCollapse: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val hasTrack = snapshot.currentTrackId != null
+    val currentTrack = MusicCatalog.tracks.firstOrNull { it.id == snapshot.currentTrackId }
+    val hasTrack = currentTrack != null
     GlassSurface(
         modifier.fillMaxWidth().springClick(scaleDown = 0.99f, onClick = onOpen),
         shape = RoundedCornerShape(22.dp),
@@ -85,22 +86,25 @@ fun MiniMusicPlayer(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             GlassSurface(Modifier.size(42.dp), shape = RoundedCornerShape(14.dp), level = GlassLevel.Subtle) {
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    FlowIcon(FlowIcons.Music, tint = Flow.colors.accent, size = 21.dp)
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    if (currentTrack != null) TrackCover(currentTrack, 42.dp)
+                    else FlowIcon(FlowIcons.Music, tint = Flow.colors.accent, size = 21.dp)
                 }
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
-                    if (hasTrack) "موسیقی در حال پخش" else "موسیقی آنلاین",
+                    currentTrack?.title ?: "موسیقی",
                     style = Flow.type.label,
                     color = Flow.colors.textPrimary,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    if (hasTrack) "برای کنترل لمس کن" else "جست‌وجو در سرویس‌های رسمی",
+                    currentTrack?.artist ?: "کتابخانهٔ آفلاین و سرویس‌های رسمی",
                     style = Flow.type.caption,
                     color = Flow.colors.textSecondary,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 if (hasTrack) {
                     FlowProgressBar(
@@ -306,6 +310,7 @@ private fun OfflineTrackCard(
     onDownload: () -> Unit,
     onRemove: () -> Unit,
 ) {
+    val uriHandler = LocalUriHandler.current
     GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), level = GlassLevel.Regular) {
         Column(Modifier.fillMaxWidth().padding(11.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -314,6 +319,20 @@ private fun OfflineTrackCard(
                     Text(track.title, style = Flow.type.bodyStrong, color = Flow.colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(track.mood, style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 1)
                     Text("${track.durationLabel} · ${formatBytes(track.fileSize.toLong())} · CC0", style = Flow.type.caption, color = Flow.colors.textSecondary)
+                    Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Text(
+                            "مجوز CC0",
+                            Modifier.springClick(onClick = { runCatching { uriHandler.openUri(track.licenseUrl) } }),
+                            style = Flow.type.caption,
+                            color = Flow.colors.accent,
+                        )
+                        Text(
+                            "منبع آهنگ",
+                            Modifier.springClick(onClick = { runCatching { uriHandler.openUri(track.sourceUrl) } }),
+                            style = Flow.type.caption,
+                            color = Flow.colors.accent,
+                        )
+                    }
                 }
                 GlassIconButton(
                     if (isCurrent && isPlaying) FlowIcons.Pause else FlowIcons.Play,
