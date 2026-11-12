@@ -338,24 +338,17 @@ fun GlassSurface(
     val g = LocalGlass.current
     val rootSize = LocalRootSize.current
     val rootBackdrop = LocalRootBackdrop.current
-    // LOW avoids RenderEffect, MEDIUM uses a restrained blur, HIGH uses the full requested blur.
-    // The exact same root backdrop is sampled by every surface to keep glass coherent while scrolling.
+    // LOW keeps a static glass treatment. MEDIUM applies a restrained backdrop pass to every card;
+    // HIGH increases its strength. Level changes intensity, never whether a card is glass.
     val blurStrength = when (g.quality) {
         GlassQuality.LOW -> 0f
-        GlassQuality.MEDIUM -> 0.48f
+        GlassQuality.MEDIUM -> 0.42f
         GlassQuality.HIGH -> 1f
     }
-    // Subtle content rows avoid a separate RenderEffect allocation on every scrolling item.
-    // Medium keeps list cards lightweight: only major surfaces receive a backdrop blur.
-    // High enables blur on regular panels; subtle rows never allocate an offscreen blur pass.
-    val blurOn = when (g.quality) {
-        GlassQuality.LOW -> false
-        GlassQuality.MEDIUM -> level == GlassLevel.Strong
-        GlassQuality.HIGH -> level != GlassLevel.Subtle
-    } && blurStrength > 0f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-        rootSize != null && rootBackdrop != null && g.blurDp > 0
+    val blurOn = g.quality != GlassQuality.LOW && blurStrength > 0f &&
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && rootSize != null && rootBackdrop != null && g.blurDp > 0
     val levelBlur = when (level) {
-        GlassLevel.Subtle -> 0.35f
+        GlassLevel.Subtle -> 0.58f
         GlassLevel.Regular -> 0.82f
         GlassLevel.Strong -> 1f
     }
@@ -377,7 +370,7 @@ fun GlassSurface(
     val baseFill = when {
         g.quality == GlassQuality.LOW -> c.glassFillStrong
         level == GlassLevel.Strong -> c.glassFillStrong
-        level == GlassLevel.Subtle -> c.glassFill.copy(alpha = c.glassFill.alpha * 0.6f)
+        level == GlassLevel.Subtle -> c.glassFill.copy(alpha = c.glassFill.alpha * 0.82f)
         else -> c.glassFill
     }.let { surface -> surface.copy(alpha = (surface.alpha + contrastBoost).coerceAtMost(0.76f)) }
     val fill = baseFill.copy(alpha = (baseFill.alpha * g.opacity.coerceIn(0.65f, 1.18f)).coerceIn(0f, 0.88f))
@@ -409,7 +402,7 @@ fun GlassSurface(
                         val extra = rootBackdrop!!.settings.wallpaperBlurDp.dp.toPx() * 0.18f
                         // Bound per-surface blur: many cards can be visible during a scroll.
                         val requested = g.blurDp.dp.toPx() * blurStrength * levelBlur + extra * blurStrength
-                        val maxRadius = if (g.quality == GlassQuality.MEDIUM) 10.dp.toPx() else 24.dp.toPx()
+                        val maxRadius = if (g.quality == GlassQuality.MEDIUM) 8.dp.toPx() else 24.dp.toPx()
                         val radius = requested.coerceAtMost(maxRadius)
                         renderEffect = BlurEffect(radius, radius)
                     }
@@ -440,8 +433,8 @@ fun GlassSurface(
             },
         )
         val edgeStrength = when (level) {
-            GlassLevel.Subtle -> 0.58f
-            GlassLevel.Regular -> 0.82f
+            GlassLevel.Subtle -> 0.78f
+            GlassLevel.Regular -> 0.90f
             GlassLevel.Strong -> 1f
         }
         Box(
