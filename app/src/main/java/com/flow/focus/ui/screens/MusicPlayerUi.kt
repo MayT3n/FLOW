@@ -104,6 +104,7 @@ fun MusicPlayerDialog(vm: AppViewModel, onDismiss: () -> Unit) {
     val favorites by vm.musicFavorites.collectAsStateWithLifecycle()
     val playlists by vm.musicPlaylists.collectAsStateWithLifecycle()
     val downloads by vm.musicDownloadProgress.collectAsStateWithLifecycle()
+    val downloadRevision by vm.musicDownloadRevision.collectAsStateWithLifecycle()
     var playlistsOpen by remember { mutableStateOf(false) }
     var pickerTrackId by remember { mutableStateOf<String?>(null) }
     var favoritesOnly by remember { mutableStateOf(false) }
@@ -113,7 +114,8 @@ fun MusicPlayerDialog(vm: AppViewModel, onDismiss: () -> Unit) {
     val track = MusicCatalog.tracks.firstOrNull { it.id == snapshot.currentTrackId }
         ?: MusicCatalog.tracks.first()
     val duration = snapshot.durationMs.coerceAtLeast(0L)
-    val visibleTracks = MusicCatalog.tracks
+    val visibleTracks = remember(favoritesOnly, downloadedOnly, alphabetical, favorites, downloadRevision) {
+        MusicCatalog.tracks
         .filter { item ->
             when {
                 downloadedOnly -> vm.isMusicDownloaded(item.id)
@@ -122,6 +124,7 @@ fun MusicPlayerDialog(vm: AppViewModel, onDismiss: () -> Unit) {
             }
         }
         .let { tracks -> if (alphabetical) tracks.sortedBy { it.title.lowercase() } else tracks }
+    }
 
     FlowDialog(onDismiss, "پخش موسیقی") {
         Column(
