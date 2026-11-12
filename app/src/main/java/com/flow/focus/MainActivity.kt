@@ -132,13 +132,17 @@ private fun RequestNotificationPermission(wanted: Boolean) {
 private fun AppScaffold(vm: AppViewModel, data: AppData) {
     var tab by rememberSaveable { mutableStateOf(0) }
     var musicOpen by rememberSaveable { mutableStateOf(false) }
-    var musicShelfExpanded by rememberSaveable { mutableStateOf(true) }
+    var musicShelfExpanded by rememberSaveable { mutableStateOf(false) }
     var dockAreaHeightPx by rememberSaveable { mutableStateOf(0) }
     val contentBottomPadding = with(LocalDensity.current) {
         if (dockAreaHeightPx > 0) dockAreaHeightPx.toDp() + 20.dp else 140.dp
     }
     val music by vm.musicSnapshot.collectAsStateWithLifecycle()
     val animations = data.settings.animations
+    LaunchedEffect(music.currentTrackId, music.isPlaying) {
+        if (music.currentTrackId != null && music.isPlaying) musicShelfExpanded = true
+    }
+    val hasSelectedTrack = music.connected && music.currentTrackId != null
     BackHandler(enabled = musicOpen) { musicOpen = false }
     BackHandler(enabled = tab != 0) { tab = 0 }
 
@@ -186,7 +190,7 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             AnimatedVisibility(
-                visible = music.connected && musicShelfExpanded,
+                visible = hasSelectedTrack && musicShelfExpanded,
                 enter = fadeIn(tween(160)) + slideInVertically(tween(220)) { it / 2 },
                 exit = fadeOut(tween(110)) + slideOutVertically(tween(170)) { it / 2 },
             ) {
@@ -198,7 +202,7 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
                 )
             }
             AnimatedVisibility(
-                visible = !musicShelfExpanded,
+                visible = hasSelectedTrack && !musicShelfExpanded,
                 enter = fadeIn(tween(140)) + slideInVertically(tween(180)) { it / 2 },
                 exit = fadeOut(tween(100)) + slideOutVertically(tween(140)) { it / 2 },
             ) {
