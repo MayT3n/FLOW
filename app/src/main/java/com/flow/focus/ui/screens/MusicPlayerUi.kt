@@ -54,6 +54,7 @@ import com.flow.focus.ui.AppViewModel
 import com.flow.focus.ui.components.FlowIcon
 import com.flow.focus.ui.components.FlowIcons
 import com.flow.focus.ui.components.FlowProgressBar
+import com.flow.focus.ui.components.GlassButton
 import com.flow.focus.ui.components.GlassIconButton
 import com.flow.focus.ui.components.PrimaryButton
 import com.flow.focus.ui.glass.GlassLevel
@@ -155,9 +156,10 @@ fun MusicPlayerDialog(vm: AppViewModel, onDismiss: () -> Unit) {
     val animations = LocalGlass.current.animations
     val snapshot by vm.musicSnapshot.collectAsStateWithLifecycle()
     val downloadProgress by vm.musicDownloadProgress.collectAsStateWithLifecycle()
+    var libraryVersion by remember { mutableStateOf(0) }
     val currentTrack = MusicCatalog.tracks.firstOrNull { it.id == snapshot.currentTrackId }
     val totalBytes = MusicCatalog.tracks.sumOf { it.fileSize }
-    val downloadedBytes = vm.downloadedMusicBytes()
+    val downloadedBytes = remember(libraryVersion, downloadProgress) { vm.downloadedMusicBytes() }
     var visible by remember { mutableStateOf(true) }
     val requestDismiss = { if (visible) visible = false }
     LaunchedEffect(visible) {
@@ -215,13 +217,19 @@ fun MusicPlayerDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                             isPlaying = snapshot.isPlaying && snapshot.currentTrackId == track.id,
                             isDownloaded = vm.isMusicDownloaded(track.id),
                             downloadProgress = downloadProgress[track.id],
-                            onPlay = { vm.playMusic(track.id) },
+                            onPlay = {
+                                if (snapshot.currentTrackId == track.id && snapshot.isPlaying) vm.toggleMusicPlayback()
+                                else vm.playMusic(track.id)
+                            },
                             onDownload = { vm.downloadMusicTrack(track.id) },
-                            onRemove = { vm.removeMusicDownload(track.id) },
+                            onRemove = {
+                                vm.removeMusicDownload(track.id)
+                                libraryVersion += 1
+                            },
                         )
                     }
                     Text(
-                        "حجم دانلودشده: ${formatBytes(downloadedBytes)} از ${formatBytes(50L * 1024L * 1024L)} · آهنگ‌های Spotify و YouTube Music در سرویس رسمی خودشان باز می‌شوند.",
+                        "حجم دانلودشده: ${formatBytes(downloadedBytes)} از ${formatBytes(50L * 1024L * 1024L)} · حجم کل کتابخانه: ${formatBytes(totalBytes)}",
                         style = Flow.type.caption,
                         color = Flow.colors.textSecondary,
                     )
@@ -257,7 +265,7 @@ private fun CurrentTrackPanel(
                 height = 4.dp,
             )
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                GlassIconButton(FlowIcons.ChevronBack, { vm.previousMusic() }, size = 40.dp, contentDescription = "آهنگ قبلی")
+                GlassIconButton(FlowIcons.ChevronPrev, { vm.previousMusic() }, size = 40.dp, contentDescription = "آهنگ قبلی")
                 GlassIconButton(
                     if (snapshot.isPlaying) FlowIcons.Pause else FlowIcons.Play,
                     { vm.toggleMusicPlayback() },
