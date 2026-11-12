@@ -326,7 +326,6 @@ fun GoalsCard(
                     CheckCircle(
                         g.done,
                         { onToggle(g.id) },
-                        modifier = Modifier.size(44.dp),
                         size = 26.dp,
                         color = Flow.colors.success,
                     )
@@ -341,7 +340,6 @@ fun GoalsCard(
                     GlassIconButton(
                         FlowIcons.Close,
                         { onDelete(g.id) },
-                        modifier = Modifier.size(40.dp),
                         size = 30.dp,
                         iconSize = 16.dp,
                         contentDescription = "حذف هدف",
@@ -358,7 +356,6 @@ fun GoalsCard(
                 GlassIconButton(
                     FlowIcons.Plus,
                     { if (text.isNotBlank()) { onAdd(text); text = "" } },
-                    modifier = Modifier.size(44.dp),
                     size = 38.dp,
                     enabled = text.isNotBlank(),
                     contentDescription = "افزودن هدف",
