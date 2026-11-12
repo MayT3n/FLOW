@@ -78,6 +78,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
+    // ExoPlayer remains for the separate ambient sound feature.
+    implementation("androidx.media3:media3-exoplayer:1.5.1")
+
     implementation("androidx.datastore:datastore-preferences:1.1.7")
     implementation("androidx.work:work-runtime-ktx:2.10.5")
 
