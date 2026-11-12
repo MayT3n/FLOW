@@ -334,7 +334,7 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
     }
 
     if (notificationsOpen) MatFocusNotificationsDialog(vm) { notificationsOpen = false }
-    if (musicOpen) MusicPlayerDialog { musicOpen = false }
+    if (musicOpen) MusicPlayerDialog(vm) { musicOpen = false }
 }
 
 @Composable
