@@ -541,7 +541,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
         AnimatedSettingsSection(selectedPage == "music", "موسیقی") {
             MusicSettings()
             GlassButton(
-                "نمایش سرویس‌های موسیقی آنلاین",
+                "نمایش کتابخانهٔ موسیقی",
                 { musicOpen = true },
                 Modifier.fillMaxWidth(),
                 icon = FlowIcons.Play,
@@ -572,7 +572,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
         }
         }
 
-    if (musicOpen) MusicPlayerDialog { musicOpen = false }
+    if (musicOpen) MusicPlayerDialog(vm) { musicOpen = false }
 
     wallpaperPreviewId?.let { previewId ->
         FlowDialog(

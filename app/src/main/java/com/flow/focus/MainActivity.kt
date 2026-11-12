@@ -206,7 +206,7 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
             }
             FlowDock(dockItems, tab, { tab = it }, Modifier.fillMaxWidth())
         }
-        if (musicOpen) MusicPlayerDialog { musicOpen = false }
+        if (musicOpen) MusicPlayerDialog(vm) { musicOpen = false }
         }
     }
 }

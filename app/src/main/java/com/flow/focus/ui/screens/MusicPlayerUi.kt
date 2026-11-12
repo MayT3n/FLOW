@@ -54,6 +54,7 @@ import com.flow.focus.ui.AppViewModel
 import com.flow.focus.ui.components.FlowIcon
 import com.flow.focus.ui.components.FlowIcons
 import com.flow.focus.ui.components.FlowProgressBar
+import com.flow.focus.ui.components.FlowSlider
 import com.flow.focus.ui.components.GlassButton
 import com.flow.focus.ui.components.GlassIconButton
 import com.flow.focus.ui.components.PrimaryButton
@@ -259,11 +260,17 @@ private fun CurrentTrackPanel(
                     Text(track.artist, style = Flow.type.caption, color = Flow.colors.textSecondary)
                 }
             }
-            FlowProgressBar(
-                if (snapshot.durationMs > 0L) (snapshot.positionMs.toFloat() / snapshot.durationMs).coerceIn(0f, 1f) else 0f,
-                Modifier.fillMaxWidth(),
-                height = 4.dp,
+            FlowSlider(
+                value = if (snapshot.durationMs > 0L) (snapshot.positionMs.toFloat() / snapshot.durationMs).coerceIn(0f, 1f) else 0f,
+                onChange = { vm.seekMusic((it * snapshot.durationMs).toLong()) },
+                range = 0f..1f,
+                modifier = Modifier.fillMaxWidth(),
             )
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(formatClock(snapshot.positionMs / 1_000L), style = Flow.type.caption, color = Flow.colors.textSecondary)
+                androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+                Text(formatClock(snapshot.durationMs / 1_000L), style = Flow.type.caption, color = Flow.colors.textSecondary)
+            }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                 GlassIconButton(FlowIcons.ChevronPrev, { vm.previousMusic() }, size = 40.dp, contentDescription = "آهنگ قبلی")
                 GlassIconButton(
@@ -274,6 +281,15 @@ private fun CurrentTrackPanel(
                     contentDescription = if (snapshot.isPlaying) "توقف" else "پخش",
                 )
                 GlassIconButton(FlowIcons.ChevronNext, { vm.nextMusic() }, size = 40.dp, contentDescription = "آهنگ بعدی")
+            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("صدا", style = Flow.type.caption, color = Flow.colors.textSecondary)
+                FlowSlider(
+                    value = snapshot.volume.coerceIn(0f, 1f),
+                    onChange = vm::setMusicVolume,
+                    range = 0f..1f,
+                    modifier = Modifier.weight(1f).padding(start = 10.dp),
+                )
             }
         }
     }
@@ -369,7 +385,7 @@ fun MusicSettings() {
         )
         OnlineMusicSearchPanel()
         Text(
-            "پخش مستقیم داخل MatFocus فعال نیست؛ هیچ آهنگ نمایشی یا دانلود بی‌مجوزی جایگزین نشده است.",
+            "کتابخانهٔ آفلاین MatFocus از قطعه‌های دارای مجوز CC0 استفاده می‌کند؛ جست‌وجوی Spotify و YouTube Music در سرویس رسمی خودشان باز می‌شود.",
             style = Flow.type.caption,
             color = Flow.colors.textSecondary,
         )
