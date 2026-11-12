@@ -149,8 +149,6 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, onStartFocus: () -> Unit, mo
         selected = today.toEpochDay()
         monthAnchor = firstOfMonth(today).toEpochDay()
     }
-    val selectedCompleted = selectedEntries.count { it.done }
-    val selectedProgress = if (selectedEntries.isEmpty()) 0f else selectedCompleted.toFloat() / selectedEntries.size
 
     Box(modifier.fillMaxSize()) {
         Column(

@@ -5,6 +5,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -16,22 +17,18 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.lerp as lerpColor
+import androidx.compose.ui.util.lerp
 import com.flow.focus.data.TimerStatus
 import com.flow.focus.ui.motion.Motion
 import kotlin.math.abs
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.togetherWith
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
@@ -59,10 +56,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,18 +69,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.flow.focus.core.DateFormats
+import com.flow.focus.core.formatClock
 import com.flow.focus.data.AppData
 import com.flow.focus.data.GlassQuality
 import com.flow.focus.data.PhaseType
 import com.flow.focus.data.Task
 import com.flow.focus.data.ThemeMode
 import com.flow.focus.data.TimerState
-import com.flow.focus.data.TimerStatus
 import com.flow.focus.domain.PomodoroEngine
 import com.flow.focus.domain.Planner
 import com.flow.focus.domain.Stats
@@ -116,7 +112,6 @@ import java.time.ZoneId
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
-import java.util.Locale
 
 private enum class HomeDialog { PICK_TASK, DURATION, AMBIENT, REMINDER, NEW_TASK }
 
@@ -510,17 +505,6 @@ private fun TimerStatusPill(timer: TimerState, rounds: Int) {
 private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier: Modifier) {
     val c = Flow.colors
     val glass = LocalGlass.current
-    val breathing = remember { Animatable(0f) }
-    LaunchedEffect(timer.status, glass.animations) {
-        if (timer.status == TimerStatus.RUNNING && glass.animations) {
-            while (true) {
-                breathing.animateTo(1f, tween(2_500, easing = FastOutSlowInEasing))
-                breathing.animateTo(0f, tween(2_500, easing = FastOutSlowInEasing))
-            }
-        } else {
-            breathing.snapTo(0f)
-        }
-    }
     val breakPhase = timer.phase != PhaseType.FOCUS
     val running = timer.status == TimerStatus.RUNNING
     val c1 by animateColorAsState(if (breakPhase) c.success else c.accent, tween(Motion.Long), label = "ringA")
@@ -572,7 +556,7 @@ private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier
                 val head = (1f - abs(frac - p) * dots / 2.6f).coerceIn(0f, 1f)
                 val major = i % 5 == 0
                 val radius = (if (major) 2.9.dp else 2.0.dp).toPx() * (1f + 0.85f * head * live.value)
-                val color = if (elapsed) c.track else lerp(c1, c2, frac).copy(alpha = (0.5f + 0.5f * head) * liveness)
+                val color = if (elapsed) c.track else lerpColor(c1, c2, frac).copy(alpha = (0.5f + 0.5f * head) * liveness)
                 drawCircle(color, radius, Offset(center.x + outer * cos(ang), center.y + outer * sin(ang)))
             }
             val t = pulse.value
