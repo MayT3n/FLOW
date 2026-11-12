@@ -94,10 +94,7 @@ fun JalaliMonthView(
             targetState = monthKey,
             transitionSpec = {
                 if (animations) {
-                    val forward = targetState > initialState
-                    val enterSign = if (forward xor isRtl) 1 else -1
-                    (fadeIn(tween(190)) + slideInHorizontally(tween(230)) { it * enterSign }) togetherWith
-                        (fadeOut(tween(150)) + slideOutHorizontally(tween(190)) { -it * enterSign })
+                    fadeIn(tween(190)) togetherWith fadeOut(tween(150))
                 } else {
                     ContentTransform(EnterTransition.None, ExitTransition.None)
                 }
@@ -135,6 +132,7 @@ fun JalaliMonthView(
                         modifier = Modifier.weight(1f),
                         textAlign = TextAlign.Center,
                         maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     )
                     GlassIconButton(FlowIcons.ChevronNext, onNext, size = 38.dp, iconSize = 18.dp, contentDescription = "ماه بعد")
                     if (onToggleExpanded != null) {
@@ -156,6 +154,7 @@ fun JalaliMonthView(
                             style = Flow.type.caption,
                             color = c.textSecondary,
                             textAlign = TextAlign.Center,
+                            maxLines = 1,
                         )
                     }
                 }
@@ -211,6 +210,7 @@ fun JalaliMonthView(
                                         num(dayNum),
                                         style = Flow.type.label,
                                         color = if (selected) c.textOnAccent else c.textPrimary,
+                                        maxLines = 1,
                                     )
                                     val dayDots = eventColors[epochDay].orEmpty().take(3)
                                     if (epochDay in marked || dayDots.isNotEmpty()) {
