@@ -60,7 +60,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.flow.focus.core.DateFormats
-import com.flow.focus.core.formatClock
 import com.flow.focus.data.AppData
 import com.flow.focus.data.GlassQuality
 import com.flow.focus.data.PhaseType
@@ -98,6 +97,7 @@ import java.time.ZoneId
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+import java.util.Locale
 
 private enum class HomeDialog { PICK_TASK, DURATION, AMBIENT, REMINDER, NEW_TASK }
 
@@ -114,7 +114,6 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
     var dialog by remember { mutableStateOf<HomeDialog?>(null) }
     var menu by remember { mutableStateOf(false) }
     var notificationsOpen by remember { mutableStateOf(false) }
-    var musicOpen by remember { mutableStateOf(false) }
     val playing by vm.ambientPlaying.collectAsStateWithLifecycle()
     val newsItems by vm.newsItems.collectAsStateWithLifecycle()
     val newsReadIds by vm.newsReadIds.collectAsStateWithLifecycle()
@@ -182,7 +181,6 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
                         MenuAction("تغییر وظیفه", FlowIcons.Edit) { dialog = HomeDialog.PICK_TASK },
                         MenuAction("مدت تمرکز", FlowIcons.Clock) { dialog = HomeDialog.DURATION },
                         MenuAction("صدای محیط", FlowIcons.Music) { dialog = HomeDialog.AMBIENT },
-                        MenuAction("موزیک پلیر", FlowIcons.Music) { musicOpen = true },
                         MenuAction("افزودن یادآور", FlowIcons.Bell) { dialog = HomeDialog.REMINDER },
                         MenuAction("آمار جلسه", FlowIcons.Stats) { onNavigate(3) },
                         MenuAction("تنظیمات تایمر", FlowIcons.Settings) { onNavigate(4) },
@@ -334,7 +332,6 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
     }
 
     if (notificationsOpen) MatFocusNotificationsDialog(vm) { notificationsOpen = false }
-    if (musicOpen) MusicPlayerDialog(vm) { musicOpen = false }
 }
 
 @Composable
@@ -556,19 +553,43 @@ private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier
                     color = c1,
                 )
                 Spacer(Modifier.height(2.dp))
-                if (glass.animations) {
-                    AnimatedContent(
-                        targetState = num(formatClock(seconds)),
-                        transitionSpec = {
-                            (fadeIn(tween(120)) + slideInVertically(tween(145)) { it / 3 }) togetherWith
-                                (fadeOut(tween(90)) + slideOutVertically(tween(115)) { -it / 3 })
-                        },
-                        label = "timer-digits",
-                    ) { value ->
-                        Text(value, style = Flow.type.display, color = c.textPrimary, maxLines = 1)
+                val displayMinutes = seconds / 60L
+                val displaySeconds = (seconds % 60L).toInt()
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        num(displayMinutes.toString()),
+                        style = Flow.type.display,
+                        color = c.textPrimary,
+                        maxLines = 1,
+                    )
+                    Text(
+                        ":",
+                        style = Flow.type.display,
+                        color = c.textPrimary,
+                        maxLines = 1,
+                    )
+                    if (glass.animations) {
+                        AnimatedContent(
+                            targetState = "%02d".format(Locale.US, displaySeconds),
+                            transitionSpec = {
+                                (fadeIn(tween(120)) + slideInVertically(tween(145)) { it / 3 }) togetherWith
+                                    (fadeOut(tween(90)) + slideOutVertically(tween(115)) { -it / 3 })
+                            },
+                            label = "timer-seconds",
+                        ) { value ->
+                            Text(num(value), style = Flow.type.display, color = c.textPrimary, maxLines = 1)
+                        }
+                    } else {
+                        Text(
+                            num("%02d".format(Locale.US, displaySeconds)),
+                            style = Flow.type.display,
+                            color = c.textPrimary,
+                            maxLines = 1,
+                        )
                     }
-                } else {
-                    Text(num(formatClock(seconds)), style = Flow.type.display, color = c.textPrimary, maxLines = 1)
                 }
             }
         }
