@@ -48,6 +48,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val musicFavorites: StateFlow<Set<String>> get() = c.music.favorites
     val musicPlaylists get() = c.music.playlists
     val musicDownloadProgress get() = c.music.downloadProgress
+    val musicDownloadRevision get() = c.music.downloadRevision
     private val _musicDownloadErrors = MutableStateFlow<Map<String, String>>(emptyMap())
     val musicDownloadErrors: StateFlow<Map<String, String>> get() = _musicDownloadErrors
     // News, updates and persistent read state
