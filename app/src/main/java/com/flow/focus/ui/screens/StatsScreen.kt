@@ -82,6 +82,9 @@ fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
         Stats.summarize(data, range, today)
     }
     val hasFocus = summary.focusMinutes > 0L
+    val dailySummary = remember(data.sessions, data.tasks, today) {
+        Stats.summarize(data, StatsRange.DAY, today)
+    }
 
     Column(
         modifier.fillMaxSize()
@@ -118,6 +121,11 @@ fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
             completedSessions = summary.completedSessions,
             activeDays = summary.activeDays,
             range = range,
+        )
+
+        DailyGoalCard(
+            focusMinutes = dailySummary.focusMinutes,
+            goalMinutes = data.settings.dailyGoalMin,
         )
 
         SectionTitle("خلاصه عملکرد")
@@ -244,6 +252,69 @@ fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
                     "شروع آمار از اولین جلسه",
                     "با ثبت اولین جلسه‌ی تمرکز، نمودارها و روند پیشرفتت شکل می‌گیرند.",
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DailyGoalCard(focusMinutes: Long, goalMinutes: Int) {
+    val goal = goalMinutes.coerceAtLeast(1).toLong()
+    val progress = (focusMinutes.toFloat() / goal.toFloat()).coerceIn(0f, 1f)
+    val percent = (progress * 100f).toInt()
+    GlassSurface(
+        Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(23.dp),
+        level = GlassLevel.Subtle,
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(13.dp),
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    FlowIcon(FlowIcons.Target, tint = Flow.colors.accent, size = 18.dp)
+                    Text("هدف تمرکز امروز", style = Flow.type.bodyStrong, color = Flow.colors.textPrimary)
+                }
+                Text(
+                    num("${formatMinutes(focusMinutes)} از ${goalMinutes} دقیقه"),
+                    style = Flow.type.caption,
+                    color = Flow.colors.textSecondary,
+                )
+                FlowProgressBar(progress, Modifier.fillMaxWidth(), height = 5.dp)
+                Text(
+                    if (progress >= 1f) "هدف روزانه کامل شده" else num("${formatMinutes((goal - focusMinutes).coerceAtLeast(0L))} تا رسیدن به هدف"),
+                    style = Flow.type.caption,
+                    color = if (progress >= 1f) Flow.colors.success else Flow.colors.textSecondary,
+                )
+            }
+            Box(Modifier.size(62.dp), contentAlignment = Alignment.Center) {
+                Canvas(Modifier.fillMaxSize()) {
+                    val stroke = 5.dp.toPx()
+                    val inset = stroke / 2f
+                    val arcSize = Size(size.width - stroke, size.height - stroke)
+                    val origin = Offset(inset, inset)
+                    drawArc(
+                        color = Flow.colors.track,
+                        startAngle = -90f,
+                        sweepAngle = 360f,
+                        useCenter = false,
+                        topLeft = origin,
+                        size = arcSize,
+                        style = Stroke(stroke, cap = StrokeCap.Round),
+                    )
+                    drawArc(
+                        color = Flow.colors.accent,
+                        startAngle = -90f,
+                        sweepAngle = 360f * progress,
+                        useCenter = false,
+                        topLeft = origin,
+                        size = arcSize,
+                        style = Stroke(stroke, cap = StrokeCap.Round),
+                    )
+                }
+                Text(num("${percent}%"), style = Flow.type.label, color = Flow.colors.textPrimary, maxLines = 1)
             }
         }
     }
