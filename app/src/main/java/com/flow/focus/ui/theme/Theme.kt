@@ -80,18 +80,17 @@ val DarkColors = FlowColors(
 
 val LightColors = FlowColors(
     isDark = false,
-    bgTop = Color(0xFFF4F5F7), bgMid = Color(0xFFF0F2F5), bgBottom = Color(0xFFE7ECF2),
-    blobA = Color(0xFFB8C9DC), blobB = Color(0xFFC9C6D4), blobC = Color(0xFFB8D0CE),
-    // Light glass stays translucent so custom and built-in wallpapers remain visible.
-    // Light mode prioritises readable controls over excessive wallpaper bleed-through.
-    glassFill = Color(0xFFF9FBFF).copy(alpha = 0.43f),
-    glassFillStrong = Color(0xFFFBFCFF).copy(alpha = 0.68f),
-    glassTintTop = Color.White.copy(alpha = 0.25f),
+    bgTop = Color(0xFFF3F6FA), bgMid = Color(0xFFECF1F7), bgBottom = Color(0xFFE3EAF2),
+    blobA = Color(0xFFAFC7E1), blobB = Color(0xFFC9BEDB), blobC = Color(0xFFAED4D0),
+    // A cool, airy glass palette: translucent highlights, visible edges and readable ink.
+    glassFill = Color(0xFFFCFDFF).copy(alpha = 0.36f),
+    glassFillStrong = Color(0xFFFCFDFF).copy(alpha = 0.60f),
+    glassTintTop = Color.White.copy(alpha = 0.42f),
     glassEdge = Color.White,
-    textPrimary = Color(0xFF202833), textSecondary = Color(0xFF687586), textOnAccent = Color.White,
-    accent = Color(0xFF477DC5), accentAlt = Color(0xFF6B8FC8), accentSoft = Color(0xFF477DC5).copy(alpha = 0.13f),
+    textPrimary = Color(0xFF1F2A38), textSecondary = Color(0xFF66768A), textOnAccent = Color.White,
+    accent = Color(0xFF477FC5), accentAlt = Color(0xFF7798C7), accentSoft = Color(0xFF477FC5).copy(alpha = 0.14f),
     success = Color(0xFF238C66), warning = Color(0xFFB87928), danger = Color(0xFFD64D5D),
-    track = Color(0xFF202833).copy(alpha = 0.09f), shadow = Color(0xFF42566F).copy(alpha = 0.16f),
+    track = Color(0xFF26384D).copy(alpha = 0.10f), shadow = Color(0xFF405B78).copy(alpha = 0.20f),
 )
 
 @Immutable
