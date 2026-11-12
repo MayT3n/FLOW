@@ -427,7 +427,6 @@ private fun EntryRow(vm: AppViewModel, e: PlanEntry, day: LocalDate, onEdit: (Ta
         CheckCircle(
             e.done,
             { if (e is TaskEntry) vm.setTaskDone(e.task.id, !e.task.done) else if (e is RoutineEntry) vm.toggleRoutine(e.routine.id, day.toEpochDay()) },
-            modifier = Modifier.size(44.dp),
             size = 27.dp,
             color = Color(cat.color),
             contentDescription = "تغییر وضعیت ${e.title}",
@@ -465,7 +464,6 @@ private fun EntryRow(vm: AppViewModel, e: PlanEntry, day: LocalDate, onEdit: (Ta
             GlassIconButton(
                 FlowIcons.Move,
                 { onMove(e.task) },
-                modifier = Modifier.size(40.dp),
                 size = 32.dp,
                 iconSize = 16.dp,
                 contentDescription = "جابه‌جایی به تاریخ دیگر",
