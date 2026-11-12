@@ -259,6 +259,7 @@ fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
 
 @Composable
 private fun DailyGoalCard(focusMinutes: Long, goalMinutes: Int) {
+    val colors = Flow.colors
     val goal = goalMinutes.coerceAtLeast(1).toLong()
     val progress = (focusMinutes.toFloat() / goal.toFloat()).coerceIn(0f, 1f)
     val percent = (progress * 100f).toInt()
@@ -296,7 +297,7 @@ private fun DailyGoalCard(focusMinutes: Long, goalMinutes: Int) {
                     val arcSize = Size(size.width - stroke, size.height - stroke)
                     val origin = Offset(inset, inset)
                     drawArc(
-                        color = Flow.colors.track,
+                        color = colors.track,
                         startAngle = -90f,
                         sweepAngle = 360f,
                         useCenter = false,
@@ -305,7 +306,7 @@ private fun DailyGoalCard(focusMinutes: Long, goalMinutes: Int) {
                         style = Stroke(stroke, cap = StrokeCap.Round),
                     )
                     drawArc(
-                        color = Flow.colors.accent,
+                        color = colors.accent,
                         startAngle = -90f,
                         sweepAngle = 360f * progress,
                         useCenter = false,
