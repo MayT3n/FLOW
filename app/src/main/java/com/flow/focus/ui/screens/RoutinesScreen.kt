@@ -269,9 +269,21 @@ private fun RoutineEditorSheet(
     FlowSheet(onDismiss, if (isNew) "روتین جدید" else "ویرایش روتین") {
         FlowTextField(title, { title = it }, "نام روتین (مثلاً مطالعه‌ی صبحگاهی)")
         Text("روزهای تکرار", style = Flow.type.label, color = Flow.colors.textSecondary)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            JalaliDate.weekdayNames.forEachIndexed { i, name ->
-                Chip(name.take(2), i in days, { days = if (i in days) days - i else days + i }, Modifier.weight(1f))
+        Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            (0..2).forEach { row ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    (row * 3..row * 3 + 2).forEach { i ->
+                        if (i < JalaliDate.weekdayNames.size) {
+                            Chip(
+                                JalaliDate.weekdayNames[i],
+                                i in days,
+                                { days = if (i in days) days - i else days + i },
+                                Modifier.weight(1f),
+                            )
+                        }
+                    }
+                    if (row == 2) Spacer(Modifier.weight(1f))
+                }
             }
         }
         SwitchRow("ساعت شروع", minute != null, { minute = if (it) (minute ?: 7 * 60) else null }, subtitle = "برای نمایش در جدول برنامه‌ریزی روز")
