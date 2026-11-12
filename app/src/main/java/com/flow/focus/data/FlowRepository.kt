@@ -146,6 +146,10 @@ class FlowRepository(private val store: JsonStore, scope: CoroutineScope) {
                 weekdays = routine.weekdays.filter { it in 0..6 }.distinct().sorted(),
                 minute = routine.minute?.takeIf { it in 0 until 24 * 60 },
                 pomodoros = routine.pomodoros.coerceIn(1, 20),
+                steps = routine.steps
+                    .take(8)
+                    .map { it.copy(title = it.title.trim().take(80), durationMin = it.durationMin.coerceIn(1, 180)) }
+                    .filter { it.title.isNotBlank() },
             )
         }
         // Preserve IDs, notes, sessions, checks, goals and active timer while normalizing values

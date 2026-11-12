@@ -346,7 +346,8 @@ fun GlassSurface(
         GlassQuality.HIGH -> 1f
     }
     // Subtle content rows avoid a separate RenderEffect allocation on every scrolling item.
-    val blurOn = level != GlassLevel.Subtle && blurStrength > 0f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+    val blurOn = (level != GlassLevel.Subtle || g.quality == GlassQuality.HIGH) &&
+        blurStrength > 0f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
         rootSize != null && rootBackdrop != null && g.blurDp > 0
     val levelBlur = when (level) {
         GlassLevel.Subtle -> 0.55f

@@ -1,6 +1,9 @@
 package com.flow.focus.ui.theme
 
 import android.content.Context
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
@@ -155,7 +158,32 @@ fun FlowTheme(settings: Settings, content: @Composable () -> Unit) {
         ThemeMode.DARK -> true
         ThemeMode.LIGHT -> false
     }
-    val colors = if (dark) DarkColors else LightColors
+    val targetColors = if (dark) DarkColors else LightColors
+    val colorSpec = if (settings.animations) tween<Color>(420) else snap()
+    val colors = FlowColors(
+        isDark = targetColors.isDark,
+        bgTop = animateColorAsState(targetColors.bgTop, colorSpec, label = "theme-bg-top").value,
+        bgMid = animateColorAsState(targetColors.bgMid, colorSpec, label = "theme-bg-mid").value,
+        bgBottom = animateColorAsState(targetColors.bgBottom, colorSpec, label = "theme-bg-bottom").value,
+        blobA = animateColorAsState(targetColors.blobA, colorSpec, label = "theme-blob-a").value,
+        blobB = animateColorAsState(targetColors.blobB, colorSpec, label = "theme-blob-b").value,
+        blobC = animateColorAsState(targetColors.blobC, colorSpec, label = "theme-blob-c").value,
+        glassFill = animateColorAsState(targetColors.glassFill, colorSpec, label = "theme-glass-fill").value,
+        glassFillStrong = animateColorAsState(targetColors.glassFillStrong, colorSpec, label = "theme-glass-strong").value,
+        glassTintTop = animateColorAsState(targetColors.glassTintTop, colorSpec, label = "theme-glass-tint").value,
+        glassEdge = animateColorAsState(targetColors.glassEdge, colorSpec, label = "theme-glass-edge").value,
+        textPrimary = animateColorAsState(targetColors.textPrimary, colorSpec, label = "theme-text-primary").value,
+        textSecondary = animateColorAsState(targetColors.textSecondary, colorSpec, label = "theme-text-secondary").value,
+        textOnAccent = animateColorAsState(targetColors.textOnAccent, colorSpec, label = "theme-text-on-accent").value,
+        accent = animateColorAsState(targetColors.accent, colorSpec, label = "theme-accent").value,
+        accentAlt = animateColorAsState(targetColors.accentAlt, colorSpec, label = "theme-accent-alt").value,
+        accentSoft = animateColorAsState(targetColors.accentSoft, colorSpec, label = "theme-accent-soft").value,
+        success = animateColorAsState(targetColors.success, colorSpec, label = "theme-success").value,
+        warning = animateColorAsState(targetColors.warning, colorSpec, label = "theme-warning").value,
+        danger = animateColorAsState(targetColors.danger, colorSpec, label = "theme-danger").value,
+        track = animateColorAsState(targetColors.track, colorSpec, label = "theme-track").value,
+        shadow = animateColorAsState(targetColors.shadow, colorSpec, label = "theme-shadow").value,
+    )
     val ctx = LocalContext.current
     val family = remember { loadFontFamily(ctx) }
     val type = remember(family) { FlowTypography(family) }

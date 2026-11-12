@@ -68,6 +68,12 @@ data class FocusSession(
 
 /** روتین تکرارشونده؛ weekdays: ۰ = شنبه … ۶ = جمعه */
 @Serializable
+data class RoutineStep(
+    val title: String,
+    val durationMin: Int = 10,
+)
+
+@Serializable
 data class Routine(
     val id: String,
     val title: String,
@@ -75,6 +81,7 @@ data class Routine(
     val minute: Int? = null,
     val categoryId: String = "personal",
     val pomodoros: Int = 1,
+    val steps: List<RoutineStep> = emptyList(),
 )
 
 @Serializable

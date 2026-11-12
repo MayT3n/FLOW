@@ -2,6 +2,7 @@ package com.flow.focus.ui.components
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.ContentTransform
@@ -76,6 +77,8 @@ fun JalaliMonthView(
     onPrev: () -> Unit,
     onNext: () -> Unit,
     eventColors: Map<Long, List<Color>> = emptyMap(),
+    compact: Boolean = false,
+    onToggleExpanded: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val c = Flow.colors
@@ -84,7 +87,7 @@ fun JalaliMonthView(
     val monthKey = year * 12 + month - 1
 
     Column(
-        modifier.fillMaxWidth(),
+        modifier.fillMaxWidth().animateContentSize(if (animations) tween(240) else snap()),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         AnimatedContent(
@@ -122,8 +125,6 @@ fun JalaliMonthView(
             val first = JalaliDate(displayYear, displayMonth, 1).toLocalDate()
             val offset = JalaliDate.weekdayIndex(first)
             val length = JalaliDate.monthLength(displayYear, displayMonth)
-            val rows = (offset + length + 6) / 7
-
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     GlassIconButton(FlowIcons.ChevronPrev, onPrev, size = 38.dp, iconSize = 18.dp, contentDescription = "ماه قبل")
@@ -136,6 +137,15 @@ fun JalaliMonthView(
                         maxLines = 1,
                     )
                     GlassIconButton(FlowIcons.ChevronNext, onNext, size = 38.dp, iconSize = 18.dp, contentDescription = "ماه بعد")
+                    if (onToggleExpanded != null) {
+                        GlassIconButton(
+                            if (compact) FlowIcons.ChevronDown else FlowIcons.ChevronUp,
+                            onToggleExpanded,
+                            size = 36.dp,
+                            iconSize = 17.dp,
+                            contentDescription = if (compact) "باز کردن تقویم" else "جمع کردن تقویم",
+                        )
+                    }
                 }
 
                 Row(Modifier.fillMaxWidth()) {
@@ -150,14 +160,22 @@ fun JalaliMonthView(
                     }
                 }
 
-                for (row in 0 until rows) {
+                val selectedDate = LocalDate.ofEpochDay(selectedEpochDay ?: todayEpochDay)
+                val compactWeekStart = JalaliDate.startOfWeek(selectedDate)
+                val visibleRows = if (compact) 1 else 6
+                for (row in 0 until visibleRows) {
                     Row(Modifier.fillMaxWidth()) {
                         for (column in 0 until 7) {
-                            val dayNum = row * 7 + column - offset + 1
-                            if (dayNum < 1 || dayNum > length) {
+                            val date = if (compact) {
+                                compactWeekStart.plusDays(column.toLong())
+                            } else {
+                                val dayNum = row * 7 + column - offset + 1
+                                if (dayNum in 1..length) JalaliDate(displayYear, displayMonth, dayNum).toLocalDate() else null
+                            }
+                            if (date == null) {
                                 Spacer(Modifier.weight(1f).aspectRatio(1f))
                             } else {
-                                val date = JalaliDate(displayYear, displayMonth, dayNum).toLocalDate()
+                                val dayNum = JalaliDate.of(date).day
                                 val epochDay = date.toEpochDay()
                                 val selected = epochDay == selectedEpochDay
                                 val isToday = epochDay == todayEpochDay
@@ -166,14 +184,13 @@ fun JalaliMonthView(
                                     animationSpec = if (animations) spring(dampingRatio = 0.72f, stiffness = 520f) else snap(),
                                     label = "selected-day",
                                 )
-
                                 Box(
                                     Modifier
                                         .weight(1f)
                                         .aspectRatio(1f)
                                         .padding(2.dp)
                                         .semantics { this.selected = selected }
-                                        .springClick(role = Role.RadioButton, scaleDown = 0.9f, onClick = { onSelect(date) })
+                                        .springClick(role = Role.RadioButton, scaleDown = 0.94f, onClick = { onSelect(date) })
                                         .drawBehind {
                                             if (selectionScale > 0.001f) {
                                                 drawCircle(

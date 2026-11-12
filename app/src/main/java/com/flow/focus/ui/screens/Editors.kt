@@ -32,6 +32,7 @@ import com.flow.focus.data.Categories
 import com.flow.focus.data.Goal
 import com.flow.focus.data.Priority
 import com.flow.focus.data.Routine
+import com.flow.focus.data.RoutineStep
 import com.flow.focus.data.Settings
 import com.flow.focus.data.Task
 import com.flow.focus.data.FlowRepository
@@ -198,7 +199,10 @@ fun RoutineEditorDialog(initial: Routine?, onSave: (Routine) -> Unit, onDelete: 
     var title by remember { mutableStateOf(initial?.title ?: "") }
     var days by remember { mutableStateOf(initial?.weekdays?.toSet() ?: setOf(0, 1, 2, 3, 4, 5, 6)) }
     var minute by remember { mutableStateOf(initial?.minute?.takeIf { it in 0 until 24 * 60 }) }
-    var category by remember { mutableStateOf(initial?.categoryId ?: "personal") }
+    var category by remember(initial?.id) { mutableStateOf(initial?.categoryId ?: "personal") }
+    var steps by remember(initial?.id) { mutableStateOf(initial?.steps.orEmpty()) }
+    var newStepTitle by remember { mutableStateOf("") }
+    var newStepDuration by remember { mutableStateOf(10) }
     FlowDialog(onDismiss, if (initial == null) "روتین جدید" else "ویرایش روتین") {
         FlowTextField(title, { title = it }, "نام روتین (مثلاً ورزش صبحگاهی)")
         Label("روزهای تکرار")
@@ -213,6 +217,57 @@ fun RoutineEditorDialog(initial: Routine?, onSave: (Routine) -> Unit, onDelete: 
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Categories.all.forEach { cat -> Chip(cat.name, category == cat.id, { category = cat.id }, dot = Color(cat.color)) }
         }
+        Label("مراحل روتین")
+        if (steps.isEmpty()) {
+            Text("مراحل اختیاری‌اند؛ می‌توانی روتین را فقط با یک عنوان و زمان اجرا نگه داری.", style = Flow.type.caption, color = Flow.colors.textSecondary)
+        }
+        steps.forEachIndexed { index, step ->
+            GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), level = GlassLevel.Subtle) {
+                Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FlowTextField(
+                        step.title,
+                        { value -> steps = steps.toMutableList().also { it[index] = step.copy(title = value) } },
+                        "مرحله ${index + 1}",
+                    )
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("مدت مرحله", Modifier.weight(1f), style = Flow.type.caption, color = Flow.colors.textSecondary)
+                        Stepper(
+                            step.durationMin,
+                            { value -> steps = steps.toMutableList().also { it[index] = step.copy(durationMin = value) } },
+                            1..180,
+                            suffix = "دقیقه",
+                        )
+                        GlassIconButton(
+                            FlowIcons.Trash,
+                            { steps = steps.filterIndexed { i, _ -> i != index } },
+                            size = 36.dp,
+                            iconSize = 17.dp,
+                            contentDescription = "حذف مرحله",
+                        )
+                    }
+                }
+            }
+        }
+        if (steps.size < 8) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowTextField(newStepTitle, { newStepTitle = it }, "افزودن مرحله", Modifier.weight(1f))
+                Stepper(newStepDuration, { newStepDuration = it }, 1..180, suffix = "دقیقه")
+                GlassIconButton(
+                    FlowIcons.Plus,
+                    {
+                        if (newStepTitle.isNotBlank()) {
+                            steps = steps + RoutineStep(newStepTitle.trim(), newStepDuration)
+                            newStepTitle = ""
+                            newStepDuration = 10
+                        }
+                    },
+                    size = 42.dp,
+                    enabled = newStepTitle.isNotBlank(),
+                    contentDescription = "افزودن مرحله",
+                )
+            }
+        }
+
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             PrimaryButton(
                 "ذخیره",
@@ -221,6 +276,7 @@ fun RoutineEditorDialog(initial: Routine?, onSave: (Routine) -> Unit, onDelete: 
                         Routine(
                             id = initial?.id ?: FlowRepository.newId(), title = title.trim(),
                             weekdays = days.sorted(), minute = minute, categoryId = category,
+                            steps = steps.map { it.copy(title = it.title.trim()) }.filter { it.title.isNotBlank() }.take(8),
                         ),
                     )
                 },

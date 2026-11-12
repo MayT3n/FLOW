@@ -61,9 +61,9 @@ import com.flow.focus.ui.screens.MiniMusicPlayer
 import com.flow.focus.ui.screens.MusicShelfRestoreButton
 import com.flow.focus.ui.screens.MusicPlayerDialog
 import com.flow.focus.ui.screens.PlanningScreen
+import com.flow.focus.ui.screens.RoutinesScreen
 import com.flow.focus.ui.screens.SettingsScreen
 import com.flow.focus.ui.screens.StatsScreen
-import com.flow.focus.ui.screens.TasksScreen
 import com.flow.focus.ui.theme.Flow
 import com.flow.focus.ui.theme.FlowTheme
 import com.flow.focus.ui.theme.LocalDockContentPadding
@@ -87,7 +87,7 @@ class MainActivity : ComponentActivity() {
 private val dockItems = listOf(
     DockItem("خانه", FlowIcons.Home),
     DockItem("برنامه", FlowIcons.Calendar),
-    DockItem("وظایف", FlowIcons.Tasks),
+    DockItem("روتین‌ها", FlowIcons.Repeat),
     DockItem("آمار", FlowIcons.Stats),
     DockItem("تنظیمات", FlowIcons.Settings),
 )
@@ -161,7 +161,7 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
             when (t) {
                 0 -> HomeScreen(vm, data, onNavigate = { tab = it })
                 1 -> PlanningScreen(vm, data)
-                2 -> TasksScreen(vm, data, onStartFocus = { tab = 0 })
+                2 -> RoutinesScreen(vm, data)
                 3 -> StatsScreen(data)
                 else -> SettingsScreen(vm, data)
             }
