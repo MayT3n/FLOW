@@ -1,69 +1,56 @@
 package com.flow.focus.ui.screens
 
-import android.net.Uri
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.flow.focus.core.formatClock
 import com.flow.focus.music.MusicCatalog
 import com.flow.focus.music.MusicSnapshot
 import com.flow.focus.music.MusicTrack
 import com.flow.focus.ui.AppViewModel
+import com.flow.focus.ui.components.EmptyState
+import com.flow.focus.ui.components.FlowDialog
 import com.flow.focus.ui.components.FlowIcon
 import com.flow.focus.ui.components.FlowIcons
 import com.flow.focus.ui.components.FlowProgressBar
 import com.flow.focus.ui.components.FlowSlider
-import com.flow.focus.ui.components.GlassButton
 import com.flow.focus.ui.components.GlassIconButton
-import com.flow.focus.ui.components.PrimaryButton
+import com.flow.focus.ui.components.SegmentedControl
+import com.flow.focus.ui.components.num
 import com.flow.focus.ui.glass.GlassLevel
 import com.flow.focus.ui.glass.GlassSurface
 import com.flow.focus.ui.glass.springClick
 import com.flow.focus.ui.theme.Flow
-import com.flow.focus.ui.theme.LocalGlass
+import androidx.media3.common.Player
 
 @Composable
 fun MiniMusicPlayer(
@@ -73,66 +60,40 @@ fun MiniMusicPlayer(
     onCollapse: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val currentTrack = MusicCatalog.tracks.firstOrNull { it.id == snapshot.currentTrackId }
-    val hasTrack = currentTrack != null
+    val currentTrack = MusicCatalog.tracks.firstOrNull { it.id == snapshot.currentTrackId } ?: return
     GlassSurface(
         modifier.fillMaxWidth().springClick(scaleDown = 0.99f, onClick = onOpen),
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(20.dp),
         level = GlassLevel.Strong,
         elevated = true,
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(9.dp),
         ) {
-            GlassSurface(Modifier.size(42.dp), shape = RoundedCornerShape(14.dp), level = GlassLevel.Subtle) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    if (currentTrack != null) TrackCover(currentTrack, 42.dp)
-                    else FlowIcon(FlowIcons.Music, tint = Flow.colors.accent, size = 21.dp)
-                }
-            }
+            TrackCover(currentTrack, 40.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    currentTrack?.title ?: "موسیقی",
-                    style = Flow.type.label,
-                    color = Flow.colors.textPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    currentTrack?.artist ?: "کتابخانهٔ آفلاین و سرویس‌های رسمی",
-                    style = Flow.type.caption,
-                    color = Flow.colors.textSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (hasTrack) {
-                    FlowProgressBar(
-                        if (snapshot.durationMs > 0L) snapshot.positionMs.toFloat() / snapshot.durationMs else 0f,
-                        Modifier.fillMaxWidth(),
-                        height = 2.dp,
-                    )
+                Text(currentTrack.title, style = Flow.type.label, color = Flow.colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(currentTrack.artist, style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 1)
+                    Box(Modifier.size(3.dp).clip(CircleShape).background(Flow.colors.track))
+                    Text(if (snapshot.isPlaying) "در حال پخش" else "متوقف", style = Flow.type.caption, color = Flow.colors.textSecondary)
                 }
-            }
-            if (hasTrack) {
-                GlassIconButton(
-                    if (snapshot.isPlaying) FlowIcons.Pause else FlowIcons.Play,
-                    { vm.toggleMusicPlayback() },
-                    size = 38.dp,
-                    iconSize = 19.dp,
-                    contentDescription = if (snapshot.isPlaying) "توقف موسیقی" else "پخش موسیقی",
+                FlowProgressBar(
+                    if (snapshot.durationMs > 0L) snapshot.positionMs.toFloat() / snapshot.durationMs else 0f,
+                    Modifier.fillMaxWidth(),
+                    height = 2.dp,
                 )
-            } else {
-                FlowIcon(FlowIcons.Export, tint = Flow.colors.accent, size = 20.dp)
             }
             GlassIconButton(
-                FlowIcons.ChevronDown,
-                onCollapse,
-                size = 34.dp,
-                iconSize = 17.dp,
-                contentDescription = "جمع کردن پخش‌کننده",
+                if (snapshot.isPlaying) FlowIcons.Pause else FlowIcons.Play,
+                { vm.toggleMusicPlayback() },
+                size = 36.dp,
+                iconSize = 18.dp,
+                contentDescription = if (snapshot.isPlaying) "توقف موسیقی" else "پخش موسیقی",
             )
+            GlassIconButton(FlowIcons.ChevronDown, onCollapse, size = 32.dp, iconSize = 16.dp, contentDescription = "جمع کردن پخش‌کننده")
         }
     }
 }
@@ -146,108 +107,133 @@ fun MusicShelfRestoreButton(onExpand: () -> Unit) {
         elevated = true,
     ) {
         Row(
-            Modifier.padding(horizontal = 15.dp, vertical = 9.dp),
+            Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
         ) {
-            FlowIcon(FlowIcons.Music, tint = Flow.colors.accent, size = 17.dp)
+            FlowIcon(FlowIcons.Music, tint = Flow.colors.accent, size = 16.dp)
             Text("نمایش پخش‌کننده", style = Flow.type.caption, color = Flow.colors.textPrimary)
-            FlowIcon(FlowIcons.ChevronUp, tint = Flow.colors.textSecondary, size = 15.dp)
+            FlowIcon(FlowIcons.ChevronUp, tint = Flow.colors.textSecondary, size = 14.dp)
         }
     }
 }
 
 @Composable
 fun MusicPlayerDialog(vm: AppViewModel, onDismiss: () -> Unit) {
-    val animations = LocalGlass.current.animations
     val snapshot by vm.musicSnapshot.collectAsStateWithLifecycle()
+    val favorites by vm.musicFavorites.collectAsStateWithLifecycle()
     val downloadProgress by vm.musicDownloadProgress.collectAsStateWithLifecycle()
-    var libraryVersion by remember { mutableStateOf(0) }
-    val currentTrack = MusicCatalog.tracks.firstOrNull { it.id == snapshot.currentTrackId }
-    val totalBytes = MusicCatalog.tracks.sumOf { it.fileSize }
-    val downloadedBytes = remember(libraryVersion, downloadProgress) { vm.downloadedMusicBytes() }
-    var visible by remember { mutableStateOf(true) }
-    val requestDismiss = { if (visible) visible = false }
-    LaunchedEffect(visible) {
-        if (!visible) {
-            if (animations) delay(175)
-            onDismiss()
-        }
+    var filter by rememberSaveable { mutableStateOf(0) }
+    val allTracks = MusicCatalog.tracks
+    val visibleTracks = remember(filter, favorites) {
+        if (filter == 0) allTracks else allTracks.filter { it.id in favorites }
     }
-    androidx.compose.ui.window.Dialog(
-        onDismissRequest = requestDismiss,
-        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        AnimatedVisibility(
-            visible = visible,
-            enter = if (animations) fadeIn(tween(160)) + scaleIn(initialScale = 0.97f, animationSpec = tween(190)) else EnterTransition.None,
-            exit = if (animations) fadeOut(tween(115)) + scaleOut(targetScale = 0.97f, animationSpec = tween(140)) else ExitTransition.None,
-        ) {
-            GlassSurface(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
-                shape = RoundedCornerShape(30.dp),
-                level = GlassLevel.Strong,
-                elevated = true,
+    val currentTrack = allTracks.firstOrNull { it.id == snapshot.currentTrackId }
+    val totalBytes = allTracks.sumOf { it.fileSize }
+    val downloadedBytes = vm.downloadedMusicBytes()
+
+    FlowDialog(onDismiss = onDismiss, title = "موسیقی") {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Column(
-                    Modifier.fillMaxWidth().heightIn(max = 660.dp).verticalScroll(rememberScrollState())
-                        .padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(13.dp),
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("کتابخانهٔ موسیقی", style = Flow.type.title, color = Flow.colors.textPrimary)
-                            Text("آفلاین، سبک و مناسب زمان تمرکز", style = Flow.type.caption, color = Flow.colors.textSecondary)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Text("کتابخانه‌ی تمرکز", style = Flow.type.bodyStrong, color = Flow.colors.textPrimary)
+                    Text("قطعه‌های آفلاین، بدون سرویس اضافه", style = Flow.type.caption, color = Flow.colors.textSecondary)
+                }
+                Text(
+                    "${num(allTracks.size)} قطعه",
+                    style = Flow.type.caption,
+                    color = Flow.colors.textSecondary,
+                )
+            }
+
+            if (currentTrack != null) {
+                CurrentTrackPanel(vm, currentTrack, snapshot)
+            } else {
+                GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), level = GlassLevel.Subtle) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(13.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Box(
+                            Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)).background(Flow.colors.accentSoft),
+                            contentAlignment = Alignment.Center,
+                        ) { FlowIcon(FlowIcons.Music, tint = Flow.colors.accent, size = 21.dp) }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                            Text("هنوز چیزی پخش نمی‌شود", style = Flow.type.bodyStrong, color = Flow.colors.textPrimary)
+                            Text("برای شروع، یکی از قطعه‌های پایین را انتخاب کن.", style = Flow.type.caption, color = Flow.colors.textSecondary)
                         }
-                        GlassIconButton(
-                            FlowIcons.Close,
-                            requestDismiss,
-                            size = 38.dp,
-                            iconSize = 18.dp,
-                            contentDescription = "بستن پخش‌کننده",
-                        )
                     }
-                    if (currentTrack != null) {
-                        CurrentTrackPanel(vm, currentTrack, snapshot)
-                    }
-                    Text("موسیقی‌های آفلاین", style = Flow.type.heading, color = Flow.colors.textPrimary)
-                    Text(
-                        "چهار قطعهٔ کوتاه با مجوز CC0؛ مجموع فایل‌ها حدود ۱۱٫۹ مگابایت است.",
-                        style = Flow.type.caption,
-                        color = Flow.colors.textSecondary,
-                    )
-                    MusicCatalog.tracks.forEach { track ->
-                        OfflineTrackCard(
-                            track = track,
-                            isCurrent = snapshot.currentTrackId == track.id,
-                            isPlaying = snapshot.isPlaying && snapshot.currentTrackId == track.id,
-                            isDownloaded = vm.isMusicDownloaded(track.id),
-                            downloadProgress = downloadProgress[track.id],
-                            onPlay = {
-                                if (snapshot.currentTrackId == track.id && snapshot.isPlaying) vm.toggleMusicPlayback()
-                                else vm.playMusic(track.id)
-                            },
-                            onDownload = { vm.downloadMusicTrack(track.id) },
-                            onRemove = {
-                                vm.removeMusicDownload(track.id)
-                                libraryVersion += 1
-                            },
-                        )
-                    }
-                    Text(
-                        "حجم دانلودشده: ${formatBytes(downloadedBytes)} از ${formatBytes(50L * 1024L * 1024L)} · حجم کل کتابخانه: ${formatBytes(totalBytes)}",
-                        style = Flow.type.caption,
-                        color = Flow.colors.textSecondary,
-                    )
-                    Text("سرویس‌های آنلاین", style = Flow.type.heading, color = Flow.colors.textPrimary)
-                    OnlineMusicSearchPanel()
-                    PrimaryButton("بستن", requestDismiss, Modifier.fillMaxWidth())
                 }
             }
+
+            SegmentedControl(
+                listOf("همه‌ی قطعه‌ها", "علاقه‌مندی‌ها"),
+                filter,
+                { filter = it },
+            )
+
+            if (visibleTracks.isEmpty()) {
+                EmptyState(
+                    FlowIcons.Heart,
+                    "هنوز قطعه‌ای ذخیره نشده",
+                    "با زدن قلب کنار هر قطعه، آن را اینجا نگه دار.",
+                )
+            } else {
+                GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(21.dp), level = GlassLevel.Subtle) {
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 3.dp)) {
+                        visibleTracks.forEachIndexed { index, track ->
+                            MusicTrackRow(
+                                track = track,
+                                isCurrent = snapshot.currentTrackId == track.id,
+                                isPlaying = snapshot.isPlaying && snapshot.currentTrackId == track.id,
+                                isFavorite = track.id in favorites,
+                                isDownloaded = vm.isMusicDownloaded(track.id),
+                                downloadProgress = downloadProgress[track.id],
+                                onPlay = {
+                                    if (snapshot.currentTrackId == track.id && snapshot.isPlaying) vm.toggleMusicPlayback()
+                                    else vm.playMusic(track.id)
+                                },
+                                onFavorite = { vm.toggleMusicFavorite(track.id) },
+                                onDownload = { vm.downloadMusicTrack(track.id) },
+                            )
+                            if (index < visibleTracks.lastIndex) {
+                                Box(Modifier.fillMaxWidth().padding(start = 54.dp).size(width = 1.dp, height = 1.dp).background(Flow.colors.track))
+                            }
+                        }
+                    }
+                }
+            }
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("حافظه‌ی استفاده‌شده", style = Flow.type.caption, color = Flow.colors.textSecondary)
+                Text(
+                    "${formatBytes(downloadedBytes)} از ${formatBytes(totalBytes)}",
+                    style = Flow.type.caption,
+                    color = Flow.colors.textSecondary,
+                )
+            }
+            FlowProgressBar(
+                if (totalBytes > 0L) downloadedBytes.toFloat() / totalBytes else 0f,
+                Modifier.fillMaxWidth(),
+                height = 4.dp,
+            )
+            Text(
+                "فایل‌ها در صورت نیاز دانلود می‌شوند و برای پخش آفلاین در حافظه‌ی برنامه می‌مانند. همه‌ی قطعه‌های این فهرست با مجوز CC0 ارائه شده‌اند.",
+                style = Flow.type.caption,
+                color = Flow.colors.textSecondary,
+            )
         }
     }
 }
-
 
 @Composable
 private fun CurrentTrackPanel(
@@ -256,14 +242,15 @@ private fun CurrentTrackPanel(
     snapshot: MusicSnapshot,
 ) {
     GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp), level = GlassLevel.Strong) {
-        Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
-                TrackCover(track, 54.dp)
+        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                TrackCover(track, 56.dp)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("اکنون در حال پخش", style = Flow.type.caption, color = Flow.colors.textSecondary)
+                    Text("اکنون در حال پخش", style = Flow.type.caption, color = Flow.colors.accent)
                     Text(track.title, style = Flow.type.bodyStrong, color = Flow.colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(track.artist, style = Flow.type.caption, color = Flow.colors.textSecondary)
+                    Text(track.mood, style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 1)
                 }
+                Text(track.durationLabel, style = Flow.type.caption, color = Flow.colors.textSecondary)
             }
             FlowSlider(
                 value = if (snapshot.durationMs > 0L) (snapshot.positionMs.toFloat() / snapshot.durationMs).coerceIn(0f, 1f) else 0f,
@@ -273,27 +260,43 @@ private fun CurrentTrackPanel(
             )
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(formatClock(snapshot.positionMs / 1_000L), style = Flow.type.caption, color = Flow.colors.textSecondary)
-                androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+                Spacer(Modifier.weight(1f))
                 Text(formatClock(snapshot.durationMs / 1_000L), style = Flow.type.caption, color = Flow.colors.textSecondary)
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                GlassIconButton(FlowIcons.ChevronPrev, { vm.previousMusic() }, size = 40.dp, contentDescription = "آهنگ قبلی")
+                GlassIconButton(
+                    FlowIcons.Shuffle,
+                    { vm.toggleMusicShuffle() },
+                    size = 34.dp,
+                    iconSize = 16.dp,
+                    tint = if (snapshot.shuffle) Flow.colors.accent else Flow.colors.textSecondary,
+                    contentDescription = "پخش تصادفی",
+                )
+                GlassIconButton(FlowIcons.ChevronPrev, { vm.previousMusic() }, size = 38.dp, iconSize = 18.dp, contentDescription = "قطعه‌ی قبلی")
                 GlassIconButton(
                     if (snapshot.isPlaying) FlowIcons.Pause else FlowIcons.Play,
                     { vm.toggleMusicPlayback() },
-                    size = 48.dp,
-                    iconSize = 21.dp,
+                    size = 46.dp,
+                    iconSize = 20.dp,
                     contentDescription = if (snapshot.isPlaying) "توقف" else "پخش",
                 )
-                GlassIconButton(FlowIcons.ChevronNext, { vm.nextMusic() }, size = 40.dp, contentDescription = "آهنگ بعدی")
+                GlassIconButton(FlowIcons.ChevronNext, { vm.nextMusic() }, size = 38.dp, iconSize = 18.dp, contentDescription = "قطعه‌ی بعدی")
+                GlassIconButton(
+                    FlowIcons.Repeat,
+                    { vm.cycleMusicRepeat() },
+                    size = 34.dp,
+                    iconSize = 16.dp,
+                    tint = if (snapshot.repeatMode != Player.REPEAT_MODE_OFF) Flow.colors.accent else Flow.colors.textSecondary,
+                    contentDescription = "تغییر حالت تکرار",
+                )
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("صدا", style = Flow.type.caption, color = Flow.colors.textSecondary)
+                FlowIcon(FlowIcons.Volume, tint = Flow.colors.textSecondary, size = 17.dp)
                 FlowSlider(
                     value = snapshot.volume.coerceIn(0f, 1f),
                     onChange = vm::setMusicVolume,
                     range = 0f..1f,
-                    modifier = Modifier.weight(1f).padding(start = 10.dp),
+                    modifier = Modifier.weight(1f).padding(start = 8.dp),
                 )
             }
         }
@@ -301,67 +304,62 @@ private fun CurrentTrackPanel(
 }
 
 @Composable
-private fun OfflineTrackCard(
+private fun MusicTrackRow(
     track: MusicTrack,
     isCurrent: Boolean,
     isPlaying: Boolean,
+    isFavorite: Boolean,
     isDownloaded: Boolean,
     downloadProgress: Float?,
     onPlay: () -> Unit,
+    onFavorite: () -> Unit,
     onDownload: () -> Unit,
-    onRemove: () -> Unit,
 ) {
-    val uriHandler = LocalUriHandler.current
-    GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), level = GlassLevel.Regular) {
-        Column(Modifier.fillMaxWidth().padding(11.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                TrackCover(track, 58.dp)
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(track.title, style = Flow.type.bodyStrong, color = Flow.colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(track.mood, style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 1)
-                    Text("${track.durationLabel} · ${formatBytes(track.fileSize.toLong())} · CC0", style = Flow.type.caption, color = Flow.colors.textSecondary)
-                    Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                        Text(
-                            "مجوز CC0",
-                            Modifier.springClick(onClick = { runCatching { uriHandler.openUri(track.licenseUrl) } }),
-                            style = Flow.type.caption,
-                            color = Flow.colors.accent,
-                        )
-                        Text(
-                            "منبع آهنگ",
-                            Modifier.springClick(onClick = { runCatching { uriHandler.openUri(track.sourceUrl) } }),
-                            style = Flow.type.caption,
-                            color = Flow.colors.accent,
-                        )
-                    }
-                }
-                GlassIconButton(
-                    if (isCurrent && isPlaying) FlowIcons.Pause else FlowIcons.Play,
-                    onPlay,
-                    size = 40.dp,
-                    iconSize = 18.dp,
-                    contentDescription = if (isCurrent && isPlaying) "پخش مجدد یا ادامه" else "پخش آهنگ",
-                )
-            }
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        TrackCover(track, 46.dp)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(track.title, style = Flow.type.bodyStrong, color = Flow.colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(track.mood + " · " + track.durationLabel, style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (downloadProgress != null) {
-                FlowProgressBar(downloadProgress, Modifier.fillMaxWidth(), height = 4.dp)
-                Text("در حال دانلود · ${(downloadProgress * 100).toInt()}٪", style = Flow.type.caption, color = Flow.colors.textSecondary)
+                FlowProgressBar(downloadProgress, Modifier.fillMaxWidth(), height = 3.dp)
             } else if (isDownloaded) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("ذخیره‌شده برای پخش آفلاین", Modifier.weight(1f), style = Flow.type.caption, color = Flow.colors.success)
-                    GlassButton("حذف دانلود", onRemove)
-                }
-            } else {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("دانلود برای استفادهٔ آفلاین", Modifier.weight(1f), style = Flow.type.caption, color = Flow.colors.textSecondary)
-                    GlassButton("دانلود", onDownload)
-                }
+                Text("آفلاین", style = Flow.type.caption, color = Flow.colors.success, maxLines = 1)
             }
+        }
+        GlassIconButton(
+            FlowIcons.Heart,
+            onFavorite,
+            size = 32.dp,
+            iconSize = 16.dp,
+            tint = if (isFavorite) Flow.colors.danger else Flow.colors.textSecondary,
+            contentDescription = if (isFavorite) "حذف از علاقه‌مندی‌ها" else "افزودن به علاقه‌مندی‌ها",
+        )
+        GlassIconButton(
+            if (isPlaying) FlowIcons.Pause else FlowIcons.Play,
+            onPlay,
+            size = 36.dp,
+            iconSize = 17.dp,
+            tint = if (isCurrent) Flow.colors.accent else Flow.colors.textPrimary,
+            contentDescription = if (isPlaying) "توقف قطعه" else "پخش قطعه",
+        )
+        if (!isDownloaded && downloadProgress == null) {
+            GlassIconButton(
+                FlowIcons.Download,
+                onDownload,
+                size = 32.dp,
+                iconSize = 16.dp,
+                contentDescription = "دانلود برای پخش آفلاین",
+            )
+        } else if (isDownloaded) {
+            FlowIcon(FlowIcons.Check, tint = Flow.colors.success, size = 17.dp)
         }
     }
 }
 
-/** Original in-app cover art, using a distinct calm motif for each licensed track. */
 @Composable
 private fun TrackCover(track: MusicTrack, edge: androidx.compose.ui.unit.Dp) {
     val palette = when (track.id) {
@@ -370,11 +368,11 @@ private fun TrackCover(track: MusicTrack, edge: androidx.compose.ui.unit.Dp) {
         "afterglow-vast" -> listOf(Color(0xFF593B49), Color(0xFFB56D58), Color(0xFFE6BC82))
         else -> listOf(Color(0xFF4B4B55), Color(0xFF8B7568), Color(0xFFD2BFA2))
     }
-    Canvas(Modifier.size(edge).clip(RoundedCornerShape(15.dp))) {
+    Canvas(Modifier.size(edge).clip(RoundedCornerShape(14.dp))) {
         drawRect(Brush.linearGradient(palette, start = Offset.Zero, end = Offset(size.width, size.height)))
         val center = Offset(size.width * 0.66f, size.height * 0.34f)
         val radius = size.minDimension * 0.23f
-        drawCircle(Color.White.copy(alpha = 0.28f), radius = radius * 1.5f, center = center)
+        drawCircle(Color.White.copy(alpha = 0.28f), radius * 1.5f, center)
         drawCircle(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.72f), palette[2]), center, radius), radius, center)
         if (track.id == "bedroom-window-outlands") {
             val w = size.width * 0.34f
@@ -386,6 +384,15 @@ private fun TrackCover(track: MusicTrack, edge: androidx.compose.ui.unit.Dp) {
             drawLine(Color.White.copy(alpha = 0.22f), Offset(size.width * 0.08f, size.height * 0.78f), Offset(size.width * 0.92f, size.height * 0.78f), 1.3.dp.toPx())
             drawLine(Color.White.copy(alpha = 0.17f), Offset(size.width * 0.12f, size.height * 0.84f), Offset(size.width * 0.75f, size.height * 0.84f), 1.dp.toPx())
         }
+        drawArc(
+            color = Color.White.copy(alpha = 0.28f),
+            startAngle = 205f,
+            sweepAngle = 115f,
+            useCenter = false,
+            topLeft = Offset(size.width * 0.42f, size.height * 0.42f),
+            size = Size(size.width * 0.45f, size.height * 0.45f),
+            style = Stroke(width = 1.dp.toPx()),
+        )
     }
 }
 
@@ -393,104 +400,4 @@ private fun formatBytes(value: Long): String = when {
     value >= 1024L * 1024L -> "${"%.1f".format(java.util.Locale.US, value / (1024f * 1024f))} MB"
     value >= 1024L -> "${value / 1024L} KB"
     else -> "${value} B"
-}
-
-@Composable
-fun MusicSettings() {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(
-            "عبارت دلخواهت را بنویس و همان جست‌وجو را در یکی از سرویس‌های رسمی باز کن.",
-            style = Flow.type.caption,
-            color = Flow.colors.textSecondary,
-        )
-        OnlineMusicSearchPanel()
-        Text(
-            "کتابخانهٔ آفلاین MatFocus از قطعه‌های دارای مجوز CC0 استفاده می‌کند؛ جست‌وجوی Spotify و YouTube Music در سرویس رسمی خودشان باز می‌شود.",
-            style = Flow.type.caption,
-            color = Flow.colors.textSecondary,
-        )
-    }
-}
-
-@Composable
-private fun OnlineMusicSearchPanel() {
-    val uriHandler = LocalUriHandler.current
-    var query by rememberSaveable { mutableStateOf("Deep Focus instrumental") }
-    val encodedQuery = Uri.encode(query.trim().ifBlank { "focus music" })
-
-    Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-        GlassSurface(
-            Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
-            level = GlassLevel.Regular,
-        ) {
-            Column(
-                Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(7.dp),
-            ) {
-                Text("جست‌وجوی موسیقی", style = Flow.type.label, color = Flow.colors.textSecondary)
-                BasicTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 28.dp),
-                    singleLine = true,
-                    textStyle = Flow.type.body.copy(color = Flow.colors.textPrimary),
-                    cursorBrush = SolidColor(Flow.colors.accent),
-                    decorationBox = { innerTextField ->
-                        Box(contentAlignment = Alignment.CenterStart) {
-                            if (query.isBlank()) {
-                                Text(
-                                    "مثلاً lofi، تمرکز یا صدای باران",
-                                    style = Flow.type.body,
-                                    color = Flow.colors.textSecondary,
-                                    maxLines = 1,
-                                )
-                            }
-                            innerTextField()
-                        }
-                    },
-                )
-            }
-        }
-        MusicServiceCard("YouTube Music", "جست‌وجوی موسیقی و میکس‌های تمرکز", FlowIcons.Play) {
-            runCatching { uriHandler.openUri("https://music.youtube.com/search?q=$encodedQuery") }
-        }
-        MusicServiceCard("Spotify", "جست‌وجوی پلی‌لیست‌ها و آهنگ‌ها", FlowIcons.Music) {
-            runCatching { uriHandler.openUri("https://open.spotify.com/search/$encodedQuery") }
-        }
-        MusicServiceCard("YouTube", "میکس‌های طولانی و صدای محیط", FlowIcons.Play) {
-            runCatching { uriHandler.openUri("https://www.youtube.com/results?search_query=$encodedQuery") }
-        }
-    }
-}
-
-@Composable
-private fun MusicServiceCard(
-    title: String,
-    subtitle: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit,
-) {
-    GlassSurface(
-        Modifier.fillMaxWidth().springClick(scaleDown = 0.985f, onClick = onClick),
-        shape = RoundedCornerShape(19.dp),
-        level = GlassLevel.Regular,
-    ) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 13.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            GlassSurface(Modifier.size(42.dp), shape = RoundedCornerShape(14.dp), level = GlassLevel.Subtle) {
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    FlowIcon(icon, tint = Flow.colors.accent, size = 21.dp)
-                }
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(title, style = Flow.type.bodyStrong, color = Flow.colors.textPrimary)
-                Text(subtitle, style = Flow.type.caption, color = Flow.colors.textSecondary)
-            }
-            FlowIcon(FlowIcons.ChevronNext, tint = Flow.colors.textSecondary, size = 18.dp)
-        }
-    }
 }
