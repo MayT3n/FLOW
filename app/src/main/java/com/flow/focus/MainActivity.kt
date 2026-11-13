@@ -36,6 +36,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -156,12 +157,15 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
             },
             label = "tabs",
         ) { t ->
-            when (t) {
-                0 -> HomeScreen(vm, data, onNavigate = { tab = it }, onOpenMusic = { musicOpen = true })
-                1 -> PlanningScreen(vm, data, onStartFocus = { tab = 0 })
-                2 -> RoutinesScreen(vm, data)
-                3 -> StatsScreen(data)
-                else -> SettingsScreen(vm, data)
+            // هر تب state خودش (از جمله موقعیت اسکرول) را هنگام خروج ذخیره و هنگام بازگشت بازمی‌گرداند.
+            tabStateHolder.SaveableStateProvider(t) {
+                when (t) {
+                    0 -> HomeScreen(vm, data, onNavigate = { tab = it }, onOpenMusic = { musicOpen = true })
+                    1 -> PlanningScreen(vm, data, onStartFocus = { tab = 0 })
+                    2 -> RoutinesScreen(vm, data)
+                    3 -> StatsScreen(data)
+                    else -> SettingsScreen(vm, data)
+                }
             }
         }
         if (musicOpen) MusicPlayerDialog(vm) { musicOpen = false }

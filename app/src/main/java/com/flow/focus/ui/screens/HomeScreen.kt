@@ -90,6 +90,7 @@ import com.flow.focus.domain.PomodoroEngine
 import com.flow.focus.domain.Planner
 import com.flow.focus.domain.Stats
 import com.flow.focus.ui.AppViewModel
+import com.flow.focus.ui.rememberTabScrollState
 import com.flow.focus.ui.relativeDay
 import com.flow.focus.ui.rememberNowMs
 import com.flow.focus.ui.components.CheckCircle
@@ -158,7 +159,7 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, onOpe
     val next = remember(data.tasks, data.routines, data.routineChecks, clock) { Planner.next(data, dateTime) }
 
     Column(
-        modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding()
+        modifier.fillMaxSize().verticalScroll(rememberTabScrollState()).statusBarsPadding()
             .padding(horizontal = 18.dp).padding(top = 8.dp, bottom = LocalDockContentPadding.current),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {

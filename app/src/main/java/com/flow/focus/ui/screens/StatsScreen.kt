@@ -69,6 +69,7 @@ import com.flow.focus.ui.glass.GlassLevel
 import com.flow.focus.ui.glass.GlassSurface
 import com.flow.focus.ui.rememberToday
 import com.flow.focus.ui.theme.LocalDockContentPadding
+import com.flow.focus.ui.rememberTabScrollState
 import com.flow.focus.ui.theme.Flow
 import com.flow.focus.ui.motion.Motion
 import com.flow.focus.ui.theme.LocalGlass
@@ -89,7 +90,7 @@ fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
 
     Column(
         modifier.fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberTabScrollState())
             .statusBarsPadding()
             .padding(horizontal = 18.dp)
             .padding(top = 8.dp, bottom = LocalDockContentPadding.current),

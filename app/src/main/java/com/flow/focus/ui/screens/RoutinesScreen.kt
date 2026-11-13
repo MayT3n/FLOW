@@ -44,6 +44,7 @@ import com.flow.focus.data.Routine
 import com.flow.focus.data.RoutineStep
 import com.flow.focus.domain.RoutineStats
 import com.flow.focus.ui.AppViewModel
+import com.flow.focus.ui.rememberTabScrollState
 import com.flow.focus.ui.components.CheckCircle
 import com.flow.focus.ui.components.Chip
 import com.flow.focus.ui.components.EmptyState
@@ -103,7 +104,7 @@ fun RoutinesScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
 
     Box(modifier.fillMaxSize()) {
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding()
+            Modifier.fillMaxSize().verticalScroll(rememberTabScrollState()).statusBarsPadding()
                 .padding(horizontal = 18.dp).padding(top = 8.dp, bottom = LocalDockContentPadding.current + 72.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {

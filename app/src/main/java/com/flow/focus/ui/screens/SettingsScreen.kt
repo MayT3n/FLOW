@@ -68,6 +68,7 @@ import com.flow.focus.data.GlassQuality
 import com.flow.focus.data.ThemeMode
 import com.flow.focus.data.WallpaperFit
 import com.flow.focus.ui.AppViewModel
+import com.flow.focus.ui.rememberTabScrollState
 import com.flow.focus.ui.components.FlowDialog
 import com.flow.focus.ui.components.FlowIcon
 import com.flow.focus.ui.components.GlassIconButton
@@ -326,7 +327,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
     }
 
     Column(
-        modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding()
+        modifier.fillMaxSize().verticalScroll(rememberTabScrollState()).statusBarsPadding()
             .padding(horizontal = 18.dp).padding(top = 8.dp, bottom = LocalDockContentPadding.current),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
