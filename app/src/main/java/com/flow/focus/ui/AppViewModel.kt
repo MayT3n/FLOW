@@ -77,7 +77,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ---- موسیقی ----
-    fun playMusic(id: String) = c.music.play(id)
+    /** آهنگ دانلودشده فوراً پخش می‌شود؛ در غیر این صورت اول دانلود و بعد خودکار پخش می‌شود. */
+    fun playMusic(id: String) {
+        if (c.music.isDownloaded(id)) c.music.play(id) else downloadMusicTrack(id, playWhenReady = true)
+    }
     fun toggleMusicPlayback() = c.music.togglePlayPause()
     fun nextMusic() = c.music.next()
     fun previousMusic() = c.music.previous()
@@ -97,10 +100,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun removeMusicDownload(id: String) {
         c.music.removeDownload(id)
     }
-    fun downloadMusicTrack(id: String) {
+    fun downloadMusicTrack(id: String, playWhenReady: Boolean = false) {
+        if (c.music.downloadProgress.value.containsKey(id)) return
         viewModelScope.launch {
             _musicDownloadErrors.value = _musicDownloadErrors.value - id
             runCatching { c.music.downloadTrack(id) }
+                .onSuccess { if (playWhenReady) c.music.play(id) }
                 .onFailure { error ->
                     _musicDownloadErrors.value = _musicDownloadErrors.value + (id to (error.message ?: "دانلود ناموفق بود"))
                 }

@@ -108,17 +108,15 @@ fun MusicPlayerDialog(vm: AppViewModel, onDismiss: () -> Unit) {
     var playlistsOpen by remember { mutableStateOf(false) }
     var pickerTrackId by remember { mutableStateOf<String?>(null) }
     var favoritesOnly by remember { mutableStateOf(false) }
-    var downloadedOnly by remember { mutableStateOf(false) }
     var alphabetical by remember { mutableStateOf(false) }
     val downloadErrors by vm.musicDownloadErrors.collectAsStateWithLifecycle()
     val track = MusicCatalog.tracks.firstOrNull { it.id == snapshot.currentTrackId }
         ?: MusicCatalog.tracks.first()
     val duration = snapshot.durationMs.coerceAtLeast(0L)
-    val visibleTracks = remember(favoritesOnly, downloadedOnly, alphabetical, favorites, downloadRevision) {
+    val visibleTracks = remember(favoritesOnly, alphabetical, favorites, downloadRevision) {
         MusicCatalog.tracks
         .filter { item ->
             when {
-                downloadedOnly -> vm.isMusicDownloaded(item.id)
                 favoritesOnly -> item.id in favorites
                 else -> true
             }
@@ -181,16 +179,9 @@ fun MusicPlayerDialog(vm: AppViewModel, onDismiss: () -> Unit) {
         )
         Text("کتابخانه", style = Flow.type.heading, color = Flow.colors.textPrimary)
         SegmentedControl(
-            options = listOf("همه", "دانلودشده‌ها", "علاقه‌مندی‌ها"),
-            selected = when {
-                downloadedOnly -> 1
-                favoritesOnly -> 2
-                else -> 0
-            },
-            onSelect = {
-                downloadedOnly = it == 1
-                favoritesOnly = it == 2
-            },
+            options = listOf("همه", "علاقه‌مندی‌ها"),
+            selected = if (favoritesOnly) 1 else 0,
+            onSelect = { favoritesOnly = it == 1 },
             modifier = Modifier.fillMaxWidth(),
         )
         SegmentedControl(
@@ -202,7 +193,6 @@ fun MusicPlayerDialog(vm: AppViewModel, onDismiss: () -> Unit) {
         if (visibleTracks.isEmpty()) {
             Text(
                 when {
-                    downloadedOnly -> "هنوز آهنگی دانلود نکرده‌ای."
                     favoritesOnly -> "هنوز آهنگی به علاقه‌مندی‌ها اضافه نشده است."
                     else -> "کتابخانه‌ی موسیقی خالی است."
                 },
@@ -227,7 +217,7 @@ fun MusicPlayerDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                         Text(item.title, style = Flow.type.label, color = if (selected) Flow.colors.accent else Flow.colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(
                             downloadErrors[item.id]?.let { "خطا: $it" }
-                                ?: if (vm.isMusicDownloaded(item.id)) "دانلودشده · ${item.mood}" else item.mood,
+                                ?: if (vm.isMusicDownloaded(item.id)) item.mood else "${item.mood} · برای پخش لمس کن تا دانلود شود",
                             style = Flow.type.caption,
                             color = if (downloadErrors[item.id] != null) Flow.colors.danger else Flow.colors.textSecondary,
                             maxLines = 2,
@@ -253,13 +243,13 @@ fun MusicPlayerDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                     when {
                         progress != null -> Text(num("${(progress * 100).toInt()}٪"), style = Flow.type.caption, color = Flow.colors.accent)
                         vm.isMusicDownloaded(item.id) -> GlassIconButton(FlowIcons.Trash, { vm.removeMusicDownload(item.id) }, size = 32.dp, iconSize = 15.dp, contentDescription = "حذف دانلود")
-                        else -> GlassIconButton(FlowIcons.Export, { vm.downloadMusicTrack(item.id) }, size = 32.dp, iconSize = 15.dp, contentDescription = "دانلود برای پخش آفلاین")
+                        else -> GlassIconButton(FlowIcons.Download, { vm.playMusic(item.id) }, size = 32.dp, iconSize = 15.dp, contentDescription = "دانلود و پخش")
                     }
                 }
             }
         }
         Text(
-            "آهنگ‌ها با مجوز CC0 1.0 از AERIS MUSIC ارائه شده‌اند. حجم دانلودشده: ${formatBytes(vm.downloadedMusicBytes())}",
+            "آهنگ‌ها با مجوز CC0 1.0 از AERIS MUSIC‌اند و بعد از دانلود پخش می‌شوند. حجم دانلودشده: ${formatBytes(vm.downloadedMusicBytes())}",
             style = Flow.type.caption,
             color = Flow.colors.textSecondary,
         )

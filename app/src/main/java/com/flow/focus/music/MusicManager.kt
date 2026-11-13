@@ -88,7 +88,8 @@ class MusicManager(
                         player.volume = pendingVolume.coerceIn(0f, 1f)
                         player.addListener(playerListener)
                         if (player.mediaItemCount == 0) {
-                            player.setMediaItems(MusicCatalog.tracks.map { track -> MusicCatalog.mediaItem(track, downloadedFile(track)) })
+                            val ready = MusicCatalog.tracks.mapNotNull { t -> downloadedFile(t)?.let { t to it } }
+                            if (ready.isNotEmpty()) player.setMediaItems(ready.map { (t, f) -> MusicCatalog.mediaItem(t, f) })
                         }
                     }
                     pendingPlayTrackId?.let { id -> pendingPlayTrackId = null; play(id) }
@@ -117,10 +118,12 @@ class MusicManager(
         }
     }
 
+    /** فقط آهنگ‌های دانلودشده پخش می‌شوند؛ صف پخش هم فقط از همین‌ها ساخته می‌شود (بدون استریم). */
     fun play(trackId: String) {
         val player = controller
         if (player == null) { pendingPlayTrackId = trackId; return }
-        val index = MusicCatalog.tracks.indexOfFirst { it.id == trackId }
+        val ready = MusicCatalog.tracks.mapNotNull { t -> downloadedFile(t)?.let { t to it } }
+        val index = ready.indexOfFirst { it.first.id == trackId }
         if (index < 0) return
         if (player.currentMediaItem?.mediaId == trackId) {
             if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
@@ -131,10 +134,7 @@ class MusicManager(
             publish()
             return
         }
-        val items = MusicCatalog.tracks.map { track ->
-            MusicCatalog.mediaItem(track, downloadedFile(track))
-        }
-        player.setMediaItems(items, index, C.TIME_UNSET)
+        player.setMediaItems(ready.map { (track, file) -> MusicCatalog.mediaItem(track, file) }, index, C.TIME_UNSET)
         player.prepare()
         player.play()
         publish()
@@ -146,7 +146,7 @@ class MusicManager(
             player.pause()
         } else {
             if (player.mediaItemCount == 0) {
-                play(MusicCatalog.tracks.first().id)
+                MusicCatalog.tracks.firstOrNull { isDownloaded(it.id) }?.let { play(it.id) }
             } else {
                 if (player.playbackState == Player.STATE_IDLE) player.prepare()
                 player.play()
@@ -262,13 +262,14 @@ class MusicManager(
     fun playPlaylist(playlistId: String) {
         val ids = _playlists.value.firstOrNull { it.id == playlistId }?.trackIds.orEmpty()
         val tracks = ids.mapNotNull { id -> MusicCatalog.tracks.firstOrNull { it.id == id } }
+            .filter { isDownloaded(it.id) }
         if (tracks.isEmpty()) return
         val player = controller
         if (player == null) {
             pendingPlayTrackId = tracks.first().id
             return
         }
-        player.setMediaItems(tracks.map { MusicCatalog.mediaItem(it, downloadedFile(it)) }, 0, C.TIME_UNSET)
+        player.setMediaItems(tracks.mapNotNull { t -> downloadedFile(t)?.let { MusicCatalog.mediaItem(t, it) } }, 0, C.TIME_UNSET)
         player.prepare()
         player.play()
         publish()

@@ -53,9 +53,8 @@ object MusicCatalog {
             "https://raw.githubusercontent.com/farmmer938-lgtm/aeris-cc0-music/main/tracks/the-long-walk-signal-lost.mp3"),
     )
 
-    fun mediaItem(track: MusicTrack, localFile: java.io.File? = null): MediaItem {
-        val uri = localFile?.takeIf { it.isFile && it.length() > 0L }?.let { Uri.fromFile(it) }
-            ?: Uri.parse(track.url)
+    fun mediaItem(track: MusicTrack, localFile: java.io.File): MediaItem {
+        val uri = Uri.fromFile(localFile)
         val metadata = MediaMetadata.Builder()
             .setTitle(track.title)
             .setArtist(track.artist)
