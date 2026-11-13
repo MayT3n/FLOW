@@ -77,12 +77,19 @@ object FlowIcons {
     val DockHome by lazy { dock("dockHome", false, homeStroke, homeSoft) }
     val DockHomeActive by lazy { dock("dockHomeActive", true, homeStroke, homeSoft) }
 
+    // برنامه‌ریزی: تقویم با نشان ساعت روی گوشه (زمان‌بندی)
     private val planStroke = listOf(
-        "M6 5.5h12a2.5 2.5 0 0 1 2.5 2.5v10a2.5 2.5 0 0 1-2.5 2.5H6A2.5 2.5 0 0 1 3.5 18V8A2.5 2.5 0 0 1 6 5.5z",
-        "M8 3.5v3.6", "M16 3.5v3.6", "M3.5 10.2h17", "M8.4 14.2h.01", "M8.4 17.2h.01", "M12 14.2h.01",
+        "M6 5.5h11a2.5 2.5 0 0 1 2.5 2.5v3.6",
+        "M6 5.5A2.5 2.5 0 0 0 3.5 8v9.5A2.5 2.5 0 0 0 6 20h5",
+        "M3.5 10h16", "M8 3.5v3.4", "M15.5 3.5v3.4",
+        "M7.5 13.4h.01", "M11 13.4h.01", "M7.5 16.8h.01",
+        "M17 12.8a4.2 4.2 0 1 0 0 8.4 4.2 4.2 0 0 0 0-8.4z", "M17 14.9v2.3l1.6.9",
     )
-    private val planSoft = listOf("M3.5 8a2.5 2.5 0 0 1 2.5-2.5h12A2.5 2.5 0 0 1 20.5 8v2.2h-17z", "M10.7 13.7h6.6v4.6h-6.6z")
-    private val planFilled = listOf("M15.6 14.2a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8z")
+    private val planSoft = listOf(
+        "M3.5 8A2.5 2.5 0 0 1 6 5.5h11A2.5 2.5 0 0 1 19.5 8v2h-16z",
+        "M17 12.8a4.2 4.2 0 1 0 0 8.4 4.2 4.2 0 0 0 0-8.4z",
+    )
+    private val planFilled = emptyList<String>()
     val DockPlan by lazy { dock("dockPlan", false, planStroke, planSoft, planFilled) }
     val DockPlanActive by lazy { dock("dockPlanActive", true, planStroke, planSoft, planFilled) }
 
