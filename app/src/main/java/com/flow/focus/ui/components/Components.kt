@@ -18,6 +18,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -661,3 +662,43 @@ fun ScreenHeader(title: String, modifier: Modifier = Modifier, trailing: (@Compo
 }
 
 val ScreenPadding = PaddingValues(horizontal = 18.dp)
+
+/** رنگ‌های کاشی آیکون (الهام‌گرفته از تنظیمات iOS): گرادیان ملایم از روشن به سیر. */
+enum class TileTone(val top: Color, val bottom: Color) {
+    Blue(Color(0xFF5AA8FF), Color(0xFF2F7BEA)),
+    Green(Color(0xFF58D68D), Color(0xFF2FAE66)),
+    Orange(Color(0xFFFFB454), Color(0xFFF08A1C)),
+    Red(Color(0xFFFF7A7A), Color(0xFFE5484D)),
+    Pink(Color(0xFFFF7EB6), Color(0xFFE5489A)),
+    Purple(Color(0xFFB08CFF), Color(0xFF7C5CE0)),
+    Teal(Color(0xFF5ED6D0), Color(0xFF1FA5A8)),
+    Slate(Color(0xFF9AA7B8), Color(0xFF6F7E92)),
+}
+
+fun tileToneFor(icon: ImageVector): TileTone = when (icon) {
+    FlowIcons.Sun, FlowIcons.Book, FlowIcons.Cup -> TileTone.Orange
+    FlowIcons.Moon -> TileTone.Purple
+    FlowIcons.Layers, FlowIcons.Calendar, FlowIcons.CalendarCheck -> TileTone.Blue
+    FlowIcons.Clock, FlowIcons.Timer, FlowIcons.Bell, FlowIcons.Flame -> TileTone.Red
+    FlowIcons.Music, FlowIcons.Volume, FlowIcons.Heart -> TileTone.Pink
+    FlowIcons.Export, FlowIcons.Import, FlowIcons.Download -> TileTone.Teal
+    FlowIcons.Stats, FlowIcons.Target, FlowIcons.Leaf, FlowIcons.Tasks -> TileTone.Green
+    FlowIcons.Settings, FlowIcons.Info, FlowIcons.Filter -> TileTone.Slate
+    else -> TileTone.Blue
+}
+
+/** کاشی گرد آیکون با گرادیان و لبه‌ی نورانی؛ برای سرتیتر بخش‌ها و ردیف‌های تنظیمات. */
+@Composable
+fun IconTile(icon: ImageVector, tone: TileTone, modifier: Modifier = Modifier, size: Dp = 34.dp) {
+    val shape = RoundedCornerShape(size * 0.3f)
+    Box(
+        modifier
+            .size(size)
+            .clip(shape)
+            .background(Brush.verticalGradient(listOf(tone.top, tone.bottom)))
+            .border(0.8.dp, Color.White.copy(alpha = 0.28f), shape),
+        contentAlignment = Alignment.Center,
+    ) {
+        FlowIcon(icon, tint = Color.White, size = size * 0.56f)
+    }
+}

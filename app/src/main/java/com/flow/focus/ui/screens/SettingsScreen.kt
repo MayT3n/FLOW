@@ -72,6 +72,8 @@ import com.flow.focus.ui.rememberTabScrollState
 import com.flow.focus.ui.components.FlowDialog
 import com.flow.focus.ui.components.FlowIcon
 import com.flow.focus.ui.components.GlassIconButton
+import com.flow.focus.ui.components.IconTile
+import com.flow.focus.ui.components.tileToneFor
 import com.flow.focus.ui.components.FlowIcons
 import com.flow.focus.ui.components.FlowSlider
 import com.flow.focus.ui.components.GlassButton
@@ -114,12 +116,12 @@ private fun Section(title: String, content: @Composable () -> Unit) {
     val icon = when (title) {
         "ظاهر" -> FlowIcons.Sun
         "پس‌زمینه" -> FlowIcons.Layers
-        "کیفیت Liquid Glass" -> FlowIcons.Layers
+        "کیفیت Liquid Glass" -> FlowIcons.Sparkles
         "پومودورو" -> FlowIcons.Clock
         "اعلان‌ها" -> FlowIcons.Bell
         "صدای محیط" -> FlowIcons.Music
         "مدیریت داده‌ها" -> FlowIcons.Export
-        "شخصی‌سازی" -> FlowIcons.Sun
+        "شخصی‌سازی" -> FlowIcons.Moon
         "تمرکز" -> FlowIcons.Clock
         "داده و برنامه" -> FlowIcons.Layers
         else -> FlowIcons.Target
@@ -130,12 +132,7 @@ private fun Section(title: String, content: @Composable () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(9.dp),
         ) {
-            Box(
-                Modifier.size(30.dp).clip(RoundedCornerShape(10.dp)).background(Flow.colors.accentSoft),
-                contentAlignment = Alignment.Center,
-            ) {
-                FlowIcon(icon, tint = Flow.colors.accent, size = 17.dp)
-            }
+            IconTile(icon, tileToneFor(icon), size = 30.dp)
             Text(title, style = Flow.type.heading, color = Flow.colors.textPrimary)
         }
         GlassSurface(
@@ -265,12 +262,7 @@ private fun SettingsDestination(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(11.dp),
     ) {
-        Box(
-            Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(Flow.colors.accentSoft),
-            contentAlignment = Alignment.Center,
-        ) {
-            FlowIcon(icon, tint = Flow.colors.accent, size = 19.dp)
-        }
+        IconTile(icon, tileToneFor(icon), size = 38.dp)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text(title, style = Flow.type.bodyStrong, color = Flow.colors.textPrimary, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             Text(subtitle, style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
