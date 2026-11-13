@@ -12,6 +12,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
@@ -53,6 +54,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -115,25 +117,29 @@ fun FlowIcon(
         animationSpec = if (animations) tween(180) else snap(),
         label = "flow-icon-tint",
     )
-    if (animations) {
-        AnimatedContent(
-            targetState = icon,
-            transitionSpec = {
-                (fadeIn(tween(130)) + scaleIn(initialScale = 0.86f, animationSpec = tween(150))) togetherWith
-                    (fadeOut(tween(95)) + scaleOut(targetScale = 0.94f, animationSpec = tween(110)))
-            },
-            label = "flow-icon-swap",
-        ) { displayedIcon ->
-            Icon(
-                imageVector = displayedIcon,
-                contentDescription = contentDescription,
-                tint = iconTint,
-                modifier = modifier.size(size),
-            )
-        }
-    } else {
-        Icon(imageVector = icon, contentDescription = contentDescription, tint = iconTint, modifier = modifier.size(size))
+    // جایگزین AnimatedContent: هر آیکون برنامه از این تابع می‌گذرد و یک Transition کامل برای هر کدام گران است.
+    // فقط وقتی آیکون واقعاً عوض شد، آیکون جدید با یک محو/بزرگ‌شدن کوتاه ظاهر می‌شود.
+    val reveal = remember { mutableFloatStateOf(1f) }
+    var shownIcon by remember { mutableStateOf(icon) }
+    if (shownIcon != icon) {
+        // همزمان با ترکیب جدید صفر می‌شود تا یک فریم آیکون کامل قبل از شروع انیمیشن دیده نشود.
+        shownIcon = icon
+        reveal.floatValue = if (animations) 0f else 1f
     }
+    LaunchedEffect(icon) {
+        if (reveal.floatValue < 1f) animate(reveal.floatValue, 1f, animationSpec = tween(150)) { v, _ -> reveal.floatValue = v }
+    }
+    Icon(
+        imageVector = icon,
+        contentDescription = contentDescription,
+        tint = iconTint,
+        modifier = modifier.size(size).graphicsLayer {
+            val t = reveal.floatValue
+            alpha = t
+            scaleX = 0.86f + 0.14f * t
+            scaleY = 0.86f + 0.14f * t
+        },
+    )
 }
 
 @Composable
