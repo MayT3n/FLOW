@@ -358,8 +358,8 @@ private fun UnreadNoticeBadge(count: Int) {
     Box {
         AnimatedVisibility(
             visible = count > 0,
-            enter = fadeIn(tween(140)) + scaleIn(initialScale = 0.55f, animationSpec = tween(190)),
-            exit = fadeOut(tween(90)) + scaleOut(targetScale = 0.65f, animationSpec = tween(110)),
+            enter = if (LocalGlass.current.animations) fadeIn(tween(140)) + scaleIn(initialScale = 0.55f, animationSpec = tween(190)) else EnterTransition.None,
+            exit = if (LocalGlass.current.animations) fadeOut(tween(90)) + scaleOut(targetScale = 0.65f, animationSpec = tween(110)) else ExitTransition.None,
         ) {
             Box(
                 Modifier.align(Alignment.TopEnd).padding(top = 1.dp, end = 1.dp)
@@ -525,15 +525,20 @@ private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier
     // فقط وقتی «ثانیه» عوض می‌شود Recomposition رخ می‌دهد، نه با هر تیک
     val seconds by remember(timer) { derivedStateOf { (PomodoroEngine.remaining(timer, now.value) + 999L) / 1000L } }
 
-    val target = PomodoroEngine.progress(timer, now.value)
+    // هدف حلقه فقط یک‌بار در ثانیه عوض می‌شود (نه با هر تیک ۲۰۰ms)؛ یک tween خطی یک‌ثانیه‌ای تا هدفِ
+    // ثانیه‌ی بعد حرکت را پیوسته نگه می‌دارد و Recomposition ریشه‌ی تایمر ۵ برابر کم می‌شود.
+    val tickSecond by remember { derivedStateOf { now.value / 1000L } }
+    val target = PomodoroEngine.progress(timer, (tickSecond + 1L) * 1000L)
     var lastTarget by remember { mutableFloatStateOf(target) }
-    val jumped = abs(target - lastTarget) > 0.03f
+    val jumpThreshold = if (timer.durationMs > 0) maxOf(0.03f, 2500f / timer.durationMs) else 1f
+    val jumped = abs(target - lastTarget) > jumpThreshold
     SideEffect { lastTarget = target }
     val progress = animateFloatAsState(
         targetValue = target,
         animationSpec = when {
             !glass.animations -> snap()
             jumped -> Motion.soft()
+            running -> tween(1000, easing = LinearEasing)
             else -> tween(260, easing = LinearEasing)
         },
         label = "timer-progress",

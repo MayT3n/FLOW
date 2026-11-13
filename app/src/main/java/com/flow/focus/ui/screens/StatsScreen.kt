@@ -70,6 +70,7 @@ import com.flow.focus.ui.glass.GlassSurface
 import com.flow.focus.ui.rememberToday
 import com.flow.focus.ui.theme.LocalDockContentPadding
 import com.flow.focus.ui.theme.Flow
+import com.flow.focus.ui.motion.Motion
 import com.flow.focus.ui.theme.LocalGlass
 
 @Composable
@@ -96,12 +97,10 @@ fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
     ) {
         ScreenHeader("آمار و تحلیل")
         SegmentedControl(listOf("روزانه", "هفتگی", "ماهانه"), rangeIdx, { rangeIdx = it })
+        val swapAnim1 = LocalGlass.current.animations
         AnimatedContent(
             targetState = range,
-            transitionSpec = {
-                (fadeIn(tween(150)) + slideInVertically(tween(170)) { it / 4 }) togetherWith
-                    (fadeOut(tween(110)) + slideOutVertically(tween(130)) { -it / 4 })
-            },
+            transitionSpec = { Motion.valueSwap(swapAnim1, 150, 110) },
             label = "stats-range-label",
         ) { activeRange ->
             Text(
@@ -363,12 +362,10 @@ private fun OverviewCard(
                 }
                 FlowIcon(FlowIcons.Clock, tint = c.textSecondary, size = 19.dp)
             }
+            val swapAnim2 = LocalGlass.current.animations
             AnimatedContent(
                 targetState = num(formatMinutes(focusMinutes)),
-                transitionSpec = {
-                    (fadeIn(tween(150)) + slideInVertically(tween(175)) { it / 4 }) togetherWith
-                        (fadeOut(tween(110)) + slideOutVertically(tween(130)) { -it / 4 })
-                },
+                transitionSpec = { Motion.valueSwap(swapAnim2, 150, 110) },
                 label = "stats-focus-total",
             ) { value ->
                 Text(
@@ -445,12 +442,10 @@ private fun MetricCard(
                 FlowIcon(icon, tint = tint, size = 18.dp)
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                val swapAnim3 = LocalGlass.current.animations
                 AnimatedContent(
                     targetState = value,
-                    transitionSpec = {
-                        (fadeIn(tween(145)) + slideInVertically(tween(165)) { it / 4 }) togetherWith
-                            (fadeOut(tween(100)) + slideOutVertically(tween(120)) { -it / 4 })
-                    },
+                    transitionSpec = { Motion.valueSwap(swapAnim3, 145, 100) },
                     label = "stats-metric-value",
                 ) { displayedValue ->
                     Text(displayedValue, style = Flow.type.heading, color = Flow.colors.textPrimary, maxLines = 1)

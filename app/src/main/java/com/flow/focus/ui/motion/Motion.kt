@@ -1,7 +1,9 @@
 package com.flow.focus.ui.motion
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.MutableTransitionState
@@ -10,7 +12,10 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -45,6 +50,16 @@ object Motion {
 
     fun <T> maybe(animations: Boolean, spec: FiniteAnimationSpec<T>): FiniteAnimationSpec<T> =
         if (animations) spec else snap()
+
+    /**
+     * جابه‌جایی کوتاه یک مقدار (رقم، عدد آمار، برچسب) با لغزش عمودی کم؛ با خاموش‌بودن انیمیشن‌ها بدون حرکت.
+     * همه‌ی AnimatedContent های مقداری باید از همین استفاده کنند تا تنظیمات انیمیشن رعایت شود.
+     */
+    fun valueSwap(animations: Boolean, inMs: Int = 150, outMs: Int = 110): ContentTransform =
+        if (animations) {
+            (fadeIn(tween(inMs)) + slideInVertically(tween(inMs + 20)) { it / 4 }) togetherWith
+                (fadeOut(tween(outMs)) + slideOutVertically(tween(outMs + 20)) { -it / 4 })
+        } else ContentTransform(EnterTransition.None, ExitTransition.None)
 }
 
 /**
