@@ -261,7 +261,7 @@ fun SegmentedControl(
                 Box(
                     Modifier
                         .weight(1f)
-                        .height(38.dp)
+                        .height(44.dp)
                         .graphicsLayer {
                             scaleX = 0.975f + emphasis * 0.025f
                             scaleY = 0.95f + emphasis * 0.05f
@@ -478,7 +478,7 @@ fun Chip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifie
     val fg by animateColorAsState(if (selected) c.textOnAccent else c.textPrimary, anim(), label = "chipFg")
     GlassSurface(modifier.semantics { this.selected = selected }.springClick(onClick = onClick), shape = RoundedCornerShape(18.dp), level = GlassLevel.Subtle) {
         Row(
-            Modifier.background(bg).padding(horizontal = 14.dp, vertical = 8.dp),
+            Modifier.heightIn(min = 44.dp).background(bg).padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             if (dot != null) Box(Modifier.size(8.dp).clip(CircleShape).background(dot))

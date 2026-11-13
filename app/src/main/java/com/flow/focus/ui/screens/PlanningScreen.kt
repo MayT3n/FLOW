@@ -317,12 +317,12 @@ private fun firstOfMonth(d: LocalDate): LocalDate {
 private fun TodayPill(enabled: Boolean, onClick: () -> Unit) {
     val c = Flow.colors
     GlassSurface(
-        Modifier.height(38.dp).springClick(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(19.dp),
+        Modifier.height(44.dp).springClick(enabled = enabled, onClick = onClick),
+        shape = RoundedCornerShape(22.dp),
         level = GlassLevel.Subtle,
         tint = if (enabled) c.accent else null,
     ) {
-        Box(Modifier.padding(horizontal = 14.dp).height(38.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.padding(horizontal = 16.dp).height(44.dp), contentAlignment = Alignment.Center) {
             Text("امروز", style = Flow.type.label, color = if (enabled) c.accent else c.textSecondary, maxLines = 1)
         }
     }
