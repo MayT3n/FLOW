@@ -135,6 +135,7 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
         if (dockAreaHeightPx > 0) dockAreaHeightPx.toDp() + 20.dp else 140.dp
     }
     val animations = data.settings.animations
+    val tabStateHolder = rememberSaveableStateHolder()
     BackHandler(enabled = musicOpen || tab != 0) {
         if (musicOpen) musicOpen = false else tab = 0
     }
