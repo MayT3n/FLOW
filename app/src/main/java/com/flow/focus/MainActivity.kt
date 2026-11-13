@@ -60,8 +60,6 @@ import com.flow.focus.ui.screens.RoutinesScreen
 import com.flow.focus.ui.screens.SettingsScreen
 import com.flow.focus.ui.screens.StatsScreen
 import com.flow.focus.ui.motion.Motion
-import com.flow.focus.ui.glass.rememberGlassDegradeLevel
-import com.flow.focus.data.GlassQuality
 import com.flow.focus.ui.theme.Flow
 import com.flow.focus.ui.theme.FlowTheme
 import com.flow.focus.ui.theme.LocalDockContentPadding
@@ -93,8 +91,7 @@ private val dockItems = listOf(
 @Composable
 fun FlowRoot(vm: AppViewModel) {
     val data by vm.data.collectAsStateWithLifecycle()
-    val degrade by rememberGlassDegradeLevel(data.settings.glassQuality != GlassQuality.LOW)
-    FlowTheme(data.settings, degrade) {
+    FlowTheme(data.settings) {
         SystemBars(Flow.colors.isDark)
         RequestNotificationPermission(data.settings.notifications)
         AppScaffold(vm, data)

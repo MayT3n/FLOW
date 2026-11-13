@@ -29,6 +29,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.State
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -93,6 +94,8 @@ val LocalRootSize = compositionLocalOf<State<IntSize>?> { null }
 data class RootBackdropFrame(
     val image: State<ImageBitmap?>,
     val phase: State<Float>,
+    /** فاز کم‌تحرک برای نمونه‌برداری سطح‌ها؛ فقط چند بار در ثانیه تغییر می‌کند تا کارت‌ها هر فریم دوباره Blur نشوند. */
+    val surfacePhase: State<Float>,
     val tone: State<Color?>,
     val palette: State<List<Color>>,
     /** مختصات صفحه‌ی گوشه‌ی بالا-چپ ریشه؛ برای محاسبه‌ی دقیق offset سطح‌ها در پنجره‌های جدا */
@@ -336,7 +339,8 @@ fun GlassBackdropHost(
             .animateFloat(0f, 1f, infiniteRepeatable(tween(60_000, easing = LinearEasing), RepeatMode.Restart), label = "bgPhase")
     } else remember { mutableStateOf(0f) }
 
-    val frame = RootBackdropFrame(image, phase, tone, palette, rootOrigin, settings)
+    val surfacePhase = remember(phase) { derivedStateOf { (phase.value * 90f).toInt() / 90f } }
+    val frame = RootBackdropFrame(image, phase, surfacePhase, tone, palette, rootOrigin, settings)
     Box(
         Modifier.fillMaxSize()
             .onSizeChanged { size.value = it }
@@ -480,7 +484,7 @@ fun GlassSurface(
                             if (liveLayer != null) {
                                 drawLayer(liveLayer)
                             } else {
-                                drawBackdrop(c, frame.phase.value, s.width.toFloat(), s.height.toFloat(), frame.image.value, frame.settings)
+                                drawBackdrop(c, frame.surfacePhase.value, s.width.toFloat(), s.height.toFloat(), frame.image.value, frame.settings)
                             }
                         }
                     },

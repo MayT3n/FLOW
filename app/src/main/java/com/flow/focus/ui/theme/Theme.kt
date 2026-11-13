@@ -186,7 +186,7 @@ private fun systemAnimationsEnabled(ctx: Context): Boolean = runCatching {
 }.getOrDefault(true)
 
 @Composable
-fun FlowTheme(settings: Settings, degradeLevel: Int = 0, content: @Composable () -> Unit) {
+fun FlowTheme(settings: Settings, content: @Composable () -> Unit) {
     val dark = when (settings.theme) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
         ThemeMode.DARK -> true
@@ -200,7 +200,7 @@ fun FlowTheme(settings: Settings, degradeLevel: Int = 0, content: @Composable ()
     val family = remember { loadFontFamily(ctx) }
     val type = remember(family) { FlowTypography(family) }
     val cap = remember { GlassGovernor.deviceCap(ctx) }
-    val quality = GlassGovernor.effective(settings.glassQuality, cap, degradeLevel)
+    val quality = GlassGovernor.effective(settings.glassQuality, cap)
     val glass = GlassConfig(quality, settings.glassOpacity, settings.glassBlurDp, settings.glassShine, animations)
     MaterialTheme(colorScheme = scheme(colors)) {
         // رابط کاربری همیشه راست‌چین است، مستقل از زبان دستگاه.
