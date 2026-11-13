@@ -59,6 +59,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -130,9 +131,9 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, onOpe
     val clock by rememberNowMs(active = true, periodMs = 30_000L)
     val dateTime = remember(clock) { LocalDateTime.ofInstant(Instant.ofEpochMilli(clock), ZoneId.systemDefault()) }
     val today = dateTime.toLocalDate()
-    var dialog by remember { mutableStateOf<HomeDialog?>(null) }
-    var menu by remember { mutableStateOf(false) }
-    var notificationsOpen by remember { mutableStateOf(false) }
+    var dialog by rememberSaveable { mutableStateOf<HomeDialog?>(null) }
+    var menu by rememberSaveable { mutableStateOf(false) }
+    var notificationsOpen by rememberSaveable { mutableStateOf(false) }
     val playing by vm.ambientPlaying.collectAsStateWithLifecycle()
     val newsItems by vm.newsItems.collectAsStateWithLifecycle()
     val newsReadIds by vm.newsReadIds.collectAsStateWithLifecycle()
