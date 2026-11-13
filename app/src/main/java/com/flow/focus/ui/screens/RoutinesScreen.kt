@@ -1,5 +1,14 @@
 package com.flow.focus.ui.screens
 
+import com.flow.focus.ui.theme.LocalGlass
+import com.flow.focus.ui.motion.Motion
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.Canvas
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -110,14 +119,44 @@ fun RoutinesScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
         ) {
             ScreenHeader("روتین‌ها")
 
-            GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
-                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    Text("امروز", style = Flow.type.heading, color = Flow.colors.textPrimary)
-                    FlowProgressBar(if (todays.isEmpty()) 0f else doneToday.toFloat() / todays.size, color = Flow.colors.success, height = 5.dp)
-                    Text(
-                        if (todays.isEmpty()) "برای امروز روتینی زمان‌بندی نشده" else num("$doneToday از ${todays.size} روتین امروز انجام شد"),
-                        style = Flow.type.caption, color = Flow.colors.textSecondary,
+            GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(26.dp)) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    val frac = if (todays.isEmpty()) 0f else doneToday.toFloat() / todays.size
+                    val ringColor = Flow.colors.success
+                    val trackColor = Flow.colors.track
+                    val animFrac by animateFloatAsState(
+                        frac, Motion.maybe(LocalGlass.current.animations, spring(dampingRatio = 0.8f, stiffness = 200f)), label = "routine-today",
                     )
+                    Box(Modifier.size(64.dp), contentAlignment = Alignment.Center) {
+                        Canvas(Modifier.fillMaxSize()) {
+                            val w = 8.dp.toPx()
+                            val inset = w / 2f
+                            val arc = Size(size.width - w, size.height - w)
+                            drawArc(trackColor, 0f, 360f, false, Offset(inset, inset), arc, style = Stroke(w))
+                            if (animFrac > 0.004f) {
+                                drawArc(
+                                    ringColor, -90f, 360f * animFrac, false, Offset(inset, inset), arc,
+                                    style = Stroke(w, cap = StrokeCap.Round),
+                                )
+                            }
+                        }
+                        FlowIcon(FlowIcons.Check, tint = if (frac >= 1f) ringColor else Flow.colors.textSecondary, size = 20.dp)
+                    }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text("امروز", style = Flow.type.caption, color = Flow.colors.textSecondary)
+                        Text(
+                            if (todays.isEmpty()) "روز آزاد" else num("$doneToday از ${todays.size}"),
+                            style = Flow.type.display.copy(fontSize = 26.sp), color = Flow.colors.textPrimary, maxLines = 1,
+                        )
+                        Text(
+                            if (todays.isEmpty()) "برای امروز روتینی زمان‌بندی نشده" else if (doneToday >= todays.size) "همه‌ی روتین‌های امروز انجام شد" else "روتین انجام‌شده امروز",
+                            style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 2,
+                        )
+                    }
                 }
             }
 
@@ -196,7 +235,12 @@ private fun RoutineCard(
     ) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Box(Modifier.size(10.dp).clip(CircleShape).background(Color(cat.color)))
+                Box(
+                    Modifier.size(40.dp).clip(RoundedCornerShape(13.dp)).background(Color(cat.color).copy(alpha = 0.16f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    FlowIcon(FlowIcons.Repeat, tint = Color(cat.color), size = 20.dp)
+                }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(routine.title, style = Flow.type.heading, color = c.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(
