@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.translate
@@ -427,12 +428,13 @@ fun GlassSurface(
     val fill = baseFill.copy(alpha = (baseFill.alpha * g.opacity.coerceIn(0.65f, 1.18f)).coerceIn(0f, 0.88f))
     val shine = if (g.quality == GlassQuality.LOW) 0.15f else g.shine
     val animationSpec = if (g.animations) tween<Color>(220) else snap()
-    val animatedFill by animateColorAsState(fill, animationSpec, label = "glass-fill")
     val targetTint = tint?.copy(alpha = 0.16f) ?: Color.Transparent
-    val animatedTint by animateColorAsState(targetTint, animationSpec, label = "glass-surface-tint")
     val paletteTint = rootBackdrop?.palette?.value?.firstOrNull() ?: rootBackdrop?.tone?.value
     val paletteOverlay = paletteTint?.copy(alpha = if (c.isDark) 0.06f else 0.025f) ?: Color.Transparent
-    val animatedPaletteOverlay by animateColorAsState(paletteOverlay, animationSpec, label = "glass-wallpaper-tint")
+    // Fill, wallpaper tint and surface tint are alpha-composited into ONE color (compositing is associative),
+    // so every surface runs a single color animator and a single drawRect instead of three of each.
+    val layerColor = targetTint.compositeOver(paletteOverlay.compositeOver(fill))
+    val animatedFill by animateColorAsState(layerColor, animationSpec, label = "glass-layer")
     val animatedShine by animateFloatAsState(
         targetValue = shine,
         animationSpec = if (g.animations) tween(240) else snap(),
@@ -487,9 +489,6 @@ fun GlassSurface(
         Box(
             Modifier.matchParentSize().drawBehind {
                 drawRect(animatedFill)
-                // A restrained wallpaper tint blends with the glass when the backdrop changes.
-                if (animatedPaletteOverlay.alpha > 0.001f) drawRect(animatedPaletteOverlay)
-                if (animatedTint.alpha > 0.001f) drawRect(animatedTint)
                 if (g.quality != GlassQuality.LOW) {
                     drawRect(
                         Brush.verticalGradient(
