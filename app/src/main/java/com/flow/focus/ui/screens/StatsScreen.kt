@@ -60,6 +60,8 @@ import com.flow.focus.domain.StatsRange
 import com.flow.focus.ui.components.EmptyState
 import com.flow.focus.ui.components.FlowIcon
 import com.flow.focus.ui.components.FlowIcons
+import com.flow.focus.ui.components.TileTone
+import com.flow.focus.ui.components.IconTile
 import com.flow.focus.ui.components.FlowProgressBar
 import com.flow.focus.ui.components.ScreenHeader
 import com.flow.focus.ui.components.SectionTitle
@@ -73,6 +75,9 @@ import com.flow.focus.ui.rememberTabScrollState
 import com.flow.focus.ui.theme.Flow
 import com.flow.focus.ui.motion.Motion
 import com.flow.focus.ui.theme.LocalGlass
+
+private val StatsCardShape = RoundedCornerShape(24.dp)
+private val StatsSmallShape = RoundedCornerShape(20.dp)
 
 @Composable
 fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
@@ -171,12 +176,13 @@ fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
                 StatsRange.MONTH -> "فعالیت روزانه در ماه"
             },
         )
-        GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(25.dp)) {
+        GlassSurface(Modifier.fillMaxWidth(), shape = StatsCardShape, level = GlassLevel.Regular) {
             Column(
                 Modifier.padding(horizontal = 16.dp, vertical = 17.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    IconTile(FlowIcons.Clock, TileTone.Red, size = 30.dp)
                     Text("زمان تمرکز", Modifier.weight(1f), style = Flow.type.bodyStrong, color = c.textPrimary)
                     Text(
                         num(formatMinutes(summary.focusMinutes)),
@@ -198,7 +204,7 @@ fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
         }
 
         SectionTitle("روند هشت هفته‌ی اخیر")
-        GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(25.dp)) {
+        GlassSurface(Modifier.fillMaxWidth(), shape = StatsCardShape, level = GlassLevel.Regular) {
             Column(
                 Modifier.padding(17.dp),
                 verticalArrangement = Arrangement.spacedBy(9.dp),
@@ -228,7 +234,7 @@ fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
         }
 
         SectionTitle("ترکیب دسته‌بندی‌ها")
-        GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(25.dp)) {
+        GlassSurface(Modifier.fillMaxWidth(), shape = StatsCardShape, level = GlassLevel.Regular) {
             if (summary.categories.isEmpty()) {
                 EmptyState(
                     FlowIcons.PieChart,
@@ -244,7 +250,7 @@ fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
         if (!hasFocus) {
             GlassSurface(
                 Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(22.dp),
+                shape = StatsSmallShape,
                 level = GlassLevel.Subtle,
             ) {
                 EmptyState(
@@ -265,7 +271,7 @@ private fun DailyGoalCard(focusMinutes: Long, goalMinutes: Int) {
     val percent = (progress * 100f).toInt()
     GlassSurface(
         Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(23.dp),
+        shape = StatsSmallShape,
         level = GlassLevel.Subtle,
     ) {
         Row(
@@ -331,21 +337,15 @@ private fun OverviewCard(
     val c = Flow.colors
     GlassSurface(
         Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(27.dp),
-        level = GlassLevel.Strong,
-        elevated = true,
+        shape = StatsCardShape,
+        level = GlassLevel.Regular,
     ) {
         Column(
             Modifier.padding(horizontal = 19.dp, vertical = 18.dp),
             verticalArrangement = Arrangement.spacedBy(11.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(c.accentSoft),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    FlowIcon(FlowIcons.ChartLine, tint = c.accent, size = 23.dp)
-                }
+                IconTile(FlowIcons.ChartLine, TileTone.Blue, size = 40.dp)
                 Column(
                     Modifier.weight(1f).padding(start = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(1.dp),
@@ -428,7 +428,7 @@ private fun MetricCard(
 ) {
     GlassSurface(
         modifier,
-        shape = RoundedCornerShape(22.dp),
+        shape = StatsSmallShape,
         level = GlassLevel.Subtle,
     ) {
         Row(
