@@ -64,7 +64,12 @@ import kotlinx.coroutines.delay
  * ساختار مثل [FlowDialog] است اما از پایین وارد می‌شود و با صفحه‌کلید جابه‌جا می‌شود (imePadding).
  */
 @Composable
-fun FlowSheet(onDismiss: () -> Unit, title: String? = null, content: @Composable ColumnScope.() -> Unit) {
+fun FlowSheet(
+    onDismiss: () -> Unit,
+    title: String? = null,
+    level: GlassLevel = GlassLevel.Strong,
+    content: @Composable ColumnScope.() -> Unit,
+) {
     val animations = LocalGlass.current.animations
     var visible by remember { mutableStateOf(true) }
     val enterState = rememberEnterState(visible)
@@ -105,7 +110,7 @@ fun FlowSheet(onDismiss: () -> Unit, title: String? = null, content: @Composable
                             Modifier.widthIn(max = 520.dp).fillMaxWidth().padding(horizontal = 8.dp)
                                 .navigationBarsPadding().imePadding().padding(bottom = 8.dp),
                             shape = RoundedCornerShape(30.dp),
-                            level = GlassLevel.Strong,
+                            level = level,
                             elevated = true,
                         ) {
                             Column(

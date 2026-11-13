@@ -1,5 +1,14 @@
 package com.flow.focus.ui.screens
 
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import com.flow.focus.ui.theme.LocalGlass
 import com.flow.focus.ui.motion.Motion
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -312,56 +321,89 @@ private fun RoutineEditorSheet(
     val total = steps.sumOf { it.minutes }
     val validSteps = steps.filter { it.title.isNotBlank() }
 
-    FlowSheet(onDismiss, if (isNew) "روتین جدید" else "ویرایش روتین") {
-        FlowTextField(title, { title = it }, "نام روتین (مثلاً مطالعه‌ی صبحگاهی)")
-        Text("روزهای تکرار", style = Flow.type.label, color = Flow.colors.textSecondary)
-        Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-            (0..2).forEach { row ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    (row * 3..row * 3 + 2).forEach { i ->
-                        if (i < JalaliDate.weekdayNames.size) {
-                            Chip(
-                                JalaliDate.weekdayNames[i],
-                                i in days,
-                                { days = if (i in days) days - i else days + i },
-                                Modifier.weight(1f),
-                            )
-                        }
-                    }
-                    if (row == 2) Spacer(Modifier.weight(1f))
-                }
-            }
-        }
-        SwitchRow("ساعت شروع", minute != null, { minute = if (it) (minute ?: 7 * 60) else null }, subtitle = "برای نمایش در جدول برنامه‌ریزی روز")
-        minute?.let { m -> TimeEditor(m, { minute = it }) }
-        Text("دسته‌بندی", style = Flow.type.label, color = Flow.colors.textSecondary)
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Categories.all.forEach { cat -> Chip(cat.name, category == cat.id, { category = cat.id }, dot = Color(cat.color)) }
+    val c = Flow.colors
+    val catColor = Color(Categories.byId(category).color)
+    val everyDay = (0..6).toSet()
+    val workWeek = (0..4).toSet()
+    val canSave = title.isNotBlank() && days.isNotEmpty() && validSteps.isNotEmpty()
+
+    FlowSheet(onDismiss, if (isNew) "روتین جدید" else "ویرایش روتین", level = GlassLevel.Regular) {
+        // ---- نام: بزرگ و بدون کادر، مثل برگه‌ی تازه در iOS ----
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(
+                Modifier.size(46.dp).clip(RoundedCornerShape(15.dp)).background(catColor.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center,
+            ) { FlowIcon(FlowIcons.Repeat, tint = catColor, size = 23.dp) }
+            FlowTextField(title, { title = it }, "نام روتین", Modifier.weight(1f))
         }
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("مراحل", Modifier.weight(1f), style = Flow.type.label, color = Flow.colors.textSecondary)
-            Text(num("مجموع " + durationLabel(total)), style = Flow.type.caption, color = Flow.colors.textSecondary)
-        }
-        steps.forEachIndexed { index, step ->
-            GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), level = GlassLevel.Subtle) {
-                Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(num("${index + 1}"), style = Flow.type.label, color = Flow.colors.accent)
-                        FlowTextField(step.title, { steps[index] = step.copy(title = it) }, "نام مرحله", Modifier.weight(1f))
-                        if (steps.size > 1) {
-                            GlassIconButton(FlowIcons.Close, { steps.removeAt(index) }, size = 32.dp, iconSize = 15.dp, contentDescription = "حذف مرحله")
-                        }
-                    }
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("مدت", Modifier.weight(1f), style = Flow.type.body, color = Flow.colors.textPrimary)
-                        Stepper(step.minutes, { steps[index] = step.copy(minutes = it) }, 1..240, suffix = "دقیقه")
+        // ---- تکرار ----
+        EditorSection("تکرار") {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                (0..6).forEach { i ->
+                    val on = i in days
+                    val bg by animateColorAsState(if (on) catColor else c.track, tween(160), label = "day-bg")
+                    Box(
+                        Modifier.size(42.dp).clip(CircleShape).background(bg)
+                            .springClick(scaleDown = 0.9f, onClick = { days = if (on) days - i else days + i })
+                            .semantics { contentDescription = JalaliDate.weekdayNames[i] + if (on) "، انتخاب شده" else "" },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            JalaliDate.weekdayInitials[i], style = Flow.type.label,
+                            color = if (on) Color.White else c.textPrimary, maxLines = 1,
+                        )
                     }
                 }
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Chip("هر روز", days == everyDay, { days = everyDay })
+                Chip("شنبه تا چهارشنبه", days == workWeek, { days = workWeek })
+            }
         }
-        if (steps.size < 12) {
-            GlassButton("افزودن مرحله", { steps.add(RoutineStep("", 10)) }, Modifier.fillMaxWidth(), icon = FlowIcons.Plus)
+
+        // ---- زمان ----
+        EditorSection("زمان") {
+            SwitchRow("ساعت شروع", minute != null, { minute = if (it) (minute ?: 7 * 60) else null }, subtitle = "برای نمایش در جدول برنامه‌ریزی روز")
+            minute?.let { m -> TimeEditor(m, { minute = it }) }
+        }
+
+        // ---- دسته ----
+        EditorSection("دسته‌بندی") {
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Categories.all.forEach { cat -> Chip(cat.name, category == cat.id, { category = cat.id }, dot = Color(cat.color)) }
+            }
+        }
+
+        // ---- مراحل: خط زمانی ----
+        EditorSection("مراحل", trailing = num("مجموع " + durationLabel(total))) {
+            steps.forEachIndexed { index, step ->
+                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(Modifier.width(26.dp).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(Modifier.size(26.dp).clip(CircleShape).background(catColor.copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
+                            Text(num("${index + 1}"), style = Flow.type.caption, color = catColor, maxLines = 1)
+                        }
+                        if (index < steps.lastIndex) {
+                            Box(Modifier.width(2.dp).weight(1f).background(c.track))
+                        }
+                    }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FlowTextField(step.title, { steps[index] = step.copy(title = it) }, "نام مرحله", Modifier.weight(1f))
+                            if (steps.size > 1) {
+                                GlassIconButton(FlowIcons.Close, { steps.removeAt(index) }, size = 32.dp, iconSize = 15.dp, contentDescription = "حذف مرحله")
+                            }
+                        }
+                        Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("مدت", Modifier.weight(1f), style = Flow.type.caption, color = c.textSecondary)
+                            Stepper(step.minutes, { steps[index] = step.copy(minutes = it) }, 1..240, suffix = "دقیقه")
+                        }
+                    }
+                }
+            }
+            if (steps.size < 12) {
+                GlassButton("افزودن مرحله", { steps.add(RoutineStep("", 10)) }, Modifier.fillMaxWidth(), icon = FlowIcons.Plus)
+            }
         }
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -376,12 +418,26 @@ private fun RoutineEditorSheet(
                         ),
                     )
                 },
-                Modifier.weight(1f), enabled = title.isNotBlank() && days.isNotEmpty() && validSteps.isNotEmpty(),
+                Modifier.weight(1f), enabled = canSave,
             )
             GlassButton("انصراف", onDismiss, Modifier.weight(1f))
         }
         if (!isNew && onDelete != null) {
             GlassButton("حذف روتین", { onDelete(draft) }, Modifier.fillMaxWidth(), icon = FlowIcons.Trash, danger = true)
+        }
+    }
+}
+
+/** گروه فرم به سبک iOS: عنوان کوچک بالا و یک کارت شیشه‌ای زیر آن. */
+@Composable
+private fun EditorSection(title: String, trailing: String? = null, content: @Composable ColumnScope.() -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(title, Modifier.weight(1f), style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 1)
+            if (trailing != null) Text(trailing, style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 1)
+        }
+        GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp), level = GlassLevel.Subtle) {
+            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
         }
     }
 }
