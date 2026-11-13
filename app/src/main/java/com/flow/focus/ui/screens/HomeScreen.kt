@@ -7,6 +7,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.togetherWith
@@ -32,6 +33,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -57,6 +59,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -72,6 +75,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
@@ -500,6 +505,30 @@ private fun TimerStatusPill(timer: TimerState, rounds: Int) {
     }
 }
 
+/** رقم تکی با حرکت «کیلومترشمار»: رقم جدید از بالا نرم فرود می‌آید و رقم قبلی به پایین می‌رود (فنر ملایم، بریده در کادر رقم). */
+@Composable
+private fun RollingDigit(ch: Char, animate: Boolean, style: TextStyle, color: Color) {
+    if (!animate) {
+        Text(num(ch.toString()), style = style, color = color, maxLines = 1)
+        return
+    }
+    AnimatedContent(
+        targetState = ch,
+        transitionSpec = {
+            ContentTransform(
+                targetContentEnter = fadeIn(tween(200, delayMillis = 30)) +
+                    slideInVertically(animationSpec = spring(dampingRatio = 0.86f, stiffness = 360f)) { -it * 3 / 5 },
+                initialContentExit = fadeOut(tween(130)) +
+                    slideOutVertically(animationSpec = spring(dampingRatio = 0.9f, stiffness = 420f)) { it * 3 / 5 },
+                sizeTransform = SizeTransform(clip = true) { _, _ -> snap() },
+            )
+        },
+        label = "timer-digit",
+    ) { digit ->
+        Text(num(digit.toString()), style = style, color = color, maxLines = 1)
+    }
+}
+
 /**
  * حلقه‌ی تایمر: ۶۰ نقطه‌ی شعاعی که با گذر زمان واقعی «خاموش» می‌شوند (نقاط روشن = زمان باقی‌مانده)،
  * یک نقطه‌ی سرِ بزرگ‌تر لحظه‌ی حال را نشان می‌دهد. حرکت پیوسته‌ی تند وجود ندارد؛ فقط
@@ -565,25 +594,53 @@ private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier
 
     Box(modifier, contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
-            val dots = 60
-            val outer = size.minDimension / 2f - 7.dp.toPx()
-            val p = progress.value
-            val liveness = 0.5f + 0.5f * live.value
-            for (i in 0 until dots) {
-                val frac = (i + 0.5f) / dots
-                val ang = (-90f + 360f * i / dots) * (PI.toFloat() / 180f)
-                val elapsed = frac <= p
-                val head = (1f - abs(frac - p) * dots / 2.6f).coerceIn(0f, 1f)
-                val major = i % 5 == 0
-                val radius = (if (major) 2.9.dp else 2.0.dp).toPx() * (1f + 0.85f * head * live.value)
-                val color = if (elapsed) c.track else lerpColor(c1, c2, frac).copy(alpha = (0.5f + 0.5f * head) * liveness)
-                drawCircle(color, radius, Offset(center.x + outer * cos(ang), center.y + outer * sin(ang)))
+            val strokeW = 9.dp.toPx()
+            val radius = size.minDimension / 2f - 12.dp.toPx()
+            val p = progress.value.coerceIn(0f, 1f)
+            val liveness = 0.55f + 0.45f * live.value
+            val topLeft = Offset(center.x - radius, center.y - radius)
+            val arcSize = Size(radius * 2f, radius * 2f)
+            // نشانه‌های ساعت: ۱۲ نقطه‌ی ظریف دور حلقه
+            val tickR = radius + strokeW / 2f + 5.dp.toPx()
+            for (i in 0 until 12) {
+                val ang = (-90f + 30f * i) * (PI.toFloat() / 180f)
+                drawCircle(
+                    c.track.copy(alpha = if (i % 3 == 0) 0.9f else 0.55f),
+                    if (i % 3 == 0) 1.5.dp.toPx() else 1.1.dp.toPx(),
+                    Offset(center.x + tickR * cos(ang), center.y + tickR * sin(ang)),
+                )
+            }
+            // مسیر خاموش
+            drawCircle(c.track, radius, style = Stroke(strokeW))
+            val remaining = 1f - p
+            if (remaining > 0.003f) {
+                val sweep = Brush.sweepGradient(listOf(c1, c2, c1), center)
+                rotate(-90f, center) {
+                    // هاله‌ی نرم پشت قوس
+                    drawArc(
+                        brush = sweep, startAngle = 360f * p, sweepAngle = 360f * remaining, useCenter = false,
+                        topLeft = topLeft, size = arcSize, alpha = 0.16f * live.value,
+                        style = Stroke(strokeW * 2.1f, cap = StrokeCap.Round),
+                    )
+                    drawArc(
+                        brush = sweep, startAngle = 360f * p, sweepAngle = 360f * remaining, useCenter = false,
+                        topLeft = topLeft, size = arcSize, alpha = liveness,
+                        style = Stroke(strokeW, cap = StrokeCap.Round),
+                    )
+                }
+                // نقطه‌ی سر: لحظه‌ی حال
+                val headAng = (-90f + 360f * p) * (PI.toFloat() / 180f)
+                drawCircle(
+                    Color.White.copy(alpha = 0.55f + 0.4f * live.value),
+                    strokeW * 0.26f,
+                    Offset(center.x + radius * cos(headAng), center.y + radius * sin(headAng)),
+                )
             }
             val t = pulse.value
             if (t < 1f) {
                 drawCircle(
                     c1.copy(alpha = (1f - t) * 0.28f),
-                    radius = lerp(outer * 0.66f, outer + 10.dp.toPx(), t),
+                    radius = lerp(radius * 0.66f, radius + 14.dp.toPx(), t),
                     style = Stroke(2.dp.toPx()),
                 )
             }
@@ -631,50 +688,21 @@ private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier
                 val safeSeconds = seconds.coerceAtLeast(0)
                 val displayMinutes = safeSeconds / 60L
                 val displaySeconds = (safeSeconds % 60L).toInt()
+                val digitStyle = Flow.type.display.copy(
+                    fontFeatureSettings = "tnum", textDirection = TextDirection.Ltr, fontWeight = FontWeight.SemiBold,
+                )
+                val minutesText = "%02d".format(java.util.Locale.ROOT, displayMinutes)
+                val secondsText = "%02d".format(java.util.Locale.ROOT, displaySeconds)
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                     Row(
+                        Modifier.graphicsLayer { alpha = 0.78f + 0.22f * live.value },
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center,
                     ) {
-                    Text(
-                        num("%02d".format(java.util.Locale.ROOT, displayMinutes)),
-                        style = Flow.type.display.copy(fontFeatureSettings = "tnum", textDirection = TextDirection.Ltr),
-                        color = c.textPrimary,
-                        maxLines = 1,
-                    )
-                    Text(
-                        ":",
-                        style = Flow.type.display.copy(fontFeatureSettings = "tnum", textDirection = TextDirection.Ltr),
-                        color = c.textPrimary,
-                        maxLines = 1,
-                    )
-                    val secondsText = "%02d".format(java.util.Locale.ROOT, displaySeconds)
-                    if (glass.animations) {
-                        AnimatedContent(
-                            targetState = secondsText,
-                            transitionSpec = {
-                                (fadeIn(tween(110)) + slideInVertically(tween(135)) { it / 3 }) togetherWith
-                                    (fadeOut(tween(85)) + slideOutVertically(tween(105)) { -it / 3 })
-                            },
-                            label = "timer-seconds-only",
-                        ) { value ->
-                            Text(
-                                num(value),
-                                Modifier.graphicsLayer { alpha = 0.72f + 0.28f * live.value },
-                                style = Flow.type.display.copy(fontFeatureSettings = "tnum", textDirection = TextDirection.Ltr),
-                                color = c.textPrimary,
-                                maxLines = 1,
-                            )
-                        }
-                    } else {
-                        Text(
-                            num(secondsText),
-                            Modifier.graphicsLayer { alpha = 0.72f + 0.28f * live.value },
-                            style = Flow.type.display.copy(fontFeatureSettings = "tnum", textDirection = TextDirection.Ltr),
-                            color = c.textPrimary,
-                            maxLines = 1,
-                        )
-                    }
+                        // هر رقم جداگانه می‌چرخد: با تیک ثانیه فقط رقم یکان ثانیه حرکت می‌کند و دقیقه ثابت می‌ماند.
+                        minutesText.forEachIndexed { i, ch -> key("m$i") { RollingDigit(ch, glass.animations, digitStyle, c.textPrimary) } }
+                        Text(":", style = digitStyle, color = c.textPrimary.copy(alpha = 0.5f), maxLines = 1)
+                        secondsText.forEachIndexed { i, ch -> key("s$i") { RollingDigit(ch, glass.animations, digitStyle, c.textPrimary) } }
                     }
                 }
             }
