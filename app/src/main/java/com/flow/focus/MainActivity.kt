@@ -81,11 +81,11 @@ class MainActivity : ComponentActivity() {
 }
 
 private val dockItems = listOf(
-    DockItem("خانه", FlowIcons.Home),
-    DockItem("برنامه‌ریزی", FlowIcons.Calendar),
-    DockItem("روتین‌ها", FlowIcons.Repeat),
-    DockItem("آمار", FlowIcons.Stats),
-    DockItem("تنظیمات", FlowIcons.Settings),
+    DockItem("خانه", FlowIcons.DockHome, FlowIcons.DockHomeActive),
+    DockItem("برنامه‌ریزی", FlowIcons.DockPlan, FlowIcons.DockPlanActive),
+    DockItem("روتین‌ها", FlowIcons.DockRoutine, FlowIcons.DockRoutineActive),
+    DockItem("آمار", FlowIcons.DockStats, FlowIcons.DockStatsActive),
+    DockItem("تنظیمات", FlowIcons.DockSettings, FlowIcons.DockSettingsActive),
 )
 
 @Composable

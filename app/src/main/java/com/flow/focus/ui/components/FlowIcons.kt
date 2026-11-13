@@ -21,6 +21,7 @@ object FlowIcons {
         filled: List<String> = emptyList(),
         soft: List<String> = emptyList(),
         width: Float = 1.7f,
+        softAlpha: Float = SOFT_ALPHA,
         mirror: Boolean = false,
     ): ImageVector {
         val b = ImageVector.Builder(
@@ -31,7 +32,7 @@ object FlowIcons {
         for (d in soft) {
             b.addPath(
                 pathData = PathParser().parsePathString(d).toNodes(),
-                fill = SolidColor(Color.Black), fillAlpha = SOFT_ALPHA, stroke = null,
+                fill = SolidColor(Color.Black), fillAlpha = softAlpha, stroke = null,
             )
         }
         for (d in stroke) {
@@ -63,6 +64,54 @@ object FlowIcons {
             width = 1.8f,
         )
     }
+
+    // ---- آیکون‌های اختصاصی Dock: هر تب دو حالت دارد؛ خطی (غیرفعال) و پرشده‌ی دوتونه (فعال) ----
+    private fun dock(name: String, active: Boolean, stroke: List<String>, soft: List<String>, filled: List<String> = emptyList()) =
+        build(
+            name, stroke = stroke, filled = filled, soft = soft,
+            width = if (active) 2.0f else 1.7f, softAlpha = if (active) 0.62f else 0.18f,
+        )
+
+    private val homeStroke = listOf("M4 11.4 12 4.4l8 7", "M6 10v7.6a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V10", "M10 19.6v-3.2a2 2 0 0 1 4 0v3.2", "M16 7.4V5.2h1.8v3.6")
+    private val homeSoft = listOf("M6 10 12 5l6 5v7.6a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z")
+    val DockHome by lazy { dock("dockHome", false, homeStroke, homeSoft) }
+    val DockHomeActive by lazy { dock("dockHomeActive", true, homeStroke, homeSoft) }
+
+    private val planStroke = listOf(
+        "M6 5.5h12a2.5 2.5 0 0 1 2.5 2.5v10a2.5 2.5 0 0 1-2.5 2.5H6A2.5 2.5 0 0 1 3.5 18V8A2.5 2.5 0 0 1 6 5.5z",
+        "M8 3.5v3.6", "M16 3.5v3.6", "M3.5 10.2h17", "M8.4 14.2h.01", "M8.4 17.2h.01", "M12 14.2h.01",
+    )
+    private val planSoft = listOf("M3.5 8a2.5 2.5 0 0 1 2.5-2.5h12A2.5 2.5 0 0 1 20.5 8v2.2h-17z", "M10.7 13.7h6.6v4.6h-6.6z")
+    private val planFilled = listOf("M15.6 14.2a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8z")
+    val DockPlan by lazy { dock("dockPlan", false, planStroke, planSoft, planFilled) }
+    val DockPlanActive by lazy { dock("dockPlanActive", true, planStroke, planSoft, planFilled) }
+
+    private val routineStroke = listOf(
+        "M19.5 12a7.5 7.5 0 0 1-13.2 4.9", "M4.5 12a7.5 7.5 0 0 1 13.2-4.9",
+        "M18.2 3.8v3.6h-3.6", "M5.8 20.2v-3.6h3.6", "M9.4 12.2l1.9 1.9 3.4-3.8",
+    )
+    private val routineSoft = listOf("M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z")
+    val DockRoutine by lazy { dock("dockRoutine", false, routineStroke, routineSoft) }
+    val DockRoutineActive by lazy { dock("dockRoutineActive", true, routineStroke, routineSoft) }
+
+    private val statsStroke = listOf("M6.5 19.5v-4.5", "M12 19.5V9", "M17.5 19.5v-7")
+    private val statsSoft = listOf("M4.9 15h3.2v4.5H4.9z", "M10.4 9h3.2v10.5h-3.2z", "M15.9 12.5h3.2v7h-3.2z")
+    private val statsFilled = listOf("M17.5 4.7a1.3 1.3 0 1 0 0 2.6 1.3 1.3 0 0 0 0-2.6z")
+    val DockStats by lazy { dock("dockStats", false, statsStroke, statsSoft, statsFilled) }
+    val DockStatsActive by lazy { dock("dockStatsActive", true, statsStroke, statsSoft, statsFilled) }
+
+    private val settingsStroke = listOf(
+        "M4 6.5h9", "M18 6.5h2", "M15.5 4.3a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4z",
+        "M4 12h3", "M12 12h8", "M9.5 9.8a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4z",
+        "M4 17.5h8", "M17 17.5h3", "M14.5 15.3a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4z",
+    )
+    private val settingsSoft = listOf(
+        "M15.5 4.3a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4z", "M9.5 9.8a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4z",
+        "M14.5 15.3a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4z",
+    )
+    val DockSettings by lazy { dock("dockSettings", false, settingsStroke, settingsSoft) }
+    val DockSettingsActive by lazy { dock("dockSettingsActive", true, settingsStroke, settingsSoft) }
+
     val Home by lazy {
         build(
             "home",

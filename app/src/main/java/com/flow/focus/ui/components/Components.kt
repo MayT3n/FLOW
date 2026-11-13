@@ -552,7 +552,7 @@ fun FlowDialog(onDismiss: () -> Unit, title: String? = null, content: @Composabl
     }
 }
 
-data class DockItem(val label: String, val icon: ImageVector)
+data class DockItem(val label: String, val icon: ImageVector, val activeIcon: ImageVector = icon)
 
 /** نوار شناور پایین با زبان بصری iOS، سطح شیشه‌ای مشترک و وضعیت انتخاب دسترس‌پذیر. */
 @Composable
@@ -630,9 +630,9 @@ fun FlowDock(items: List<DockItem>, selected: Int, onSelect: (Int) -> Unit, modi
                             verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
                             FlowIcon(
-                                item.icon,
+                                if (isSelected) item.activeIcon else item.icon,
                                 tint = if (isSelected) c.accent else c.textSecondary,
-                                size = 21.dp,
+                                size = 23.dp,
                                 modifier = Modifier.graphicsLayer {
                                     scaleX = 1f + 0.045f * emphasis
                                     scaleY = 1f + 0.045f * emphasis
