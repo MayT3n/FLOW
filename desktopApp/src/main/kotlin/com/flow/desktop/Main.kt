@@ -238,7 +238,9 @@ private fun FocusPage(data: AppData, now: Long, runtime: DesktopRuntime) {
 
 @Composable
 private fun FocusCard(data: AppData, now: Long, runtime: DesktopRuntime, modifier: Modifier = Modifier) {
+    var taskMenuExpanded by remember { mutableStateOf(false) }
     val timer = data.timer
+    val selectedTask = data.tasks.firstOrNull { it.id == timer.taskId }
     val remaining = PomodoroEngine.remaining(timer, now)
     val progress = PomodoroEngine.progress(timer, now)
     val phaseName = when (timer.phase) {
@@ -248,6 +250,21 @@ private fun FocusCard(data: AppData, now: Long, runtime: DesktopRuntime, modifie
     }
     Panel(phaseName, modifier) {
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Box {
+                OutlinedButton(onClick = { taskMenuExpanded = true }) {
+                    Text(selectedTask?.title ?: "بدون وظیفه‌ی مرتبط", maxLines = 1)
+                }
+                DropdownMenu(expanded = taskMenuExpanded, onDismissRequest = { taskMenuExpanded = false }) {
+                    DropdownMenuItem(text = { Text("بدون وظیفه‌ی مرتبط") }, onClick = {
+                        runtime.selectTask(null); taskMenuExpanded = false
+                    })
+                    data.tasks.filterNot { it.done }.forEach { task ->
+                        DropdownMenuItem(text = { Text(task.title) }, onClick = {
+                            runtime.selectTask(task.id); taskMenuExpanded = false
+                        })
+                    }
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PhaseType.entries.forEach { phase ->
                     val label = when (phase) {
