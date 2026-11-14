@@ -83,6 +83,8 @@ class DesktopRuntime {
         current.copy(timer = result.state, sessions = current.sessions + listOfNotNull(result.session))
     }
 
+    fun selectTask(taskId: String?) = repository.update { current -> current.copy(timer = current.timer.copy(taskId = taskId)) }
+
     fun selectPhase(phase: PhaseType) = repository.update { current ->
         val result = PomodoroEngine.switchPhase(current.timer, phase, current.settings, System.currentTimeMillis())
         current.copy(timer = result.state, sessions = current.sessions + listOfNotNull(result.session))
