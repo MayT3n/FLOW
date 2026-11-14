@@ -9,6 +9,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateContentSize
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,6 +19,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.loadImageBitmap
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
@@ -102,7 +110,23 @@ private fun MedFlowDesktop(runtime: DesktopRuntime) {
                         runCatching { File(path).inputStream().use { loadImageBitmap(it) } }.getOrNull()
                     }
                 }
-                Box(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown && event.isCtrlPressed) {
+                        val page = when (event.key) {
+                            Key.One -> "خانه"
+                            Key.Two -> "تمرکز"
+                            Key.Three -> "وظایف"
+                            Key.Four -> "روتین‌ها"
+                            Key.Five -> "اهداف"
+                            Key.Six -> "برنامه‌ریزی"
+                            Key.Seven -> "آمار"
+                            Key.Eight -> "موسیقی"
+                            Key.Nine -> "تنظیمات"
+                            else -> null
+                        }
+                        if (page != null) { selected = page; true } else false
+                    } else false
+                }) {
                     Canvas(Modifier.fillMaxSize()) {
                         if (wallpaper != null) {
                             val scale = if (data.settings.wallpaperFit == WallpaperFit.CROP)
@@ -137,16 +161,18 @@ private fun MedFlowDesktop(runtime: DesktopRuntime) {
                             Text("فضای شخصی مدیریت زمان", color = muted(), fontSize = 13.sp)
                         }
                         Spacer(Modifier.height(12.dp))
-                        when (selected) {
-                            "خانه" -> Dashboard(data, now, runtime)
-                            "تمرکز" -> FocusPage(data, now, runtime)
-                            "وظایف" -> TasksPage(data, runtime)
-                            "روتین‌ها" -> RoutinesPage(data, runtime)
-                            "اهداف" -> GoalsPage(data, runtime)
-                            "برنامه‌ریزی" -> PlanningPage(data)
-                            "آمار" -> StatisticsPage(data)
-                            "موسیقی" -> MusicPage(runtime)
-                            "تنظیمات" -> SettingsPage(data, runtime, dark, { runtime.updateSettings { it.copy(theme = if (dark) ThemeMode.LIGHT else ThemeMode.DARK) } })
+                        Crossfade(targetState = selected, label = "desktop-page-transition") { page ->
+                            when (page) {
+                                "خانه" -> Dashboard(data, now, runtime)
+                                "تمرکز" -> FocusPage(data, now, runtime)
+                                "وظایف" -> TasksPage(data, runtime)
+                                "روتین‌ها" -> RoutinesPage(data, runtime)
+                                "اهداف" -> GoalsPage(data, runtime)
+                                "برنامه‌ریزی" -> PlanningPage(data)
+                                "آمار" -> StatisticsPage(data)
+                                "موسیقی" -> MusicPage(runtime)
+                                "تنظیمات" -> SettingsPage(data, runtime, dark, { runtime.updateSettings { it.copy(theme = if (dark) ThemeMode.LIGHT else ThemeMode.DARK) } })
+                            }
                         }
                     }
                         }
@@ -727,7 +753,7 @@ private fun MetricCard(title: String, value: String, detail: String, modifier: M
 
 @Composable
 private fun Panel(title: String, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Card(modifier = modifier, shape = RoundedCornerShape(23.dp),
+    Card(modifier = modifier.animateContentSize().border(1.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = .18f), MaterialTheme.colorScheme.onSurface.copy(alpha = .035f), Color.White.copy(alpha = .08f))), RoundedCornerShape(23.dp)), shape = RoundedCornerShape(23.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = LocalDesktopSettings.current.glassOpacity.coerceIn(.55f, 1f) * .91f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
         Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
