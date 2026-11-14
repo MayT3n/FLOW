@@ -83,6 +83,10 @@ fun main() = application {
                 tray.close()
             }
         }
+        DisposableEffect(desktopWindow, dark) {
+            WindowsBackdrop.apply(desktopWindow, dark)
+            onDispose { }
+        }
         MedFlowDesktop(runtime)
     }
 }
@@ -128,7 +132,9 @@ private fun MedFlowDesktop(runtime: DesktopRuntime) {
                     } else false
                 }) {
                     Canvas(Modifier.fillMaxSize()) {
-                        if (wallpaper != null) {
+                        if (data.settings.wallpaperId == "mica" && WindowsBackdrop.isSupported() && wallpaper == null) {
+                            // Leave the native window surface transparent so Windows 11 Mica is visible.
+                        } else if (wallpaper != null) {
                             val scale = if (data.settings.wallpaperFit == WallpaperFit.CROP)
                                 maxOf(size.width / wallpaper.width, size.height / wallpaper.height)
                             else minOf(size.width / wallpaper.width, size.height / wallpaper.height)
@@ -745,11 +751,12 @@ private fun SettingsPage(data: AppData, runtime: DesktopRuntime, dark: Boolean, 
         HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .08f))
         Text("پس‌زمینه", fontWeight = FontWeight.SemiBold)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            listOf("gradient" to "گرادیان", "aurora" to "شفق قطبی", "midnight" to "نیمه‌شب", "dusk" to "غروب").forEach { (id, label) ->
+            listOf("gradient" to "گرادیان", "aurora" to "شفق قطبی", "midnight" to "نیمه‌شب", "dusk" to "غروب", "mica" to "Mica ویندوز").forEach { (id, label) ->
+                val supported = id != "mica" || WindowsBackdrop.isSupported()
                 if (data.settings.wallpaperId == id && data.settings.wallpaperPath == null) Button(onClick = {
                     runtime.updateSettings { it.copy(wallpaperId = id, wallpaperPath = null) }
-                }) { Text(label) }
-                else OutlinedButton(onClick = { runtime.updateSettings { it.copy(wallpaperId = id, wallpaperPath = null) } }) { Text(label) }
+                }, enabled = supported) { Text(label) }
+                else OutlinedButton(onClick = { runtime.updateSettings { it.copy(wallpaperId = id, wallpaperPath = null) } }, enabled = supported) { Text(label) }
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
