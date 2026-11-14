@@ -1,3 +1,5 @@
+import java.net.URL
+
 plugins {
     id("org.jetbrains.kotlin.jvm")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -19,15 +21,13 @@ val downloadVazirmatnFonts by tasks.registering {
             val target = output.resolve("fonts/$name")
             if (!target.exists() || target.length() < 50_000L) {
                 target.parentFile.mkdirs()
-                val url = java.net.URL(
+                val connection = URL(
                     "https://raw.githubusercontent.com/rastikerdar/vazirmatn/master/fonts/ttf/$name"
-                )
-                val connection = url.openConnection().apply {
-                    connectTimeout = 15_000
-                    readTimeout = 30_000
-                    setRequestProperty("User-Agent", "MedFlow-Desktop-Build")
-                }
-                val bytes = connection.getInputStream().use { it.readBytes() }
+                ).openConnection() as java.net.HttpURLConnection
+                connection.connectTimeout = 15_000
+                connection.readTimeout = 30_000
+                connection.setRequestProperty("User-Agent", "MedFlow-Desktop-Build")
+                val bytes = connection.inputStream.use { stream -> stream.readBytes() }
                 check(bytes.size > 50_000) { "Downloaded Vazirmatn font is incomplete: $name" }
                 target.writeBytes(bytes)
             }
@@ -35,8 +35,10 @@ val downloadVazirmatnFonts by tasks.registering {
         val license = output.resolve("fonts/OFL.txt")
         if (!license.exists()) {
             license.parentFile.mkdirs()
-            val url = java.net.URL("https://raw.githubusercontent.com/rastikerdar/vazirmatn/master/OFL.txt")
-            val licenseText = url.openStream().bufferedReader(Charsets.UTF_8).use { it.readText() }
+            val connection = URL("https://raw.githubusercontent.com/rastikerdar/vazirmatn/master/OFL.txt").openConnection()
+            val licenseText = connection.getInputStream().use { stream ->
+                stream.bufferedReader(Charsets.UTF_8).readText()
+            }
             license.writeText(licenseText, Charsets.UTF_8)
         }
     }
