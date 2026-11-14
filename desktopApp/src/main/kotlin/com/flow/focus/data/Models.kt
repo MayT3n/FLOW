@@ -15,7 +15,7 @@ enum class Priority(val label: String) { LOW("کم"), MEDIUM("متوسط"), HIGH
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 @Serializable
-enum class GlassQuality { LOW, MEDIUM, HIGH }
+enum class GlassQuality { LOW, MEDIUM, HIGH, ULTRA }
 
 @Serializable
 enum class GoalPeriod { DAILY, WEEKLY }
