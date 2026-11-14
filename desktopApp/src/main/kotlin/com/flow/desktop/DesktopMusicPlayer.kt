@@ -32,8 +32,7 @@ data class DesktopMusicState(
 )
 
 /** Desktop MP3 player backed by Java Sound + MP3SPI. Audio is decoded locally, never streamed through a browser. */
-class DesktopMusicPlayer {
-    private val root = appDataDirectory()
+class DesktopMusicPlayer(private val root: File = appDataDirectory()) {
     private val musicDir = File(root, "music").apply { mkdirs() }
     private val favoritesFile = File(root, "music-favorites.txt")
     private val playlistsFile = File(root, "music-playlists.json")
