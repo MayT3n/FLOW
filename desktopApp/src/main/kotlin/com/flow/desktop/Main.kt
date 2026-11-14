@@ -244,6 +244,14 @@ private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Wind
                                     .widthIn(max = MedFlowDesign.contentMaxWidth)
                                     .fillMaxWidth()
                             ) {
+                                val headerTitle = if (selected == "خانه") {
+                                    when (java.time.LocalTime.now().hour) {
+                                        in 5..11 -> "صبح بخیر"
+                                        in 12..16 -> "ظهر بخیر"
+                                        in 17..20 -> "عصر بخیر"
+                                        else -> "شب بخیر"
+                                    }
+                                } else selected
                                 Row(
                                     Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 9.dp),
                                     verticalAlignment = Alignment.CenterVertically,
@@ -251,7 +259,7 @@ private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Wind
                                 ) {
                                     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                                         Text(
-                                            selected,
+                                            headerTitle,
                                             fontSize = 27.sp,
                                             fontWeight = FontWeight.Bold,
                                             letterSpacing = (-0.35).sp
@@ -262,22 +270,15 @@ private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Wind
                                             fontSize = 12.sp
                                         )
                                     }
-                                    Column(
-                                        horizontalAlignment = Alignment.End,
-                                        verticalArrangement = Arrangement.spacedBy(5.dp)
-                                    ) {
-                                        Text(
-                                            "MedFlow Workspace",
-                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = .82f),
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            letterSpacing = .4.sp
-                                        )
-                                        Text(
-                                            "فضای شخصی مدیریت زمان",
-                                            color = muted(),
-                                            fontSize = 11.sp
-                                        )
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        OutlinedButton(
+                                            onClick = { selected = "وظایف" },
+                                            contentPadding = PaddingValues(horizontal = 13.dp, vertical = 8.dp)
+                                        ) { Text("وظایف") }
+                                        Button(
+                                            onClick = { selected = "تمرکز" },
+                                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                                        ) { Text("نمای تمرکز") }
                                     }
                                 }
                                 Crossfade(
