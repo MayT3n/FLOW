@@ -636,6 +636,8 @@ private fun MusicPage(runtime: DesktopRuntime) {
 
 @Composable
 private fun SettingsPage(data: AppData, runtime: DesktopRuntime, dark: Boolean, onThemeChange: () -> Unit) {
+    var startupEnabled by remember { mutableStateOf(WindowsStartup.isEnabled()) }
+    var startupMessage by remember { mutableStateOf("") }
     Panel("ظاهر و داده‌ها", Modifier.fillMaxWidth()) {
         Text("پوسته‌ی برنامه", fontWeight = FontWeight.SemiBold)
         OutlinedButton(onClick = onThemeChange) { Text(if (dark) "تغییر به روشن" else "تغییر به تیره") }
@@ -663,6 +665,24 @@ private fun SettingsPage(data: AppData, runtime: DesktopRuntime, dark: Boolean, 
         Slider(value = data.settings.glassOpacity, onValueChange = { v ->
             runtime.updateSettings { it.copy(glassOpacity = v.coerceIn(.55f, 1f)) }
         }, valueRange = .55f..1f)
+        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .08f))
+        Text("رفتار ویندوز", fontWeight = FontWeight.SemiBold)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = startupEnabled,
+                enabled = WindowsStartup.isSupported() && (!startupEnabled || WindowsStartup.executablePath() != null),
+                onCheckedChange = { enabled ->
+                    val success = WindowsStartup.setEnabled(enabled)
+                    startupEnabled = WindowsStartup.isEnabled()
+                    startupMessage = if (success) "تنظیم شروع خودکار ذخیره شد." else "این گزینه فقط در نسخه‌ی نصب‌شده‌ی ویندوز قابل فعال‌سازی است."
+                }
+            )
+            Column(Modifier.weight(1f)) {
+                Text("اجرای خودکار هنگام ورود به ویندوز")
+                Text("فقط برای حساب کاربری فعلی ویندوز", color = muted(), fontSize = 11.sp)
+            }
+        }
+        if (startupMessage.isNotBlank()) Text(startupMessage, color = muted(), fontSize = 11.sp)
         HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .08f))
         Text("پشتیبان‌گیری", fontWeight = FontWeight.SemiBold)
         Text("فایل پشتیبان شامل وظایف، تنظیمات، جلسات و وضعیت تایمر است.", color = muted(), fontSize = 12.sp)
