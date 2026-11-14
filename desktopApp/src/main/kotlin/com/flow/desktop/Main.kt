@@ -28,6 +28,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.IntOffset
@@ -63,6 +64,7 @@ private val MutedLight = Color(0xFF667085)
 private val LocalDesktopSettings = androidx.compose.runtime.staticCompositionLocalOf { com.flow.focus.data.Settings() }
 
 // Segoe UI is available on Windows 11 and provides a native-feeling Persian-capable UI fallback.
+@OptIn(ExperimentalTextApi::class)
 private val WindowsUiFont = FontFamily("Segoe UI")
 private val BaseDesktopTypography = Typography()
 private val MedFlowTypography = Typography(
