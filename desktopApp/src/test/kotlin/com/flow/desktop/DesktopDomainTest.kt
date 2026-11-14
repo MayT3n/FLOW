@@ -94,6 +94,28 @@ class DesktopDomainTest {
         }
     }
 
+
+    @Test
+    fun musicPlaylistsPersistAndRejectDuplicateTracks() {
+        val directory = Files.createTempDirectory("medflow-playlists").toFile()
+        try {
+            val first = DesktopMusicPlayer(directory)
+            val id = first.createPlaylist("Study Mix")
+            assertTrue(id != null)
+            first.addToPlaylist(id!!, "quiet-room")
+            first.addToPlaylist(id, "quiet-room")
+            assertEquals(listOf("quiet-room"), first.playlists.value.single().trackIds)
+            first.close()
+
+            val reopened = DesktopMusicPlayer(directory)
+            assertEquals("Study Mix", reopened.playlists.value.single().name)
+            assertEquals(listOf("quiet-room"), reopened.playlists.value.single().trackIds)
+            reopened.close()
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
     @Test
     fun jalaliWeekStartsOnSaturday() {
         assertEquals(0, JalaliDate.weekdayIndex(LocalDate.of(2026, 11, 7)))
