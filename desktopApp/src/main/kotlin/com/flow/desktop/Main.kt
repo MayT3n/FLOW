@@ -28,6 +28,8 @@ import com.flow.focus.core.DateFormats
 import com.flow.focus.core.JalaliDate
 import com.flow.focus.data.AppData
 import com.flow.focus.data.PhaseType
+import com.flow.focus.data.Priority
+import com.flow.focus.data.GoalPeriod
 import com.flow.focus.data.Task
 import com.flow.focus.data.TimerStatus
 import com.flow.focus.domain.Planner
@@ -88,6 +90,8 @@ private fun MedFlowDesktop(runtime: DesktopRuntime) {
                             "خانه" -> Dashboard(data, now, runtime)
                             "تمرکز" -> FocusPage(data, now, runtime)
                             "وظایف" -> TasksPage(data, runtime)
+                            "روتین‌ها" -> RoutinesPage(data, runtime)
+                            "اهداف" -> GoalsPage(data, runtime)
                             "برنامه‌ریزی" -> PlanningPage(data)
                             "آمار" -> StatisticsPage(data)
                             "موسیقی" -> PlaceholderPage("موسیقی", "پخش‌کننده‌ی دسکتاپ هنوز به موتور مستقل صوتی متصل نشده است.")
@@ -102,7 +106,7 @@ private fun MedFlowDesktop(runtime: DesktopRuntime) {
 
 @Composable
 private fun Sidebar(selected: String, onSelect: (String) -> Unit, dark: Boolean, onThemeChange: () -> Unit) {
-    val items = listOf("خانه", "تمرکز", "وظایف", "برنامه‌ریزی", "آمار", "موسیقی", "تنظیمات")
+    val items = listOf("خانه", "تمرکز", "وظایف", "روتین‌ها", "اهداف", "برنامه‌ریزی", "آمار", "موسیقی", "تنظیمات")
     Column(Modifier.width(224.dp).fillMaxHeight()
         .background(MaterialTheme.colorScheme.surface.copy(alpha = .92f), RoundedCornerShape(26.dp))
         .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = .07f), RoundedCornerShape(26.dp))
@@ -222,27 +226,182 @@ private fun FocusCard(data: AppData, now: Long, runtime: DesktopRuntime, modifie
 
 @Composable
 private fun TasksPage(data: AppData, runtime: DesktopRuntime) {
+    var editing by remember { mutableStateOf<Task?>(null) }
     var title by remember { mutableStateOf("") }
+    var notes by remember { mutableStateOf("") }
+    var dueDate by remember { mutableStateOf("") }
+    var dueTime by remember { mutableStateOf("") }
+    var priority by remember { mutableStateOf(Priority.MEDIUM) }
+    var category by remember { mutableStateOf("personal") }
+    var search by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf("") }
+    val categories = listOf("study" to "درس", "work" to "کار", "sport" to "ورزش", "personal" to "شخصی", "project" to "پروژه")
+    fun clearEditor() {
+        editing = null; title = ""; notes = ""; dueDate = ""; dueTime = ""
+        priority = Priority.MEDIUM; category = "personal"; error = ""
+    }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Panel("افزودن وظیفه", Modifier.fillMaxWidth()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(value = title, onValueChange = { title = it }, modifier = Modifier.weight(1f),
-                    singleLine = true, label = { Text("عنوان وظیفه") }, shape = RoundedCornerShape(14.dp))
-                Button(onClick = { runtime.addTask(title); title = "" }, enabled = title.isNotBlank()) { Text("افزودن") }
+        Panel(if (editing == null) "افزودن وظیفه" else "ویرایش وظیفه", Modifier.fillMaxWidth()) {
+            OutlinedTextField(value = title, onValueChange = { title = it }, modifier = Modifier.fillMaxWidth(),
+                singleLine = true, label = { Text("عنوان وظیفه") }, shape = RoundedCornerShape(14.dp))
+            OutlinedTextField(value = notes, onValueChange = { notes = it }, modifier = Modifier.fillMaxWidth(),
+                minLines = 2, label = { Text("یادداشت (اختیاری)") }, shape = RoundedCornerShape(14.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(value = dueDate, onValueChange = { dueDate = it }, modifier = Modifier.weight(1f),
+                    singleLine = true, label = { Text("تاریخ جلالی: ۱۴۰۵/۰۸/۲۳") }, shape = RoundedCornerShape(14.dp))
+                OutlinedTextField(value = dueTime, onValueChange = { dueTime = it }, modifier = Modifier.weight(1f),
+                    singleLine = true, label = { Text("ساعت: ۱۸:۳۰") }, shape = RoundedCornerShape(14.dp))
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("اولویت:")
+                Priority.entries.forEach { p ->
+                    if (priority == p) Button(onClick = { priority = p }) { Text(p.label) }
+                    else OutlinedButton(onClick = { priority = p }) { Text(p.label) }
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("دسته:")
+                categories.forEach { (id, label) ->
+                    if (category == id) Button(onClick = { category = id }) { Text(label) }
+                    else OutlinedButton(onClick = { category = id }) { Text(label) }
+                }
+            }
+            if (error.isNotBlank()) Text(error, color = Color(0xFFE07B7B), fontSize = 12.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(onClick = {
+                    val parsedDate = if (dueDate.isBlank()) null else parseJalaliDate(dueDate)
+                    val parsedTime = if (dueTime.isBlank()) null else parseClock(dueTime)
+                    if (title.isBlank()) error = "عنوان وظیفه را وارد کن."
+                    else if (dueDate.isNotBlank() && parsedDate == null) error = "تاریخ را به شکل سال/ماه/روز جلالی وارد کن."
+                    else if (dueTime.isNotBlank() && parsedTime == null) error = "ساعت را به شکل ساعت:دقیقه وارد کن."
+                    else {
+                        val old = editing
+                        if (old == null) runtime.addTask(title, notes, parsedDate, parsedTime, priority, category)
+                        else runtime.saveTask(old.copy(title = title.trim(), notes = notes.trim(),
+                            dueDay = parsedDate?.toEpochDay(), dueMinute = parsedTime, priority = priority, categoryId = category))
+                        clearEditor()
+                    }
+                }, enabled = title.isNotBlank()) { Text(if (editing == null) "ثبت وظیفه" else "ذخیره تغییرات") }
+                if (editing != null) OutlinedButton(onClick = { clearEditor() }) { Text("انصراف") }
             }
         }
         Panel("فهرست وظایف", Modifier.fillMaxWidth()) {
-            if (data.tasks.isEmpty()) EmptyText("هنوز وظیفه‌ای ثبت نکرده‌ای.")
-            data.tasks.sortedWith(compareBy<Task> { it.done }.thenByDescending { it.createdAt }).forEach { task ->
-                Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth(),
+                singleLine = true, label = { Text("جست‌وجوی عنوان و یادداشت") }, shape = RoundedCornerShape(14.dp))
+            val tasks = data.tasks.filter { search.isBlank() || it.title.contains(search, true) || it.notes.contains(search, true) }
+                .sortedWith(compareBy<Task> { it.done }.thenByDescending { it.createdAt })
+            if (tasks.isEmpty()) EmptyText("وظیفه‌ای پیدا نشد.")
+            tasks.forEach { task ->
+                Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = task.done, onCheckedChange = { runtime.setTaskDone(task.id, it) })
-                    Column(Modifier.weight(1f)) {
-                        Text(task.title, fontWeight = FontWeight.Medium, color = if (task.done) muted() else MaterialTheme.colorScheme.onSurface)
-                        Text(if (task.dueDay == null) "بدون سررسید" else "دارای سررسید", color = muted(), fontSize = 11.sp)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(task.title, fontWeight = FontWeight.Medium,
+                            color = if (task.done) muted() else MaterialTheme.colorScheme.onSurface)
+                        if (task.notes.isNotBlank()) Text(task.notes, color = muted(), fontSize = 11.sp, maxLines = 2)
+                        val due = task.dueDay?.let { DateFormats.full(java.time.LocalDate.ofEpochDay(it)) } ?: "بدون سررسید"
+                        val time = task.dueMinute?.let { " · \${DateFormats.clock(it)}" } ?: ""
+                        Text("\${due}\${time} · \${task.priority.label} · \${categories.firstOrNull { it.first == task.categoryId }?.second ?: "شخصی"}",
+                            color = muted(), fontSize = 11.sp)
                     }
+                    TextButton(onClick = {
+                        editing = task; title = task.title; notes = task.notes
+                        dueDate = task.dueDay?.let { epoch ->
+                            val j = JalaliDate.of(java.time.LocalDate.ofEpochDay(epoch))
+                            "\${j.year}/\${j.month.toString().padStart(2,'0')}/\${j.day.toString().padStart(2,'0')}"
+                        } ?: ""
+                        dueTime = task.dueMinute?.let { DateFormats.clock(it) } ?: ""
+                        priority = task.priority; category = task.categoryId; error = ""
+                    }) { Text("ویرایش") }
                     TextButton(onClick = { runtime.deleteTask(task.id) }) { Text("حذف", color = Color(0xFFE07B7B)) }
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .06f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun RoutinesPage(data: AppData, runtime: DesktopRuntime) {
+    var title by remember { mutableStateOf("") }
+    var time by remember { mutableStateOf("") }
+    val weekdays = remember { androidx.compose.runtime.mutableStateListOf(0,1,2,3,4,5,6) }
+    val labels = JalaliDate.weekdayNames
+    val today = java.time.LocalDate.now()
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Panel("روتین تکرارشونده", Modifier.fillMaxWidth()) {
+            OutlinedTextField(value = title, onValueChange = { title = it }, modifier = Modifier.fillMaxWidth(),
+                singleLine = true, label = { Text("عنوان روتین") })
+            OutlinedTextField(value = time, onValueChange = { time = it }, modifier = Modifier.fillMaxWidth(),
+                singleLine = true, label = { Text("ساعت اختیاری، مثل ۰۷:۳۰") })
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                labels.forEachIndexed { index, day ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Checkbox(checked = index in weekdays, onCheckedChange = { checked ->
+                            if (checked && index !in weekdays) weekdays.add(index)
+                            if (!checked) weekdays.remove(index)
+                        })
+                        Text(day.take(1), fontSize = 11.sp, color = muted())
+                    }
+                }
+            }
+            Button(onClick = {
+                val minute = if (time.isBlank()) null else parseClock(time)
+                if (title.isNotBlank() && (time.isBlank() || minute != null))
+                    runtime.addRoutine(title, weekdays.toList(), minute)
+                title = ""; time = ""
+            }, enabled = title.isNotBlank() && weekdays.isNotEmpty() && (time.isBlank() || parseClock(time) != null)) {
+                Text("افزودن روتین")
+            }
+        }
+        Panel("روتین‌های من", Modifier.fillMaxWidth()) {
+            if (data.routines.isEmpty()) EmptyText("هنوز روتینی ثبت نشده است.")
+            data.routines.forEach { routine ->
+                Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(routine.title, fontWeight = FontWeight.Medium)
+                        Text(routine.weekdays.sorted().joinToString("، ") { labels[it] } +
+                            (routine.minute?.let { " · \${DateFormats.clock(it)}" } ?: ""),
+                            color = muted(), fontSize = 11.sp)
+                    }
+                    val doneToday = "\${routine.id}|\${today.toEpochDay()}" in data.routineChecks
+                    Checkbox(checked = doneToday, onCheckedChange = { runtime.toggleRoutine(routine.id, today) })
+                    TextButton(onClick = { runtime.deleteRoutine(routine.id) }) { Text("حذف", color = Color(0xFFE07B7B)) }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .06f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun GoalsPage(data: AppData, runtime: DesktopRuntime) {
+    var title by remember { mutableStateOf("") }
+    var period by remember { mutableStateOf(GoalPeriod.DAILY) }
+    val today = java.time.LocalDate.now()
+    val weekStart = JalaliDate.startOfWeek(today).toEpochDay()
+    Panel("هدف جدید", Modifier.fillMaxWidth()) {
+        OutlinedTextField(value = title, onValueChange = { title = it }, modifier = Modifier.fillMaxWidth(),
+            singleLine = true, label = { Text("عنوان هدف") })
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (period == GoalPeriod.DAILY) Button(onClick = { period = GoalPeriod.DAILY }) { Text("روزانه") }
+            else OutlinedButton(onClick = { period = GoalPeriod.DAILY }) { Text("روزانه") }
+            if (period == GoalPeriod.WEEKLY) Button(onClick = { period = GoalPeriod.WEEKLY }) { Text("هفتگی") }
+            else OutlinedButton(onClick = { period = GoalPeriod.WEEKLY }) { Text("هفتگی") }
+        }
+        Button(onClick = {
+            runtime.addGoal(title, period, if (period == GoalPeriod.DAILY) today.toEpochDay() else weekStart)
+            title = ""
+        }, enabled = title.isNotBlank()) { Text("ثبت هدف") }
+    }
+    Panel("هدف‌های ثبت‌شده", Modifier.fillMaxWidth()) {
+        val goals = data.goals.filter { it.periodStartDay == if (it.period == GoalPeriod.DAILY) today.toEpochDay() else weekStart }
+        if (goals.isEmpty()) EmptyText("برای این بازه هدفی ثبت نشده است.")
+        goals.forEach { goal ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = goal.done, onCheckedChange = { runtime.toggleGoal(goal.id) })
+                Text(goal.title, Modifier.weight(1f), color = if (goal.done) muted() else MaterialTheme.colorScheme.onSurface)
+                Text(if (goal.period == GoalPeriod.DAILY) "روزانه" else "هفتگی", color = muted(), fontSize = 11.sp)
+                TextButton(onClick = { runtime.deleteGoal(goal.id) }) { Text("حذف", color = Color(0xFFE07B7B)) }
             }
         }
     }
@@ -410,6 +569,34 @@ private fun EmptyText(text: String) {
 @Composable
 private fun muted(): Color =
     if (MaterialTheme.colorScheme.background == Color(0xFF10131B)) MutedDark else MutedLight
+
+
+private fun normalizeDigits(input: String): String = input.map { ch ->
+    when (ch) {
+        in '۰'..'۹' -> '0' + (ch - '۰')
+        in '٠'..'٩' -> '0' + (ch - '٠')
+        else -> ch
+    }
+}.joinToString("")
+
+private fun parseJalaliDate(input: String): java.time.LocalDate? {
+    val parts = normalizeDigits(input).trim().split('/', '-', '.')
+    if (parts.size != 3) return null
+    val year = parts[0].toIntOrNull() ?: return null
+    val month = parts[1].toIntOrNull() ?: return null
+    val day = parts[2].toIntOrNull() ?: return null
+    if (year !in 1200..1600 || month !in 1..12 || day !in 1..JalaliDate.monthLength(year, month)) return null
+    return runCatching { JalaliDate(year, month, day).toLocalDate() }.getOrNull()
+}
+
+private fun parseClock(input: String): Int? {
+    val parts = normalizeDigits(input).trim().split(':')
+    if (parts.size != 2) return null
+    val hour = parts[0].toIntOrNull() ?: return null
+    val minute = parts[1].toIntOrNull() ?: return null
+    if (hour !in 0..23 || minute !in 0..59) return null
+    return hour * 60 + minute
+}
 
 private fun timerText(ms: Long): String {
     val seconds = (ms / 1000L).coerceAtLeast(0L)
