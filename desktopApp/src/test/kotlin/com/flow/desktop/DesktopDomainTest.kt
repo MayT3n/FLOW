@@ -4,6 +4,14 @@ import com.flow.focus.core.JalaliDate
 import com.flow.focus.data.PhaseType
 import com.flow.focus.data.Settings
 import com.flow.focus.data.TimerStatus
+import com.flow.focus.data.AppData
+import com.flow.focus.data.Task
+import com.flow.focus.data.JsonStore
+import com.flow.focus.data.FlowRepository
+import com.flow.focus.domain.Planner
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import java.nio.file.Files
 import com.flow.focus.domain.PomodoroEngine
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
@@ -41,6 +49,48 @@ class DesktopDomainTest {
         while (!date.isAfter(end)) {
             assertEquals(date, JalaliDate.of(date).toLocalDate())
             date = date.plusDays(1)
+        }
+    }
+
+    @Test
+    fun bundledIranianCalendarIsAvailableOfflineAndDatesAreValid() {
+        val events = DesktopIranianCalendar.all()
+        assertTrue(events.isNotEmpty())
+        assertTrue(events.any { it.isHoliday })
+        assertTrue(events.any { it.titleFa.contains("نوروز") })
+        events.forEach { event ->
+            assertTrue(event.titleFa.isNotBlank())
+            assertEquals(event.epochDay, LocalDate.ofEpochDay(event.epochDay).toEpochDay())
+        }
+    }
+
+    @Test
+    fun plannerIncludesDueTasksAndRecurringRoutinesOnTheCorrectJalaliWeekday() {
+        val day = LocalDate.of(2026, 11, 7)
+        val task = Task(id = "task", title = "تمرین", dueDay = day.toEpochDay())
+        val routine = com.flow.focus.data.Routine(id = "routine", title = "مطالعه", weekdays = listOf(JalaliDate.weekdayIndex(day)))
+        val entries = Planner.entriesFor(AppData(tasks = listOf(task), routines = listOf(routine)), day)
+        assertEquals(2, entries.size)
+    }
+
+    @Test
+    fun jsonBackupRoundTripsAndRejectsInvalidInputWithoutDataLoss() {
+        val directory = Files.createTempDirectory("medflow-test").toFile()
+        val file = java.io.File(directory, "data.json")
+        val scope = CoroutineScope(SupervisorJob())
+        try {
+            val repo = FlowRepository(JsonStore(file), scope)
+            repo.upsertTask(Task(id = "a", title = "پروژه", notes = "یادداشت"))
+            repo.flush()
+            val backup = repo.exportJson()
+            assertTrue(repo.importJson(backup))
+            assertEquals("پروژه", repo.current.tasks.single().title)
+            assertEquals(false, repo.importJson("not-json"))
+            assertEquals("پروژه", repo.current.tasks.single().title)
+            repo.flush()
+        } finally {
+            scope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
+            directory.deleteRecursively()
         }
     }
 
