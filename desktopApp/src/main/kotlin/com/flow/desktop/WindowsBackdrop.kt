@@ -16,8 +16,10 @@ object WindowsBackdrop {
 
     private val dwm by lazy { Native.load("dwmapi", DwmApi::class.java) }
 
+    fun isSupported(): Boolean = System.getProperty("os.name").lowercase().contains("windows")
+
     fun apply(window: Window, dark: Boolean): Boolean {
-        if (!System.getProperty("os.name").lowercase().contains("windows")) return false
+        if (!isSupported()) return false
         return runCatching {
             val hwnd = Native.getComponentPointer(window)
             if (hwnd == null || Pointer.nativeValue(hwnd) == 0L) return false
