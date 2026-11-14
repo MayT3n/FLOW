@@ -15,6 +15,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("com.googlecode.soundlibs:mp3spi:1.9.5.4")
+    implementation("net.java.dev.jna:jna:5.15.0")
     testImplementation("junit:junit:4.13.2")
 }
 
