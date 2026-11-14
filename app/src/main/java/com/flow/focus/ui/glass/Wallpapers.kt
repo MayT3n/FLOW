@@ -27,6 +27,8 @@ class BuiltinWallpaper(
     val description: String,
     val dark: WallpaperLook,
     val light: WallpaperLook,
+    /** اگر true باشد تصویر drawable با نام `<id>_dark` / `<id>_light` رسم می‌شود و look فقط برای پیش‌نمایش و پروفایل است. */
+    val art: Boolean = false,
 ) {
     fun look(isDark: Boolean) = if (isDark) dark else light
 }
@@ -63,6 +65,30 @@ object BuiltinWallpapers {
             dark = WallpaperLook(listOf(Color(0xFF0A1F18), Color(0xFF1B4A3A), Color(0xFF1F3347)), Color(0xFF5ED6A0), Color(0xFF7FB77E)),
             light = WallpaperLook(listOf(Color(0xFFEAF6EE), Color(0xFFDDEFE4), Color(0xFFDDE9F0)), Color(0xFF7BD3A8), Color(0xFFA8CF8A)),
         ),
+        BuiltinWallpaper(
+            "study_desk", "میز مطالعه", "میز مطالعه‌ی شبانه با چراغ و پنجره‌ی ستاره‌ای",
+            dark = WallpaperLook(listOf(Color(0xFF0B1226), Color(0xFF1B2A4A), Color(0xFF2B2F55)), Color(0xFFFFB766), Color(0xFF6B7DD1)),
+            light = WallpaperLook(listOf(Color(0xFFF4EAD9), Color(0xFFF1DCC3), Color(0xFFE6D0C4)), Color(0xFFFFD9A0), Color(0xFFEE8FA8)),
+            art = true,
+        ),
+        BuiltinWallpaper(
+            "study_library", "کتابخانه", "قفسه‌های کتاب با نور گرم",
+            dark = WallpaperLook(listOf(Color(0xFF1A1220), Color(0xFF2A1C2E), Color(0xFF2A1C2E)), Color(0xFFFFB36B), Color(0xFF8C4B5A)),
+            light = WallpaperLook(listOf(Color(0xFFF5ECDF), Color(0xFFEAD9C6), Color(0xFFEAD9C6)), Color(0xFFFFD08A), Color(0xFFE29A9A)),
+            art = true,
+        ),
+        BuiltinWallpaper(
+            "study_rain", "شب بارانی", "باران روی شیشه و نورهای تار شهر",
+            dark = WallpaperLook(listOf(Color(0xFF0A0F1F), Color(0xFF141D35), Color(0xFF1C2440)), Color(0xFF7AB8FF), Color(0xFFFF7A9A)),
+            light = WallpaperLook(listOf(Color(0xFFDFE8F1), Color(0xFFCDD9E6), Color(0xFFC2CFDF)), Color(0xFFB8DCFF), Color(0xFFFFC4D4)),
+            art = true,
+        ),
+        BuiltinWallpaper(
+            "study_hills", "تپه‌های آرام", "تپه و جنگل مه‌آلود برای تمرکز",
+            dark = WallpaperLook(listOf(Color(0xFF0D1A2B), Color(0xFF27455A), Color(0xFF0E2227)), Color(0xFFFFD9A0), Color(0xFF2C4A56)),
+            light = WallpaperLook(listOf(Color(0xFFCFE6F2), Color(0xFFF6E9D3), Color(0xFF7FAE9F)), Color(0xFFFFF2C7), Color(0xFF9CC2B5)),
+            art = true,
+        ),
     )
 
     val ids: Set<String> = all.map { it.id }.toSet()
@@ -71,6 +97,15 @@ object BuiltinWallpapers {
 
     /** شناسه‌های مجاز برای ذخیره‌سازی تنظیمات. */
     val allowedIds: Set<String> = ids + setOf("gradient", "custom")
+}
+
+/** تصویر هنری یک پس‌زمینه‌ی داخلی برای تم فعلی؛ null اگر پس‌زمینه تصویری نباشد. */
+internal fun loadWallpaperArt(context: android.content.Context, id: String, isDark: Boolean): android.graphics.Bitmap? {
+    if (BuiltinWallpapers.find(id)?.art != true) return null
+    val res = context.resources
+    val resId = res.getIdentifier("${id}_${if (isDark) "dark" else "light"}", "drawable", context.packageName)
+    if (resId == 0) return null
+    return runCatching { android.graphics.BitmapFactory.decodeResource(res, resId) }.getOrNull()
 }
 
 /** رسم پس‌زمینه‌ی داخلی [wallpaper] با طراحی مخصوص تم فعلی. */

@@ -90,6 +90,7 @@ import com.flow.focus.ui.glass.GlassSurface
 import com.flow.focus.ui.glass.springClick
 import com.flow.focus.ui.theme.Flow
 import com.flow.focus.ui.glass.BuiltinWallpapers
+import com.flow.focus.ui.glass.loadWallpaperArt
 import com.flow.focus.ui.theme.perceptual
 import com.flow.focus.ui.theme.LocalDockContentPadding
 import com.flow.focus.ui.theme.LocalGlass
@@ -190,12 +191,16 @@ private fun WallpaperPreviewSurface(
     dim: Float,
     blurDp: Int,
 ) {
-    val bitmap = remember(path) { mutableStateOf<ImageBitmap?>(null) }
-    LaunchedEffect(path) {
+    val bitmap = remember(path, id) { mutableStateOf<ImageBitmap?>(null) }
+    val artContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
+    val artDark = Flow.colors.isDark
+    LaunchedEffect(path, id, artDark) {
         bitmap.value = if (id == "custom" && !path.isNullOrBlank()) {
             withContext(Dispatchers.IO) {
                 runCatching { BitmapFactory.decodeFile(path)?.asImageBitmap() }.getOrNull()
             }
+        } else if (BuiltinWallpapers.find(id)?.art == true) {
+            withContext(Dispatchers.IO) { loadWallpaperArt(artContext, id, artDark)?.asImageBitmap() }
         } else null
     }
     val palette = BuiltinWallpapers.find(id)?.look(Flow.colors.isDark)?.stops
@@ -214,12 +219,12 @@ private fun WallpaperPreviewSurface(
             },
         ) {
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(palette)))
-            if (id == "custom" && bitmap.value != null) {
+            if (bitmap.value != null) {
                 Image(
                     bitmap = bitmap.value!!,
                     contentDescription = "پیش‌نمایش تصویر پس‌زمینه",
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = if (fit == WallpaperFit.CROP) ContentScale.Crop else ContentScale.Fit,
+                    contentScale = if (fit == WallpaperFit.CROP || id != "custom") ContentScale.Crop else ContentScale.Fit,
                 )
             }
             if (id != "gradient" && dim > 0f && Flow.colors.isDark) {

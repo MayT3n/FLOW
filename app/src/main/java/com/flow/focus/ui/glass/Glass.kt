@@ -160,8 +160,9 @@ private fun DrawScope.drawBackdrop(
     settings: Settings,
     plan: WallpaperPlan,
 ) {
-    if (settings.wallpaperId == "custom" && image != null) {
-        drawWallpaperImage(image, w, h, settings.wallpaperFit, c.bgBottom)
+    val art = BuiltinWallpapers.find(settings.wallpaperId)?.art == true
+    if ((settings.wallpaperId == "custom" || art) && image != null) {
+        drawWallpaperImage(image, w, h, if (art) WallpaperFit.CROP else settings.wallpaperFit, c.bgBottom)
     } else {
         drawBuiltinWallpaper(c, phase, w, h, settings.wallpaperId)
     }
@@ -292,8 +293,9 @@ fun GlassBackdropHost(
     val layer = rememberGraphicsLayer()
     val wallpaperPlan = LocalWallpaperPlan.current
 
-    LaunchedEffect(settings.wallpaperId, settings.wallpaperPath) {
+    LaunchedEffect(settings.wallpaperId, settings.wallpaperPath, c.isDark) {
         val path = settings.wallpaperPath
+        val artBitmap = withContext(Dispatchers.IO) { loadWallpaperArt(context, settings.wallpaperId, c.isDark) }
         val (decoded, sampledTone, sampledColors) = if (settings.wallpaperId == "custom" && !path.isNullOrBlank()) {
             withContext(Dispatchers.IO) {
                 runCatching {
@@ -301,6 +303,8 @@ fun GlassBackdropHost(
                     Triple(bitmap, bitmap?.sampledAverageColor(), bitmap?.sampledPalette().orEmpty())
                 }.getOrDefault(Triple(null, null, emptyList()))
             }
+        } else if (artBitmap != null) {
+            Triple(artBitmap, artBitmap.sampledAverageColor(), artBitmap.sampledPalette())
         } else {
             Triple(null, builtinWallpaperTone(settings.wallpaperId), builtinWallpaperPalette(settings.wallpaperId))
         }

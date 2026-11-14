@@ -5,7 +5,9 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
+import com.flow.focus.ui.glass.BuiltinWallpapers
 import com.flow.focus.ui.glass.decodeStoredWallpaper
+import com.flow.focus.ui.glass.loadWallpaperArt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.animation.core.AnimationSpec
@@ -205,15 +207,20 @@ fun FlowTheme(settings: Settings, content: @Composable () -> Unit) {
     val base = if (dark) DarkColors else LightColors
     // پروفایل تصویر شخصی از نمونه‌ی کوچک (۲۵۶px) خارج از رشته‌ی UI ساخته می‌شود.
     var customProfile by remember { mutableStateOf<WallpaperProfile?>(null) }
-    LaunchedEffect(settings.wallpaperId, settings.wallpaperPath) {
+    val isArt = BuiltinWallpapers.find(settings.wallpaperId)?.art == true
+    LaunchedEffect(settings.wallpaperId, settings.wallpaperPath, dark) {
         val path = settings.wallpaperPath
         customProfile = if (settings.wallpaperId == "custom" && !path.isNullOrBlank()) {
             withContext(Dispatchers.IO) {
                 runCatching { decodeStoredWallpaper(ctx.applicationContext, path, 256)?.let { sampleProfile(it) } }.getOrNull()
             }
+        } else if (isArt) {
+            withContext(Dispatchers.IO) {
+                runCatching { loadWallpaperArt(ctx.applicationContext, settings.wallpaperId, dark)?.let { sampleProfile(it) } }.getOrNull()
+            }
         } else null
     }
-    val profile = customProfile?.takeIf { settings.wallpaperId == "custom" } ?: builtinProfile(settings.wallpaperId, base)
+    val profile = customProfile?.takeIf { settings.wallpaperId == "custom" || isArt } ?: builtinProfile(settings.wallpaperId, base)
     val baseDim = if (settings.wallpaperId == "gradient") 0f else settings.wallpaperDim
     val plan = remember(profile, dark, baseDim) { planFor(profile, base, baseDim) }
     val adapted = remember(profile, plan, dark) { adaptColors(base, profile, plan) }
