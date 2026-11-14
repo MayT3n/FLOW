@@ -36,8 +36,12 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - name: Validate desktop compilation and domain tests
-        run: .\gradlew.bat :desktopApp:compileKotlin :desktopApp:test
+      - name: Configure Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+      - name: Compile desktop application
+        run: .\gradlew.bat :desktopApp:compileKotlin --stacktrace
+      - name: Run desktop domain tests
+        run: .\gradlew.bat :desktopApp:test --stacktrace
       - name: Package Windows MSI
         run: .\gradlew.bat :desktopApp:packageMsi
       - name: Upload MSI
