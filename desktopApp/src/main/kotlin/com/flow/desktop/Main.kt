@@ -83,19 +83,19 @@ fun main() = application {
                 tray.close()
             }
         }
-        DisposableEffect(desktopWindow, dark) {
-            WindowsBackdrop.apply(desktopWindow, dark)
-            onDispose { }
-        }
-        MedFlowDesktop(runtime)
+        MedFlowDesktop(runtime, desktopWindow)
     }
 }
 
 @Composable
-private fun MedFlowDesktop(runtime: DesktopRuntime) {
+private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Window) {
     var selected by remember { mutableStateOf("خانه") }
     val data by runtime.data.collectAsState()
     val dark = data.settings.theme != ThemeMode.LIGHT
+    DisposableEffect(desktopWindow, dark) {
+        WindowsBackdrop.apply(desktopWindow, dark)
+        onDispose { }
+    }
     val now by runtime.now.collectAsState()
     val scheme = if (dark) darkColorScheme(
         primary = Accent, background = Color(0xFF10131B), surface = Color(0xFF1A1F2B),
