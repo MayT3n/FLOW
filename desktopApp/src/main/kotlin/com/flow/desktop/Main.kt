@@ -136,6 +136,7 @@ private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Wind
         onDispose { }
     }
     val now by runtime.now.collectAsState()
+    val musicState by runtime.music.state.collectAsState()
     val scheme = if (dark) darkColorScheme(
         primary = MedFlowDesign.darkAccent,
         onPrimary = Color(0xFF101A2A),
@@ -281,7 +282,7 @@ private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Wind
                                 }
                                 Crossfade(
                                     targetState = selected,
-                                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                                    modifier = Modifier.weight(if (musicState.trackId != null) .91f else 1f).fillMaxWidth(),
                                     animationSpec = if (data.settings.animations)
                                         androidx.compose.animation.core.tween(durationMillis = 180)
                                     else androidx.compose.animation.core.snap(),
@@ -302,6 +303,9 @@ private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Wind
                                         )
                                     }
                                 }
+                                if (musicState.trackId != null) {
+                                    DesktopMiniPlayer(musicState, runtime, Modifier.fillMaxWidth().padding(top = 9.dp))
+                                }
                             }
                         }
                     }
@@ -309,6 +313,35 @@ private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Wind
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DesktopMiniPlayer(
+    state: DesktopMusicState,
+    runtime: DesktopRuntime,
+    modifier: Modifier = Modifier
+) {
+    val track = DesktopMusicCatalog.tracks.firstOrNull { it.id == state.trackId }
+    val shape = RoundedCornerShape(15.dp)
+    Row(
+        modifier.fillMaxWidth()
+            .shadow(5.dp, shape)
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = .89f), shape)
+            .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = .10f), shape)
+            .padding(horizontal = 14.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(9.dp)
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(track?.title ?: "موسیقی", fontWeight = FontWeight.SemiBold, fontSize = 12.sp, maxLines = 1)
+            Text(track?.mood ?: "پخش‌کننده‌ی MedFlow", color = muted(), fontSize = 10.sp, maxLines = 1)
+        }
+        TextButton(onClick = { runtime.music.togglePlayback() }) {
+            Text(if (state.playing) "مکث" else "پخش")
+        }
+        TextButton(onClick = { runtime.music.next() }) { Text("بعدی") }
+        TextButton(onClick = { runtime.music.stop() }) { Text("بستن") }
     }
 }
 
