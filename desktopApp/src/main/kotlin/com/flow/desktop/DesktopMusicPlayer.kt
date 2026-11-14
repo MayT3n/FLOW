@@ -4,15 +4,23 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.Executors
+import java.util.UUID
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import javax.sound.sampled.AudioFormat
 import javax.sound.sampled.AudioSystem
 import javax.sound.sampled.Clip
 import javax.sound.sampled.FloatControl
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+
+@Serializable
+data class DesktopPlaylist(val id: String, val name: String, val trackIds: List<String> = emptyList())
 
 data class DesktopMusicState(
     val trackId: String? = null,
@@ -28,6 +36,8 @@ class DesktopMusicPlayer {
     private val root = appDataDirectory()
     private val musicDir = File(root, "music").apply { mkdirs() }
     private val favoritesFile = File(root, "music-favorites.txt")
+    private val playlistsFile = File(root, "music-playlists.json")
+    private val playlistJson = Json { ignoreUnknownKeys = true; prettyPrint = true }
     private val audioExecutor = Executors.newSingleThreadExecutor { r -> Thread(r, "MedFlow-Audio").apply { isDaemon = true } }
     private val downloadExecutor = Executors.newFixedThreadPool(2) { r -> Thread(r, "MedFlow-MusicDownload").apply { isDaemon = true } }
     private val clock: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "MedFlow-AudioClock").apply { isDaemon = true } }
@@ -37,6 +47,8 @@ class DesktopMusicPlayer {
     val downloads: StateFlow<Map<String, Float>> = _downloads.asStateFlow()
     private val _favorites = MutableStateFlow(readFavorites())
     val favorites: StateFlow<Set<String>> = _favorites.asStateFlow()
+    private val _playlists = MutableStateFlow(readPlaylists())
+    val playlists: StateFlow<List<DesktopPlaylist>> = _playlists.asStateFlow()
 
     @Volatile private var clip: Clip? = null
     @Volatile private var pausedFrame = 0
@@ -58,6 +70,52 @@ class DesktopMusicPlayer {
     fun isDownloaded(track: DesktopTrack): Boolean {
         val file = File(musicDir, track.fileName)
         return file.isFile && file.length() == track.fileSize && plausibleMp3(file)
+    }
+
+    fun createPlaylist(name: String): String? {
+        val clean = name.trim().take(48)
+        if (clean.isBlank() || _playlists.value.any { it.name.equals(clean, ignoreCase = true) }) return null
+        val id = UUID.randomUUID().toString()
+        _playlists.value = _playlists.value + DesktopPlaylist(id, clean)
+        persistPlaylists()
+        return id
+    }
+
+    fun renamePlaylist(id: String, name: String): Boolean {
+        val clean = name.trim().take(48)
+        if (clean.isBlank() || _playlists.value.any { it.id != id && it.name.equals(clean, true) }) return false
+        _playlists.value = _playlists.value.map { if (it.id == id) it.copy(name = clean) else it }
+        persistPlaylists()
+        return true
+    }
+
+    fun deletePlaylist(id: String) {
+        _playlists.value = _playlists.value.filterNot { it.id == id }
+        persistPlaylists()
+    }
+
+    fun addToPlaylist(playlistId: String, trackId: String) {
+        if (DesktopMusicCatalog.tracks.none { it.id == trackId }) return
+        _playlists.value = _playlists.value.map { playlist ->
+            if (playlist.id == playlistId && trackId !in playlist.trackIds)
+                playlist.copy(trackIds = playlist.trackIds + trackId)
+            else playlist
+        }
+        persistPlaylists()
+    }
+
+    fun removeFromPlaylist(playlistId: String, trackId: String) {
+        _playlists.value = _playlists.value.map { playlist ->
+            if (playlist.id == playlistId) playlist.copy(trackIds = playlist.trackIds - trackId) else playlist
+        }
+        persistPlaylists()
+    }
+
+    fun playPlaylist(playlistId: String) {
+        val first = _playlists.value.firstOrNull { it.id == playlistId }?.trackIds?.firstOrNull()
+            ?.let { id -> DesktopMusicCatalog.tracks.firstOrNull { it.id == id } }
+            ?: return
+        if (isDownloaded(first)) play(first) else download(first)
     }
 
     fun toggleFavorite(trackId: String) {
@@ -232,6 +290,20 @@ class DesktopMusicPlayer {
                 ((head[0].toInt() and 0xFF) == 0xFF && (head[1].toInt() and 0xE0) == 0xE0)
         }
     }.getOrDefault(false)
+
+    private fun readPlaylists(): List<DesktopPlaylist> = runCatching {
+        if (!playlistsFile.isFile) emptyList()
+        else playlistJson.decodeFromString<List<DesktopPlaylist>>(playlistsFile.readText(Charsets.UTF_8))
+            .map { playlist ->
+                playlist.copy(trackIds = playlist.trackIds.distinct().filter { id -> DesktopMusicCatalog.tracks.any { it.id == id } })
+            }
+            .filter { it.id.isNotBlank() && it.name.isNotBlank() }
+            .distinctBy { it.id }
+    }.getOrDefault(emptyList())
+
+    private fun persistPlaylists() {
+        runCatching { playlistsFile.writeText(playlistJson.encodeToString(_playlists.value), Charsets.UTF_8) }
+    }
 
     private fun readFavorites(): Set<String> = runCatching {
         favoritesFile.readLines(Charsets.UTF_8).filter { id -> DesktopMusicCatalog.tracks.any { it.id == id } }.toSet()
