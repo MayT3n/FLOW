@@ -27,7 +27,7 @@ object WindowsBackdrop {
                 window.rootPane.isOpaque = false
                 window.contentPane.isOpaque = false
             }
-            window.background = Color(0, 0, 0, 0)
+            window.setBackground(Color(0, 0, 0, 0))
             val mica = Memory(4).apply { setInt(0, 2) } // DWMSBT_MAINWINDOW
             val immersiveDark = Memory(4).apply { setInt(0, if (dark) 1 else 0) }
             val rounded = Memory(4).apply { setInt(0, 2) } // DWMWCP_ROUND
