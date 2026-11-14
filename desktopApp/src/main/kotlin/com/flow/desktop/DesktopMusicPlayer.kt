@@ -28,6 +28,8 @@ data class DesktopMusicState(
     val positionMs: Long = 0L,
     val durationMs: Long = 0L,
     val volume: Float = 0.72f,
+    val shuffle: Boolean = false,
+    val repeatMode: Int = 0,
     val error: String? = null
 )
 
@@ -52,17 +54,22 @@ class DesktopMusicPlayer(private val root: File = appDataDirectory()) {
     @Volatile private var clip: Clip? = null
     @Volatile private var pausedFrame = 0
     @Volatile private var currentId: String? = null
+    @Volatile private var queueIds: List<String> = DesktopMusicCatalog.tracks.map { it.id }
+    @Volatile private var queueIndex: Int = 0
 
     init {
         clock.scheduleAtFixedRate({
             val current = clip ?: return@scheduleAtFixedRate
             val length = current.microsecondLength.coerceAtLeast(0L)
             val position = current.microsecondPosition.coerceAtLeast(0L)
+            val wasPlaying = _state.value.playing
+            val nowPlaying = current.isRunning
             _state.value = _state.value.copy(
-                playing = current.isRunning,
+                playing = nowPlaying,
                 positionMs = position / 1_000L,
                 durationMs = length / 1_000L
             )
+            if (wasPlaying && !nowPlaying && length > 0L && position >= length - 100_000L) next()
         }, 0, 250, TimeUnit.MILLISECONDS)
     }
 
@@ -111,10 +118,58 @@ class DesktopMusicPlayer(private val root: File = appDataDirectory()) {
     }
 
     fun playPlaylist(playlistId: String) {
-        val first = _playlists.value.firstOrNull { it.id == playlistId }?.trackIds?.firstOrNull()
-            ?.let { id -> DesktopMusicCatalog.tracks.firstOrNull { it.id == id } }
-            ?: return
-        if (isDownloaded(first)) play(first) else download(first)
+        val ids = _playlists.value.firstOrNull { it.id == playlistId }?.trackIds.orEmpty()
+        val firstId = ids.firstOrNull() ?: return
+        val first = DesktopMusicCatalog.tracks.firstOrNull { it.id == firstId } ?: return
+        queueIds = ids
+        queueIndex = 0
+        if (isDownloaded(first)) playInternal(first) else download(first)
+    }
+
+    fun toggleShuffle() {
+        _state.value = _state.value.copy(shuffle = !_state.value.shuffle)
+    }
+
+    fun cycleRepeatMode() {
+        _state.value = _state.value.copy(repeatMode = (_state.value.repeatMode + 1) % 3)
+    }
+
+    fun next() {
+        val nextId = synchronized(this) {
+            if (queueIds.isEmpty()) return
+            val mode = _state.value.repeatMode
+            if (mode == 2 && currentId != null) currentId
+            else if (_state.value.shuffle && queueIds.size > 1) {
+                val candidates = queueIds.indices.filter { it != queueIndex }
+                val index = candidates.random()
+                queueIndex = index
+                queueIds[index]
+            } else if (queueIndex + 1 < queueIds.size) {
+                queueIndex += 1
+                queueIds[queueIndex]
+            } else if (mode == 1) {
+                queueIndex = 0
+                queueIds[0]
+            } else null
+        } ?: run { stop(); return }
+        val track = DesktopMusicCatalog.tracks.firstOrNull { it.id == nextId } ?: return
+        if (isDownloaded(track)) playInternal(track) else download(track)
+    }
+
+    fun previous() {
+        if (_state.value.positionMs > 3_000L) { seekTo(0L); return }
+        val previousId = synchronized(this) {
+            if (queueIds.isEmpty()) return
+            if (queueIndex > 0) {
+                queueIndex -= 1
+                queueIds[queueIndex]
+            } else if (_state.value.repeatMode == 1) {
+                queueIndex = queueIds.lastIndex
+                queueIds[queueIndex]
+            } else queueIds.first()
+        }
+        val track = DesktopMusicCatalog.tracks.firstOrNull { it.id == previousId } ?: return
+        if (isDownloaded(track)) playInternal(track) else download(track)
     }
 
     fun toggleFavorite(trackId: String) {
@@ -176,6 +231,12 @@ class DesktopMusicPlayer(private val root: File = appDataDirectory()) {
     }
 
     fun play(track: DesktopTrack) {
+        queueIds = DesktopMusicCatalog.tracks.map { it.id }
+        queueIndex = queueIds.indexOf(track.id).coerceAtLeast(0)
+        playInternal(track)
+    }
+
+    private fun playInternal(track: DesktopTrack) {
         audioExecutor.execute {
             try {
                 val file = File(musicDir, track.fileName)
