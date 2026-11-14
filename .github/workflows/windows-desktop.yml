@@ -1,7 +1,7 @@
 name: Windows Desktop
 
 concurrency:
-  group: windows-desktop-${{ github.ref }}
+  group: windows-desktop-${{ github.sha }}
   cancel-in-progress: true
 
 on:
@@ -27,6 +27,7 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
