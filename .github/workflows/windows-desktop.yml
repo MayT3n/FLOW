@@ -31,8 +31,8 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - name: Validate desktop compilation
-        run: .\gradlew.bat :desktopApp:compileKotlin
+      - name: Validate desktop compilation and domain tests
+        run: .\gradlew.bat :desktopApp:compileKotlin :desktopApp:test
       - name: Package Windows MSI
         run: .\gradlew.bat :desktopApp:packageMsi
       - name: Upload MSI
