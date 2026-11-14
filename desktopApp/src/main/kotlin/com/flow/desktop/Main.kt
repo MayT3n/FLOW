@@ -131,8 +131,8 @@ private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Wind
     var compactSidebar by remember { mutableStateOf(false) }
     val data by runtime.data.collectAsState()
     val dark = data.settings.theme != ThemeMode.LIGHT
-    DisposableEffect(desktopWindow, dark) {
-        WindowsBackdrop.apply(desktopWindow, dark)
+    DisposableEffect(desktopWindow, dark, data.settings.glassQuality) {
+        WindowsBackdrop.apply(desktopWindow, dark, data.settings.glassQuality)
         onDispose { }
     }
     val now by runtime.now.collectAsState()
@@ -334,17 +334,27 @@ private fun Sidebar(
     )
     val shape = RoundedCornerShape(MedFlowDesign.sidebarRadius)
     val width = if (compact) MedFlowDesign.sidebarCollapsed else MedFlowDesign.sidebarExpanded
+    val sidebarBrush = Brush.verticalGradient(
+        listOf(
+            MaterialTheme.colorScheme.surface.copy(alpha = if (dark) .91f else .88f),
+            MaterialTheme.colorScheme.surface.copy(alpha = if (dark) .82f else .84f),
+            MaterialTheme.colorScheme.surface.copy(alpha = if (dark) .90f else .90f)
+        )
+    )
+    val sidebarEdge = Brush.linearGradient(
+        listOf(
+            Color.White.copy(alpha = if (dark) .16f else .64f),
+            MaterialTheme.colorScheme.primary.copy(alpha = if (dark) .11f else .08f),
+            MaterialTheme.colorScheme.onSurface.copy(alpha = .07f)
+        )
+    )
 
     Column(
         Modifier.width(width)
             .fillMaxHeight()
-            .shadow(16.dp, shape)
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = .94f), shape)
-            .border(
-                1.dp,
-                MaterialTheme.colorScheme.onSurface.copy(alpha = if (dark) .09f else .72f),
-                shape
-            )
+            .shadow(12.dp, shape)
+            .background(sidebarBrush, shape)
+            .border(1.dp, sidebarEdge, shape)
             .padding(horizontal = if (compact) 9.dp else 13.dp, vertical = 14.dp)
     ) {
         Row(
@@ -355,11 +365,13 @@ private fun Sidebar(
             Box(
                 Modifier.size(40.dp)
                     .background(
-                        Brush.linearGradient(listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = .24f),
-                            MaterialTheme.colorScheme.primary.copy(alpha = .09f)
-                        )),
-                        RoundedCornerShape(14.dp)
+                        Brush.linearGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = .22f),
+                                MaterialTheme.colorScheme.primary.copy(alpha = .07f)
+                            )
+                        ),
+                        RoundedCornerShape(13.dp)
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -369,32 +381,42 @@ private fun Sidebar(
                 Spacer(Modifier.width(10.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                     Text("MedFlow", fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                    Text("DESKTOP WORKSPACE", color = muted(), fontSize = 8.sp, letterSpacing = 1.45.sp)
+                    Text("DESKTOP WORKSPACE", color = muted(), fontSize = 8.sp, letterSpacing = 1.35.sp)
                 }
             }
         }
 
-        Spacer(Modifier.height(26.dp))
+        Spacer(Modifier.height(22.dp))
         items.forEach { (item, glyph) ->
             val active = selected == item
             Surface(
                 onClick = { onSelect(item) },
-                color = if (active) MaterialTheme.colorScheme.primary.copy(alpha = if (dark) .17f else .10f)
+                color = if (active) MaterialTheme.colorScheme.primary.copy(alpha = if (dark) .16f else .10f)
                     else Color.Transparent,
                 shape = RoundedCornerShape(MedFlowDesign.controlRadius),
-                modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)
+                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
             ) {
                 Row(
-                    Modifier.fillMaxWidth().padding(horizontal = if (compact) 8.dp else 10.dp, vertical = 9.dp),
+                    Modifier.fillMaxWidth().padding(horizontal = if (compact) 8.dp else 10.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = if (compact) Arrangement.Center else Arrangement.Start
                 ) {
+                    if (!compact) {
+                        Box(
+                            Modifier.width(3.dp).height(19.dp)
+                                .background(
+                                    if (active) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                    RoundedCornerShape(3.dp)
+                                )
+                        )
+                        Spacer(Modifier.width(7.dp))
+                    }
                     Box(
-                        Modifier.size(36.dp)
+                        Modifier.size(35.dp)
                             .background(
                                 if (active) MaterialTheme.colorScheme.primary.copy(alpha = .13f)
                                 else MaterialTheme.colorScheme.onSurface.copy(alpha = .035f),
-                                RoundedCornerShape(11.dp)
+                                RoundedCornerShape(10.dp)
                             ),
                         contentAlignment = Alignment.Center
                     ) {
@@ -404,10 +426,11 @@ private fun Sidebar(
                         )
                     }
                     if (!compact) {
-                        Spacer(Modifier.width(11.dp))
+                        Spacer(Modifier.width(10.dp))
                         Text(
                             item,
-                            color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = .88f),
+                            color = if (active) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurface.copy(alpha = .90f),
                             fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
                             fontSize = 13.sp
                         )
@@ -1306,78 +1329,95 @@ private fun PlaceholderPage(title: String, message: String) {
 
 @Composable
 private fun MetricCard(title: String, value: String, detail: String, modifier: Modifier = Modifier) {
-    Panel(title, modifier.height(132.dp)) {
-        Text(value, fontSize = 27.sp, fontWeight = FontWeight.Bold)
-        Text(detail, color = muted(), fontSize = 12.sp)
+    Panel(title, modifier.height(110.dp)) {
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(value, fontSize = 25.sp, fontWeight = FontWeight.Bold, letterSpacing = (-.35).sp)
+            Text(detail, color = muted(), fontSize = 11.sp)
+        }
     }
 }
 
 @Composable
 private fun Panel(title: String, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     val settings = LocalDesktopSettings.current
-    val quality = settings.glassQuality
-    val surfaceAlpha = when (quality) {
-        GlassQuality.LOW -> .97f
-        GlassQuality.MEDIUM -> .93f
-        GlassQuality.HIGH -> .88f
-        GlassQuality.ULTRA -> .82f
-    }
-    val edgeAlpha = when (quality) {
-        GlassQuality.LOW -> .035f
-        GlassQuality.MEDIUM -> .06f
-        GlassQuality.HIGH -> .095f
-        GlassQuality.ULTRA -> .14f
-    }
-    val depth = when (quality) {
-        GlassQuality.LOW -> 2.dp
-        GlassQuality.MEDIUM -> 5.dp
-        GlassQuality.HIGH -> 9.dp
-        GlassQuality.ULTRA -> 13.dp
-    }
-    val opacity = (surfaceAlpha * (.72f + settings.glassOpacity.coerceIn(.55f, 1f) * .28f)).coerceIn(.72f, .98f)
-    val shape = RoundedCornerShape(MedFlowDesign.panelRadius)
+    val profile = MedFlowDesign.glassProfile(settings.glassQuality)
     val darkSurface = MaterialTheme.colorScheme.background == MedFlowDesign.darkBackground
-    val edgeHighlight = if (darkSurface) Color.White else Color(0xFF9EADBF)
+    val shape = RoundedCornerShape(MedFlowDesign.panelRadius)
+    val surfaceOpacity = (
+        profile.surfaceAlpha * (.78f + settings.glassOpacity.coerceIn(.55f, 1f) * .22f)
+    ).coerceIn(.76f, .985f)
+    val tint = if (darkSurface) Color(0xFF426487) else Color(0xFFB9CDE5)
     val edge = Brush.linearGradient(
         listOf(
-            edgeHighlight.copy(
-                alpha = (edgeAlpha + settings.glassShine.coerceIn(0f, 1f) * .075f).coerceAtMost(.22f)
+            Color.White.copy(
+                alpha = (profile.edgeAlpha + settings.glassShine.coerceIn(0f, 1f) * .045f).coerceAtMost(.24f)
             ),
-            MaterialTheme.colorScheme.onSurface.copy(alpha = if (darkSurface) .025f else .018f),
-            MaterialTheme.colorScheme.primary.copy(alpha = edgeAlpha * if (darkSurface) 1f else .68f)
+            MaterialTheme.colorScheme.primary.copy(alpha = profile.edgeAlpha * .62f),
+            MaterialTheme.colorScheme.onSurface.copy(alpha = if (darkSurface) .035f else .055f)
+        )
+    )
+    val sheen = Brush.horizontalGradient(
+        listOf(
+            Color.Transparent,
+            Color.White.copy(alpha = profile.highlightAlpha),
+            Color.Transparent
         )
     )
 
     Card(
         modifier = modifier
             .then(if (settings.animations) Modifier.animateContentSize() else Modifier)
-            .shadow(depth, shape)
+            .shadow(profile.elevation, shape)
             .border(1.dp, edge, shape),
         shape = shape,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = opacity)
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = surfaceOpacity)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(
-            Modifier.fillMaxSize().padding(
-                horizontal = MedFlowDesign.panelPaddingHorizontal,
-                vertical = MedFlowDesign.panelPaddingVertical
-            ),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(title, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, letterSpacing = .05.sp)
-                Spacer(Modifier.weight(1f))
+        Box(Modifier.fillMaxSize()) {
+            if (settings.glassQuality != GlassQuality.LOW) {
                 Box(
-                    Modifier.width(22.dp).height(3.dp)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = .72f), RoundedCornerShape(8.dp))
+                    Modifier.matchParentSize().background(
+                        Brush.linearGradient(
+                            listOf(
+                                tint.copy(alpha = profile.tintAlpha * settings.glassOpacity.coerceIn(.55f, 1f)),
+                                Color.Transparent,
+                                MaterialTheme.colorScheme.primary.copy(alpha = profile.tintAlpha * .28f)
+                            )
+                        ),
+                        shape
+                    )
                 )
             }
-            content(this)
+            Column(
+                Modifier.fillMaxSize().padding(
+                    horizontal = MedFlowDesign.panelPaddingHorizontal,
+                    vertical = MedFlowDesign.panelPaddingVertical
+                ),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    title,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
+                    letterSpacing = .05.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                content(this)
+            }
+            if (profile.highlightAlpha > 0f) {
+                Box(
+                    Modifier.align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(sheen)
+                )
+            }
         }
     }
 }
