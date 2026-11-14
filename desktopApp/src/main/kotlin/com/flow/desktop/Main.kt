@@ -145,7 +145,7 @@ private fun Dashboard(data: AppData, now: Long, runtime: DesktopRuntime) {
             MetricCard("جلسه‌های کامل", fa(stats.completedSessions), "امروز", Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            FocusCard(data, now, runtime, Modifier.weight(1.35f).height(330.dp))
+            FocusCard(data, now, runtime, Modifier.weight(1.35f).height(390.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Panel("برنامه‌ی امروز", Modifier.fillMaxWidth()) {
                     val entries = Planner.entriesFor(data, java.time.LocalDate.now())
