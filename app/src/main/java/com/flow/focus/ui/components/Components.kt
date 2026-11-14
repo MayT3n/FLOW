@@ -17,6 +17,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.animation.core.spring
 import kotlinx.coroutines.launch
 import androidx.compose.ui.input.pointer.pointerInput
@@ -253,7 +254,12 @@ fun SegmentedControl(
 ) {
     val c = Flow.colors
     GlassSurface(modifier.alpha(if (enabled) 1f else 0.55f), shape = RoundedCornerShape(22.dp), level = GlassLevel.Subtle) {
-        Row(Modifier.fillMaxWidth().padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            Modifier.fillMaxWidth().padding(3.dp).clip(RoundedCornerShape(19.dp)).background(c.track)
+                .border(1.dp, if (c.isDark) Color.White.copy(alpha = 0.16f) else Color(0xFF1F2A38).copy(alpha = 0.14f), RoundedCornerShape(19.dp))
+                .padding(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
             options.forEachIndexed { i, label ->
                 val sel = i == selected
                 val bg by animateColorAsState(if (sel) c.accent else Color.Transparent, anim(), label = "segBg")
@@ -373,6 +379,11 @@ fun FlowTextField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
 ) {
     val c = Flow.colors
+    var focused by remember { mutableStateOf(false) }
+    val borderColor by animateColorAsState(
+        if (focused) c.accent else if (c.isDark) Color.White.copy(alpha = 0.26f) else Color(0xFF1F2A38).copy(alpha = 0.22f),
+        anim(), label = "field-border",
+    )
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
@@ -381,9 +392,15 @@ fun FlowTextField(
         keyboardOptions = keyboardOptions,
         textStyle = Flow.type.body.copy(color = c.textPrimary),
         cursorBrush = SolidColor(c.accent),
-        modifier = modifier,
+        modifier = modifier.onFocusChanged { focused = it.isFocused },
         decorationBox = { inner ->
-            GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), level = GlassLevel.Subtle) {
+            // کادر ورودی: فرورفته‌تر از کارت اطراف (پرکننده‌ی تیره/روشن) با مرز مشخص؛ هنگام فوکوس مرز به رنگ تأکید می‌شود.
+            Box(
+                Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(if (c.isDark) Color.Black.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.55f))
+                    .border(if (focused) 1.6.dp else 1.dp, borderColor, RoundedCornerShape(16.dp)),
+            ) {
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -536,7 +553,8 @@ fun FlowDialog(onDismiss: () -> Unit, title: String? = null, onSwipeDown: (() ->
                 elevated = true,
             ) {
                 Column(
-                    Modifier.heightIn(max = 640.dp).verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 17.dp),
+                    Modifier.border(1.2.dp, Flow.colors.glassEdge.copy(alpha = if (Flow.colors.isDark) 0.30f else 0.75f), RoundedCornerShape(28.dp))
+                        .heightIn(max = 640.dp).verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 17.dp),
                     verticalArrangement = Arrangement.spacedBy(13.dp),
                 ) {
                     if (onSwipeDown != null) {

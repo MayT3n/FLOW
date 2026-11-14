@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -111,10 +112,13 @@ fun FlowSheet(
                                 .navigationBarsPadding().imePadding().padding(bottom = 8.dp),
                             shape = RoundedCornerShape(30.dp),
                             level = level,
+                            tint = Flow.colors.bgTop,
                             elevated = true,
                         ) {
                             Column(
-                                Modifier.statusBarsPadding().heightIn(max = 640.dp)
+                                Modifier
+                                    .border(1.2.dp, Flow.colors.glassEdge.copy(alpha = if (Flow.colors.isDark) 0.30f else 0.75f), RoundedCornerShape(30.dp))
+                                    .statusBarsPadding().heightIn(max = 640.dp)
                                     .verticalScroll(rememberScrollState())
                                     .padding(horizontal = 18.dp).padding(bottom = 18.dp),
                                 verticalArrangement = Arrangement.spacedBy(13.dp),

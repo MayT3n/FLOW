@@ -30,6 +30,8 @@ data class WallpaperProfile(
     val hiP: Float,
     /** رنگ غالب با اشباع؛ Unspecified یعنی والپیپر خنثی است. */
     val dominant: Color,
+    /** انحراف معیار روشنایی (۰..۰٫۵): تصویر شلوغ‌تر یعنی متن به شیشه‌ی پرتر و تارتر نیاز دارد. */
+    val busy: Float = 0f,
 )
 
 @Immutable
@@ -40,6 +42,8 @@ data class WallpaperPlan(
     val boostAlpha: Float,
     /** روشنایی نسبی (WCAG) سطح شیشه‌ای پس از اعمال پرده و تقویت؛ مبنای کنتراست رنگ‌های لهجه. */
     val effectiveY: Float,
+    /** ضریب تاری پس‌زمینه‌ی شیشه (۱ = عادی)؛ تصویر شلوغ تارتر می‌شود. */
+    val blurScale: Float = 1f,
 ) {
     companion object {
         val None = WallpaperPlan(Color.Black, 0f, Color.Black, 0f, 0.1f)
@@ -94,10 +98,18 @@ fun sampleProfile(bitmap: Bitmap): WallpaperProfile {
             }
         }
     }
-    values.sort()
+    // نواحی: بالا/وسط/پایین جدا سنجیده می‌شوند و بدترین ناحیه (روشن‌ترین نقاط) مبنای خوانایی است، نه میانگین کل.
+    val third = n / 3
+    var worstBand = 0f
+    for (band in 0 until 3) {
+        val slice = values.subList(band * third * n, ((band + 1) * third * n).coerceAtMost(values.size)).sorted()
+        if (slice.isNotEmpty()) worstBand = max(worstBand, slice[(slice.size * 0.85f).toInt().coerceIn(0, slice.lastIndex)])
+    }
     val mean = values.average().toFloat()
-    val hi = values[(values.size * 0.85f).toInt().coerceIn(0, values.lastIndex)]
-    return WallpaperProfile(mean, hi, best)
+    val variance = values.fold(0f) { acc, v -> acc + (v - mean) * (v - mean) } / values.size
+    values.sort()
+    val hi = max(values[(values.size * 0.85f).toInt().coerceIn(0, values.lastIndex)], worstBand)
+    return WallpaperProfile(mean, hi, best, busy = kotlin.math.sqrt(variance))
 }
 
 /**
@@ -139,7 +151,10 @@ fun planFor(profile: WallpaperProfile, base: FlowColors, baseDim: Float): Wallpa
         s += 0.025f
     }
     val boostColor = if (dark) Color.Black else Color.White
-    return WallpaperPlan(boostColor, bestS, boostColor, bestG, yFromP(bgP(bestS, bestG)))
+    // تصویر شلوغ: حتی اگر کنتراست میانگین کافی باشد، کمی شیشه‌ی پرتر و تارتر لازم است.
+    val busyBoost = ((profile.busy - 0.12f) * 1.2f).coerceIn(0f, 0.2f)
+    val g = max(bestG, busyBoost)
+    return WallpaperPlan(boostColor, bestS, boostColor, g, yFromP(bgP(bestS, g)), blurScale = (1f + profile.busy * 1.4f).coerceAtMost(1.7f))
 }
 
 private fun ensureContrast(color: Color, bgY: Float, minContrast: Float, lighten: Boolean): Color {

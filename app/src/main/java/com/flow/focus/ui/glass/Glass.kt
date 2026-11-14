@@ -364,7 +364,7 @@ fun GlassBackdropHost(
                         }
                         val extra = settings.wallpaperBlurDp.dp.toPx() * 0.35f
                         val maxR = if (glassForStatic.quality == GlassQuality.MEDIUM) 16.dp.toPx() else 36.dp.toPx()
-                        val r = (glassForStatic.blurDp.dp.toPx() * strength * 0.82f + extra * strength).coerceAtMost(maxR)
+                        val r = ((glassForStatic.blurDp.dp.toPx() * strength * 0.82f + extra * strength) * wallpaperPlan.value.blurScale).coerceAtMost(maxR)
                         // بلور = رسم در مقیاس کوچک و بزرگ‌نمایی با فیلتر نرم؛ فقط وقتی پس‌زمینه عوض شود دوباره ساخته می‌شود.
                         val sw = this.size.width
                         val sh = this.size.height
@@ -440,6 +440,7 @@ fun GlassSurface(
         GlassLevel.Strong -> 1f
     }
     var origin by remember { mutableStateOf(Offset.Zero) }
+    val refraction = remember(g.quality) { if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU && g.quality != GlassQuality.LOW) RefractionPainter() else null }
 
     val baseFill = when {
         g.quality == GlassQuality.LOW -> c.glassFillStrong
@@ -509,7 +510,21 @@ fun GlassSurface(
                         val bmp = if (level == GlassLevel.Subtle && g.quality == GlassQuality.HIGH) frame.blurredLight.value ?: frame.blurred.value else frame.blurred.value
                         val full = rootSize!!.value
                         if (bmp != null) {
-                            translate(-origin.x, -origin.y) {
+                            if (refraction != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                // شکست نور واقعی؛ «کیفیت» پراکندگی رنگ و نور لبه‌ی بیشتر، «متعادل» شکست ملایم‌تر.
+                                val dp = density
+                                val hi = g.quality == GlassQuality.HIGH
+                                val lv = when (level) { GlassLevel.Subtle -> 0.6f; GlassLevel.Regular -> 0.85f; GlassLevel.Strong -> 1f }
+                                val radiusPx = (shape as? androidx.compose.foundation.shape.CornerBasedShape)
+                                    ?.topStart?.toPx(size, androidx.compose.ui.unit.Density(dp)) ?: 0f
+                                refraction.draw(
+                                    this, bmp, origin, full.width, radiusPx,
+                                    bevelPx = minOf(size.minDimension * 0.5f, (if (hi) 26f else 20f) * dp),
+                                    pullPx = (if (hi) 16f else 9f) * dp * lv,
+                                    dispersion = if (hi) 0.07f else 0f,
+                                    rim = (if (c.isDark) 0.5f else 0.42f) * (if (hi) 1f else 0.7f) * lv.coerceAtLeast(0.8f),
+                                )
+                            } else translate(-origin.x, -origin.y) {
                                 drawImage(bmp, dstSize = androidx.compose.ui.unit.IntSize(full.width, full.height), filterQuality = androidx.compose.ui.graphics.FilterQuality.Low)
                             }
                         }
