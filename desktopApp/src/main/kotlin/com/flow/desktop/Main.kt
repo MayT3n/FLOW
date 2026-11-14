@@ -145,7 +145,7 @@ private fun Dashboard(data: AppData, now: Long, runtime: DesktopRuntime) {
     val stats = Stats.summarize(data, StatsRange.DAY, java.time.LocalDate.now())
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            MetricCard("تمرکز امروز", "\${fa(stats.focusMinutes)} دقیقه", "بر اساس جلسات ثبت‌شده", Modifier.weight(1f))
+            MetricCard("تمرکز امروز", "${fa(stats.focusMinutes)} دقیقه", "بر اساس جلسات ثبت‌شده", Modifier.weight(1f))
             MetricCard("وظایف باز", fa(data.tasks.count { !it.done }), "کارهای باقی‌مانده", Modifier.weight(1f))
             MetricCard("جلسه‌های کامل", fa(stats.completedSessions), "امروز", Modifier.weight(1f))
         }
@@ -166,7 +166,7 @@ private fun Dashboard(data: AppData, now: Long, runtime: DesktopRuntime) {
                 Panel("کارهای بعدی", Modifier.fillMaxWidth()) {
                     val tasks = data.tasks.filterNot { it.done }.take(4)
                     if (tasks.isEmpty()) EmptyText("فعلاً وظیفه‌ی بازی وجود ندارد.")
-                    else tasks.forEach { Text("•  \${it.title}") }
+                    else tasks.forEach { Text("•  ${it.title}") }
                 }
             }
         }
@@ -211,7 +211,7 @@ private fun FocusCard(data: AppData, now: Long, runtime: DesktopRuntime, modifie
             LinearProgressIndicator(progress = progress, modifier = Modifier.fillMaxWidth(.78f).height(7.dp),
                 color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.surfaceVariant)
             Spacer(Modifier.height(14.dp))
-            Text("دور \${fa(timer.round)} از \${fa(data.settings.rounds)}", color = muted())
+            Text("دور ${fa(timer.round)} از ${fa(data.settings.rounds)}", color = muted())
             Spacer(Modifier.height(24.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(onClick = { if (timer.status == TimerStatus.RUNNING) runtime.pause() else runtime.start() }) {
@@ -299,15 +299,15 @@ private fun TasksPage(data: AppData, runtime: DesktopRuntime) {
                             color = if (task.done) muted() else MaterialTheme.colorScheme.onSurface)
                         if (task.notes.isNotBlank()) Text(task.notes, color = muted(), fontSize = 11.sp, maxLines = 2)
                         val due = task.dueDay?.let { DateFormats.full(java.time.LocalDate.ofEpochDay(it)) } ?: "بدون سررسید"
-                        val time = task.dueMinute?.let { " · \${DateFormats.clock(it)}" } ?: ""
-                        Text("\${due}\${time} · \${task.priority.label} · \${categories.firstOrNull { it.first == task.categoryId }?.second ?: "شخصی"}",
+                        val time = task.dueMinute?.let { " · ${DateFormats.clock(it)}" } ?: ""
+                        Text("${due}${time} · ${task.priority.label} · ${categories.firstOrNull { it.first == task.categoryId }?.second ?: "شخصی"}",
                             color = muted(), fontSize = 11.sp)
                     }
                     TextButton(onClick = {
                         editing = task; title = task.title; notes = task.notes
                         dueDate = task.dueDay?.let { epoch ->
                             val j = JalaliDate.of(java.time.LocalDate.ofEpochDay(epoch))
-                            "\${j.year}/\${j.month.toString().padStart(2,'0')}/\${j.day.toString().padStart(2,'0')}"
+                            "${j.year}/${j.month.toString().padStart(2,'0')}/${j.day.toString().padStart(2,'0')}"
                         } ?: ""
                         dueTime = task.dueMinute?.let { DateFormats.clock(it) } ?: ""
                         priority = task.priority; category = task.categoryId; error = ""
@@ -360,10 +360,10 @@ private fun RoutinesPage(data: AppData, runtime: DesktopRuntime) {
                     Column(Modifier.weight(1f)) {
                         Text(routine.title, fontWeight = FontWeight.Medium)
                         Text(routine.weekdays.sorted().joinToString("، ") { labels[it] } +
-                            (routine.minute?.let { " · \${DateFormats.clock(it)}" } ?: ""),
+                            (routine.minute?.let { " · ${DateFormats.clock(it)}" } ?: ""),
                             color = muted(), fontSize = 11.sp)
                     }
-                    val doneToday = "\${routine.id}|\${today.toEpochDay()}" in data.routineChecks
+                    val doneToday = "${routine.id}|${today.toEpochDay()}" in data.routineChecks
                     Checkbox(checked = doneToday, onCheckedChange = { runtime.toggleRoutine(routine.id, today) })
                     TextButton(onClick = { runtime.deleteRoutine(routine.id) }) { Text("حذف", color = Color(0xFFE07B7B)) }
                 }
@@ -459,7 +459,7 @@ private fun PlanningPage(data: AppData) {
                     }
                 }
             }
-            Text("مناسبت‌های آفلاین فعلاً برای سال‌های \${fa(DesktopIranianCalendar.supportedJalaliYears().joinToString("، "))} در دسترس‌اند.", color = muted(), fontSize = 11.sp)
+            Text("مناسبت‌های آفلاین فعلاً برای سال‌های ${fa(DesktopIranianCalendar.supportedJalaliYears().joinToString("، "))} در دسترس‌اند.", color = muted(), fontSize = 11.sp)
         }
         Panel(DateFormats.full(selectedDay), Modifier.fillMaxWidth()) {
             if (occasions.isNotEmpty()) {
@@ -498,7 +498,7 @@ private fun StatisticsPage(data: AppData) {
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            MetricCard("زمان تمرکز", "\${fa(summary.focusMinutes)} دقیقه", "در بازه‌ی انتخابی", Modifier.weight(1f))
+            MetricCard("زمان تمرکز", "${fa(summary.focusMinutes)} دقیقه", "در بازه‌ی انتخابی", Modifier.weight(1f))
             MetricCard("جلسه‌ی کامل", fa(summary.completedSessions), "جلسه", Modifier.weight(1f))
             MetricCard("روزهای فعال", fa(summary.activeDays), "روز", Modifier.weight(1f))
         }
@@ -512,7 +512,7 @@ private fun StatisticsPage(data: AppData) {
                         Box(Modifier.fillMaxWidth((bucket.minutes.toFloat() / max).coerceIn(0f, 1f)).fillMaxHeight()
                             .background(Accent, RoundedCornerShape(8.dp)))
                     }
-                    Text("\${fa(bucket.minutes)} دقیقه", modifier = Modifier.width(82.dp), textAlign = TextAlign.End, fontSize = 11.sp)
+                    Text("${fa(bucket.minutes)} دقیقه", modifier = Modifier.width(82.dp), textAlign = TextAlign.End, fontSize = 11.sp)
                 }
             }
         }
@@ -532,7 +532,7 @@ private fun SettingsPage(data: AppData, runtime: DesktopRuntime, dark: Boolean, 
             OutlinedButton(onClick = { importBackup(runtime) }) { Text("بازیابی JSON") }
         }
         Text("ذخیره‌سازی خودکار در پوشه‌ی اختصاصی MedFlow در پروفایل ویندوز انجام می‌شود.", color = muted(), fontSize = 12.sp)
-        Text("تعداد وظایف: \${fa(data.tasks.size)}  •  جلسات: \${fa(data.sessions.size)}", color = muted(), fontSize = 12.sp)
+        Text("تعداد وظایف: ${fa(data.tasks.size)}  •  جلسات: ${fa(data.sessions.size)}", color = muted(), fontSize = 12.sp)
     }
 }
 
