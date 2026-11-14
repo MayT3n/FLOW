@@ -229,7 +229,7 @@ class DesktopMusicPlayer {
             val head = ByteArray(3)
             if (input.read(head) != 3) false
             else (head[0] == 'I'.code.toByte() && head[1] == 'D'.code.toByte() && head[2] == '3'.code.toByte()) ||
-                (head[0].toInt() and 0xFF == 0xFF && head[1].toInt() and 0xE0 == 0xE0)
+                ((head[0].toInt() and 0xFF) == 0xFF && (head[1].toInt() and 0xE0) == 0xE0)
         }
     }.getOrDefault(false)
 
