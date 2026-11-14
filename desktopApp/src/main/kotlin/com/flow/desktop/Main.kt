@@ -250,25 +250,80 @@ private fun TasksPage(data: AppData, runtime: DesktopRuntime) {
 
 @Composable
 private fun PlanningPage(data: AppData) {
-    val today = java.time.LocalDate.now()
-    val jalali = JalaliDate.of(today)
-    val entries = Planner.entriesFor(data, today)
-    Panel("امروز، \${DateFormats.full(today)}", Modifier.fillMaxSize()) {
-        Text(DateFormats.monthYear(jalali), fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
-        if (entries.isEmpty()) EmptyText("برای امروز وظیفه یا روتینی در برنامه نیست.")
-        else entries.forEach { entry ->
-            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(8.dp).background(Accent, CircleShape))
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(entry.title, fontWeight = FontWeight.Medium)
-                    Text(if (entry.done) "انجام شده" else "در انتظار انجام", color = muted(), fontSize = 12.sp)
-                }
-                entry.minute?.let { Text(DateFormats.clock(it), color = muted()) }
+    var selectedDay by remember { mutableStateOf(java.time.LocalDate.now()) }
+    var displayedMonth by remember { mutableStateOf(JalaliDate.of(selectedDay).withDay(1)) }
+    val firstDay = displayedMonth.toLocalDate()
+    val gridStart = JalaliDate.startOfWeek(firstDay)
+    val dates = (0 until 42).map { gridStart.plusDays(it.toLong()) }
+    val entries = Planner.entriesFor(data, selectedDay)
+    val occasions = DesktopIranianCalendar.on(selectedDay)
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Panel("تقویم جلالی", Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                OutlinedButton(onClick = {
+                    displayedMonth = displayedMonth.plusMonths(-1)
+                    selectedDay = displayedMonth.toLocalDate()
+                }) { Text("ماه قبل") }
+                Text(DateFormats.monthYear(displayedMonth), fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
+                OutlinedButton(onClick = {
+                    displayedMonth = displayedMonth.plusMonths(1)
+                    selectedDay = displayedMonth.toLocalDate()
+                }) { Text("ماه بعد") }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .06f))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                JalaliDate.weekdayInitials.forEach { Text(it, color = muted(), modifier = Modifier.weight(1f), textAlign = TextAlign.Center) }
+            }
+            dates.chunked(7).forEach { week ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    week.forEach { date ->
+                        val dateJalali = JalaliDate.of(date)
+                        val inMonth = dateJalali.month == displayedMonth.month && dateJalali.year == displayedMonth.year
+                        val active = date == selectedDay
+                        val marked = Planner.countOn(data, date) > 0 || DesktopIranianCalendar.on(date).isNotEmpty()
+                        Surface(
+                            onClick = { selectedDay = date },
+                            modifier = Modifier.weight(1f).height(42.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (active) MaterialTheme.colorScheme.primary else Color.Transparent
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                                Text(fa(dateJalali.day), color = when {
+                                    active -> MaterialTheme.colorScheme.onPrimary
+                                    !inMonth -> muted().copy(alpha = .45f)
+                                    else -> MaterialTheme.colorScheme.onSurface
+                                }, fontWeight = if (active) FontWeight.Bold else FontWeight.Normal)
+                                if (marked) Box(Modifier.size(4.dp).background(
+                                    if (active) MaterialTheme.colorScheme.onPrimary else Accent, CircleShape
+                                ))
+                            }
+                        }
+                    }
+                }
+            }
+            Text("مناسبت‌های آفلاین فعلاً برای سال‌های \${fa(DesktopIranianCalendar.supportedJalaliYears().joinToString("، "))} در دسترس‌اند.", color = muted(), fontSize = 11.sp)
         }
-        Text("این صفحه از برنامه‌ریز و تاریخ جلالی مشترک پروژه استفاده می‌کند. ویرایش تقویم و روتین‌ها هنوز در رابط دسکتاپ تکمیل نشده است.", color = muted(), fontSize = 12.sp)
+        Panel(DateFormats.full(selectedDay), Modifier.fillMaxWidth()) {
+            if (occasions.isNotEmpty()) {
+                occasions.forEach { event ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(if (event.isHoliday) "تعطیل" else "مناسبت", color = if (event.isHoliday) Color(0xFFE07B7B) else Accent, fontSize = 11.sp)
+                        Text(event.titleFa, modifier = Modifier.weight(1f))
+                    }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .08f))
+            }
+            if (entries.isEmpty()) EmptyText("برای این روز وظیفه یا روتینی ثبت نشده است.")
+            else entries.forEach { entry ->
+                Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = entry.done, onCheckedChange = null, enabled = false)
+                    Column(Modifier.weight(1f)) {
+                        Text(entry.title, fontWeight = FontWeight.Medium)
+                        Text(if (entry.done) "انجام شده" else "در انتظار انجام", color = muted(), fontSize = 12.sp)
+                    }
+                    entry.minute?.let { Text(DateFormats.clock(it), color = muted()) }
+                }
+            }
+        }
     }
 }
 
