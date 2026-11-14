@@ -17,7 +17,7 @@ compose.desktop {
     application {
         mainClass = "com.flow.desktop.MainKt"
         nativeDistributions {
-            targetFormats(org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi, org.jetbrains.compose.desktop.application.dsl.TargetFormat.Exe)
+            targetFormats(org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi)
             packageName = "MedFlow"
             packageVersion = "1.0.0"
             description = "MedFlow productivity and focus desktop application"
