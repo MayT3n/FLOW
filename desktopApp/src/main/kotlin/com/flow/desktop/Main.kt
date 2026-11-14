@@ -203,8 +203,8 @@ private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Wind
                         ) {
                             Column(
                                 Modifier.fillMaxHeight()
-                                    .fillMaxWidth()
                                     .widthIn(max = MedFlowDesign.contentMaxWidth)
+                                    .fillMaxWidth()
                             ) {
                                 Row(
                                     Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 9.dp),
@@ -406,31 +406,134 @@ private fun Sidebar(
 
 @Composable
 private fun Dashboard(data: AppData, now: Long, runtime: DesktopRuntime) {
-    val stats = Stats.summarize(data, StatsRange.DAY, java.time.LocalDate.now())
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            MetricCard("تمرکز امروز", "${fa(stats.focusMinutes)} دقیقه", "بر اساس جلسات ثبت‌شده", Modifier.weight(1f))
-            MetricCard("وظایف باز", fa(data.tasks.count { !it.done }), "کارهای باقی‌مانده", Modifier.weight(1f))
-            MetricCard("جلسه‌های کامل", fa(stats.completedSessions), "امروز", Modifier.weight(1f))
+    val todayStats = Stats.summarize(data, StatsRange.DAY, java.time.LocalDate.now())
+    val weekStats = Stats.summarize(data, StatsRange.WEEK, java.time.LocalDate.now())
+    val today = java.time.LocalDate.now()
+    val maxWeekMinutes = (weekStats.buckets.maxOfOrNull { it.minutes } ?: 1L).coerceAtLeast(1L)
+
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            MetricCard(
+                "تمرکز امروز",
+                "${fa(todayStats.focusMinutes)} دقیقه",
+                "زمان ثبت‌شده",
+                Modifier.weight(1f)
+            )
+            MetricCard(
+                "وظایف باز",
+                fa(data.tasks.count { !it.done }),
+                "کارهای باقی‌مانده",
+                Modifier.weight(1f)
+            )
+            MetricCard(
+                "جلسه‌های کامل",
+                fa(todayStats.completedSessions),
+                "جلسه‌ی امروز",
+                Modifier.weight(1f)
+            )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            FocusCard(data, now, runtime, Modifier.weight(1.35f).height(390.dp))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            FocusCard(data, now, runtime, Modifier.weight(1.3f).height(370.dp))
+            Column(
+                Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
                 Panel("برنامه‌ی امروز", Modifier.fillMaxWidth()) {
-                    val entries = Planner.entriesFor(data, java.time.LocalDate.now())
-                    if (entries.isEmpty()) EmptyText("برای امروز برنامه‌ای ثبت نشده است.")
-                    else entries.take(5).forEach { entry ->
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text(if (entry.done) "✓" else "•", color = Accent, modifier = Modifier.width(24.dp))
-                            Text(entry.title, modifier = Modifier.weight(1f), maxLines = 1)
-                            entry.minute?.let { Text(DateFormats.clock(it), color = muted()) }
+                    val entries = Planner.entriesFor(data, today)
+                    if (entries.isEmpty()) {
+                        EmptyText("برای امروز برنامه‌ای ثبت نشده است.")
+                    } else {
+                        entries.take(5).forEach { entry ->
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    Modifier.size(7.dp).background(
+                                        if (entry.done) Color(0xFF55B88A) else MaterialTheme.colorScheme.primary,
+                                        CircleShape
+                                    )
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Text(entry.title, Modifier.weight(1f), maxLines = 1, fontSize = 12.sp)
+                                entry.minute?.let {
+                                    Text(DateFormats.clock(it), color = muted(), fontSize = 11.sp)
+                                }
+                            }
                         }
                     }
                 }
+
                 Panel("کارهای بعدی", Modifier.fillMaxWidth()) {
-                    val tasks = data.tasks.filterNot { it.done }.take(4)
-                    if (tasks.isEmpty()) EmptyText("فعلاً وظیفه‌ی بازی وجود ندارد.")
-                    else tasks.forEach { Text("•  ${it.title}") }
+                    val tasks = data.tasks.filterNot { it.done }
+                        .sortedWith(compareBy<Task> { it.dueDay ?: Long.MAX_VALUE }.thenByDescending { it.priority.ordinal })
+                        .take(4)
+                    if (tasks.isEmpty()) {
+                        EmptyText("همه‌ی وظایف فعلی انجام شده‌اند.")
+                    } else {
+                        tasks.forEachIndexed { index, task ->
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(task.title, fontWeight = FontWeight.Medium, fontSize = 12.sp, maxLines = 1)
+                                    val due = task.dueDay?.let {
+                                        DateFormats.full(java.time.LocalDate.ofEpochDay(it))
+                                    } ?: task.priority.label
+                                    Text(due, color = muted(), fontSize = 10.sp, maxLines = 1)
+                                }
+                                Checkbox(
+                                    checked = task.done,
+                                    onCheckedChange = { runtime.setTaskDone(task.id, it) }
+                                )
+                            }
+                            if (index != tasks.lastIndex) {
+                                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .055f))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Panel("نمای هفتگی تمرکز", Modifier.fillMaxWidth()) {
+            Text("بر اساس جلسه‌های واقعی ثبت‌شده در این هفته", color = muted(), fontSize = 11.sp)
+            if (weekStats.buckets.all { it.minutes == 0L }) {
+                EmptyText("با ثبت اولین جلسه، روند هفتگی اینجا نمایش داده می‌شود.")
+            } else {
+                Row(
+                    Modifier.fillMaxWidth().height(94.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    weekStats.buckets.forEach { bucket ->
+                        val ratio = (bucket.minutes.toFloat() / maxWeekMinutes).coerceIn(0f, 1f)
+                        Column(
+                            Modifier.weight(1f).fillMaxHeight(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Bottom
+                        ) {
+                            Text(fa(bucket.minutes), color = muted(), fontSize = 10.sp, maxLines = 1)
+                            Spacer(Modifier.height(5.dp))
+                            Box(
+                                Modifier.fillMaxWidth(.56f).height(54.dp)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(7.dp)),
+                                contentAlignment = Alignment.BottomCenter
+                            ) {
+                                Box(
+                                    Modifier.fillMaxWidth().fillMaxHeight(ratio)
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = .82f), RoundedCornerShape(7.dp))
+                                )
+                            }
+                            Spacer(Modifier.height(5.dp))
+                            Text(bucket.label, color = muted(), fontSize = 10.sp)
+                        }
+                    }
                 }
             }
         }
