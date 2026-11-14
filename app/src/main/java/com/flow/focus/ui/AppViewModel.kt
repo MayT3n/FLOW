@@ -24,7 +24,11 @@ import com.flow.focus.remote.UpdateDownloadState
 import com.flow.focus.remote.UpdateManifest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -45,6 +49,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val ambientPlaying: StateFlow<String?> get() = c.ambient.playing
     val ambientDownloadProgress get() = c.ambient.downloadProgress
     val musicSnapshot: StateFlow<MusicSnapshot> get() = c.music.snapshot
+    /** همان وضعیت پلیر بدون موقعیت لحظه‌ای؛ تیک نیم‌ثانیه‌ای موقعیت، صفحه و فهرست را دوباره نمی‌سازد. */
+    val musicState: StateFlow<MusicSnapshot> = c.music.snapshot
+        .map { it.copy(positionMs = 0L) }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, MusicSnapshot())
     val musicFavorites: StateFlow<Set<String>> get() = c.music.favorites
     val musicPlaylists get() = c.music.playlists
     val musicDownloadProgress get() = c.music.downloadProgress

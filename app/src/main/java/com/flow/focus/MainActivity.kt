@@ -130,7 +130,7 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
     var tab by rememberSaveable { mutableStateOf(0) }
     var musicOpen by rememberSaveable { mutableStateOf(false) }
     var miniCollapsed by rememberSaveable { mutableStateOf(false) }
-    val music by vm.musicSnapshot.collectAsStateWithLifecycle()
+    val music by vm.musicState.collectAsStateWithLifecycle()
     var dockAreaHeightPx by rememberSaveable { mutableStateOf(0) }
     val contentBottomPadding = with(LocalDensity.current) {
         if (dockAreaHeightPx > 0) dockAreaHeightPx.toDp() + 20.dp else 140.dp
@@ -170,7 +170,9 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
                 }
             }
         }
-        if (musicOpen) MusicPlayerDialog(vm) { musicOpen = false }
+        if (musicOpen) {
+            MusicPlayerDialog(vm, onMinimize = { musicOpen = false; miniCollapsed = true }) { musicOpen = false }
+        }
         }
         },
         chrome = {

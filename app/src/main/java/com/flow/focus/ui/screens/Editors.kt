@@ -300,75 +300,67 @@ fun AmbientPicker(
     (none + AmbientSynth.sounds).forEach { sound ->
         val selected = settings.ambientSound == sound.id
         val recording = AmbientLibrary.byId(sound.id)
+        val downloaded = isDownloaded(sound.id)
+        val progress = downloadProgress[sound.id]
+        val isNone = sound.id == AmbientSynth.NONE
         GlassSurface(
-            Modifier.fillMaxWidth().springClick(scaleDown = 0.98f, onClick = { onSelect(sound.id) }),
-            shape = RoundedCornerShape(18.dp),
+            Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
             level = GlassLevel.Subtle,
             tint = if (selected) Flow.colors.accent else null,
         ) {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 11.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
-                    Modifier.fillMaxWidth(),
+                    Modifier.fillMaxWidth().springClick(scaleDown = 0.985f, onClick = { onSelect(sound.id) }),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(11.dp),
                 ) {
-                    FlowIcon(ambientIcon(sound.id), tint = if (selected) Flow.colors.accent else Flow.colors.textSecondary, size = 22.dp)
-                    Column(Modifier.weight(1f)) {
-                        Text(sound.label, style = Flow.type.bodyStrong, color = Flow.colors.textPrimary)
-                        Text(sound.hint, style = Flow.type.caption, color = Flow.colors.textSecondary)
+                    if (isNone) {
+                        Box(Modifier.size(54.dp).clip(RoundedCornerShape(16.dp)).background(Flow.colors.track.copy(alpha = 0.6f)), contentAlignment = Alignment.Center) {
+                            FlowIcon(FlowIcons.Volume, tint = Flow.colors.textSecondary, size = 24.dp)
+                        }
+                    } else {
+                        CoverArt("ambient-" + sound.id, Modifier.size(54.dp), corner = 16.dp)
                     }
-                    if (sound.id != AmbientSynth.NONE) {
-                        GlassIconButton(
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(sound.label, style = Flow.type.bodyStrong, color = if (selected) Flow.colors.accent else Flow.colors.textPrimary, maxLines = 2)
+                        Text(
+                            if (recording != null) "${recording.duration} · ${sound.hint}" else sound.hint,
+                            style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 2,
+                        )
+                        Text(
+                            when {
+                                selected -> "انتخاب‌شده برای جلسه‌های تمرکز"
+                                recording != null && progress != null -> "در حال دانلود…"
+                                recording != null && downloaded -> "دانلودشده · آماده‌ی پخش آفلاین"
+                                recording != null -> "برای پخش اولیه به اینترنت نیاز دارد"
+                                else -> ""
+                            },
+                            style = Flow.type.caption,
+                            color = if (selected || downloaded) Flow.colors.success else Flow.colors.textSecondary,
+                            maxLines = 2,
+                        )
+                    }
+                    when {
+                        progress != null -> Text(num("${(progress * 100).toInt()}٪"), style = Flow.type.label, color = Flow.colors.accent)
+                        !isNone -> GlassIconButton(
                             if (playingId == sound.id) FlowIcons.Pause else FlowIcons.Play,
                             { onPreview(sound.id) },
-                            size = 36.dp,
-                            iconSize = 16.dp,
+                            size = 42.dp, iconSize = 19.dp, active = playingId == sound.id,
                             contentDescription = "پیش‌شنوایی",
                         )
                     }
                 }
-                if (recording != null) {
-                    Text(
-                        "${recording.duration} · ${recording.license} · ${recording.creator}",
-                        style = Flow.type.caption,
-                        color = Flow.colors.textSecondary,
-                    )
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            "منبع و مجوز",
-                            Modifier.springClick(onClick = { runCatching { uriHandler.openUri(recording.sourcePage) } }).padding(vertical = 4.dp),
-                            style = Flow.type.caption,
-                            color = Flow.colors.accent,
-                        )
-                        Spacer(Modifier.weight(1f))
-                        val progress = downloadProgress[sound.id]
-                        when {
-                            progress != null -> Text(
-                                num("${(progress * 100).toInt()}٪"),
-                                style = Flow.type.caption,
-                                color = Flow.colors.accent,
-                            )
-                            isDownloaded(sound.id) -> Text(
-                                "ذخیره‌شده",
-                                Modifier.springClick(onClick = { onDeleteDownload(sound.id) }).padding(vertical = 4.dp),
-                                style = Flow.type.caption,
-                                color = Flow.colors.success,
-                            )
-                            else -> Text(
-                                "دانلود آفلاین",
-                                Modifier.springClick(onClick = { onDownload(sound.id) }).padding(vertical = 4.dp),
-                                style = Flow.type.caption,
-                                color = Flow.colors.accent,
-                            )
+                if (!isNone) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        TrackChip(FlowIcons.Check, if (selected) "انتخاب‌شده" else "انتخاب", selected, Modifier.weight(1f)) { onSelect(sound.id) }
+                        if (recording != null) {
+                            if (downloaded) TrackChip(FlowIcons.Trash, "حذف فایل", false, Modifier.weight(1f)) { onDeleteDownload(sound.id) }
+                            else TrackChip(FlowIcons.Download, "دانلود", false, Modifier.weight(1f), enabled = progress == null) { onDownload(sound.id) }
+                            TrackChip(FlowIcons.Info, "منبع و مجوز", false, Modifier.weight(1f)) { runCatching { uriHandler.openUri(recording.sourcePage) } }
                         }
                     }
-                    recording.attribution?.let {
-                        Text(it, style = Flow.type.caption, color = Flow.colors.textSecondary)
-                    }
+                    recording?.attribution?.let { Text(it, style = Flow.type.caption, color = Flow.colors.textSecondary) }
                 }
             }
         }

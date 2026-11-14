@@ -17,6 +17,10 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
+import kotlinx.coroutines.launch
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -490,7 +494,9 @@ fun Chip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifie
 
 /** پوسته‌ی واحد پنجره‌ها؛ عنوان، بستن، فاصله‌گذاری و سطح شیشه‌ای در تمام دیالوگ‌ها یکسان است. */
 @Composable
-fun FlowDialog(onDismiss: () -> Unit, title: String? = null, content: @Composable ColumnScope.() -> Unit) {
+fun FlowDialog(onDismiss: () -> Unit, title: String? = null, onSwipeDown: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
+    val dragY = remember { androidx.compose.animation.core.Animatable(0f) }
+    val dragScope = androidx.compose.runtime.rememberCoroutineScope()
     val animations = LocalGlass.current.animations
     var visible by remember { mutableStateOf(true) }
     val enterState = rememberEnterState(visible)
@@ -511,7 +517,11 @@ fun FlowDialog(onDismiss: () -> Unit, title: String? = null, content: @Composabl
             exit = if (animations) fadeOut(Motion.exit(Motion.Fast)) + scaleOut(targetScale = 0.965f, animationSpec = Motion.exit(Motion.Short)) else ExitTransition.None,
         ) {
             GlassSurface(
-                Modifier.widthIn(max = 440.dp).fillMaxWidth().padding(horizontal = 18.dp, vertical = 22.dp),
+                Modifier.widthIn(max = 440.dp).fillMaxWidth().padding(horizontal = 18.dp, vertical = 22.dp)
+                    .graphicsLayer {
+                        translationY = dragY.value
+                        alpha = (1f - dragY.value / 1400f).coerceIn(0.35f, 1f)
+                    },
                 shape = RoundedCornerShape(28.dp),
                 level = GlassLevel.Strong,
                 elevated = true,
@@ -520,6 +530,31 @@ fun FlowDialog(onDismiss: () -> Unit, title: String? = null, content: @Composabl
                     Modifier.heightIn(max = 640.dp).verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 17.dp),
                     verticalArrangement = Arrangement.spacedBy(13.dp),
                 ) {
+                    if (onSwipeDown != null) {
+                        // دستگیره: با کشیدن به پایین، پنجره زیر داک می‌رود و به دایره‌ی کوچک پلیر تبدیل می‌شود.
+                        Box(
+                            Modifier.fillMaxWidth().height(26.dp)
+                                .pointerInput(Unit) {
+                                    detectVerticalDragGestures(
+                                        onDragEnd = {
+                                            dragScope.launch {
+                                                if (dragY.value > 110f) {
+                                                    dragY.animateTo(2400f, tween(260, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                                                    onSwipeDown()
+                                                } else dragY.animateTo(0f, spring(0.7f, 420f))
+                                            }
+                                        },
+                                        onDragCancel = { dragScope.launch { dragY.animateTo(0f, spring(0.7f, 420f)) } },
+                                    ) { change, delta ->
+                                        change.consume()
+                                        dragScope.launch { dragY.snapTo((dragY.value + delta).coerceAtLeast(0f)) }
+                                    }
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Box(Modifier.width(42.dp).height(5.dp).clip(RoundedCornerShape(3.dp)).background(Flow.colors.textSecondary.copy(alpha = 0.45f)))
+                        }
+                    }
                     if (title != null) {
                         Row(
                             Modifier.fillMaxWidth(),

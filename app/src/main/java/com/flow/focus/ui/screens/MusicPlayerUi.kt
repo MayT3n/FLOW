@@ -3,6 +3,7 @@ package com.flow.focus.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.key
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -59,6 +60,35 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 
+/** فقط همین نوار موقعیت را هر نیم‌ثانیه به‌روز می‌کند. */
+@Composable
+private fun MiniProgress(vm: AppViewModel, modifier: Modifier = Modifier) {
+    val live by vm.musicSnapshot.collectAsStateWithLifecycle()
+    FlowProgressBar(
+        if (live.durationMs > 0L) live.positionMs.toFloat() / live.durationMs else 0f,
+        modifier = modifier,
+        height = 2.dp,
+    )
+}
+
+/** اسلایدر و زمان‌ها؛ تنها بخشی از پلیر کامل که با تیک موقعیت دوباره ساخته می‌شود. */
+@Composable
+private fun PlayerProgress(vm: AppViewModel) {
+    val live by vm.musicSnapshot.collectAsStateWithLifecycle()
+    val duration = live.durationMs.coerceAtLeast(0L)
+    var dragging by remember { mutableStateOf<Float?>(null) }
+    FlowSlider(
+        value = dragging ?: if (duration > 0L) live.positionMs.toFloat().coerceIn(0f, duration.toFloat()) else 0f,
+        onChange = { if (duration > 0L) { dragging = it; vm.seekMusic(it.toLong()); dragging = null } },
+        range = 0f..duration.coerceAtLeast(1L).toFloat(),
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(clock(live.positionMs), style = Flow.type.caption, color = Flow.colors.textSecondary)
+        Text("-" + clock((duration - live.positionMs).coerceAtLeast(0L)), style = Flow.type.caption, color = Flow.colors.textSecondary)
+    }
+}
+
 @Composable
 fun MiniMusicPlayer(
     vm: AppViewModel,
@@ -83,11 +113,7 @@ fun MiniMusicPlayer(
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(track.title, style = Flow.type.label, color = Flow.colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(track.artist, style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 1)
-                FlowProgressBar(
-                    if (snapshot.durationMs > 0L) snapshot.positionMs.toFloat() / snapshot.durationMs else 0f,
-                    modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-                    height = 2.dp,
-                )
+                MiniProgress(vm, Modifier.fillMaxWidth().padding(top = 2.dp))
             }
             GlassIconButton(FlowIcons.ChevronPrev, { vm.previousMusic() }, size = 36.dp, iconSize = 17.dp, contentDescription = "آهنگ قبلی")
             GlassIconButton(
@@ -104,8 +130,8 @@ fun MiniMusicPlayer(
 }
 
 @Composable
-fun MusicPlayerDialog(vm: AppViewModel, onDismiss: () -> Unit) {
-    val snapshot by vm.musicSnapshot.collectAsStateWithLifecycle()
+fun MusicPlayerDialog(vm: AppViewModel, onMinimize: () -> Unit = {}, onDismiss: () -> Unit) {
+    val snapshot by vm.musicState.collectAsStateWithLifecycle()
     val favorites by vm.musicFavorites.collectAsStateWithLifecycle()
     val playlists by vm.musicPlaylists.collectAsStateWithLifecycle()
     val downloads by vm.musicDownloadProgress.collectAsStateWithLifecycle()
@@ -117,7 +143,6 @@ fun MusicPlayerDialog(vm: AppViewModel, onDismiss: () -> Unit) {
     val downloadErrors by vm.musicDownloadErrors.collectAsStateWithLifecycle()
     val track = MusicCatalog.tracks.firstOrNull { it.id == snapshot.currentTrackId }
         ?: MusicCatalog.tracks.first()
-    val duration = snapshot.durationMs.coerceAtLeast(0L)
     val visibleTracks = remember(favoritesOnly, alphabetical, favorites, downloadRevision) {
         MusicCatalog.tracks
         .filter { item ->
@@ -129,25 +154,16 @@ fun MusicPlayerDialog(vm: AppViewModel, onDismiss: () -> Unit) {
         .let { tracks -> if (alphabetical) tracks.sortedBy { it.title.lowercase() } else tracks }
     }
 
-    FlowDialog(onDismiss, "پخش موسیقی") {
+    FlowDialog(onDismiss, "پخش موسیقی", onSwipeDown = onMinimize) {
         Column(
             Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             MusicCover(track, Modifier.size(196.dp))
-            Text(track.title, style = Flow.type.title, color = Flow.colors.textPrimary, maxLines = 1)
+            Text(track.title, style = Flow.type.title, color = Flow.colors.textPrimary, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             Text(track.artist + " · " + track.mood, style = Flow.type.caption, color = Flow.colors.textSecondary)
-            FlowSlider(
-                value = if (duration > 0L) snapshot.positionMs.toFloat().coerceIn(0f, duration.toFloat()) else 0f,
-                onChange = { if (duration > 0L) vm.seekMusic(it.toLong()) },
-                range = 0f..duration.coerceAtLeast(1L).toFloat(),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(clock(snapshot.positionMs), style = Flow.type.caption, color = Flow.colors.textSecondary)
-                Text("-" + clock((duration - snapshot.positionMs).coerceAtLeast(0L)), style = Flow.type.caption, color = Flow.colors.textSecondary)
-            }
+            PlayerProgress(vm)
             Row(
                 Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -206,49 +222,61 @@ fun MusicPlayerDialog(vm: AppViewModel, onDismiss: () -> Unit) {
             )
         }
         visibleTracks.forEach { item ->
-            val selected = item.id == snapshot.currentTrackId
-            GlassSurface(
-                Modifier.fillMaxWidth().springClick(onClick = { vm.playMusic(item.id) }),
-                shape = RoundedCornerShape(17.dp),
-                level = com.flow.focus.ui.glass.GlassLevel.Subtle,
-            ) {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+            key(item.id) {
+                val selected = item.id == snapshot.currentTrackId
+                val isFav = item.id in favorites
+                val downloaded = vm.isMusicDownloaded(item.id)
+                val progress = downloads[item.id]
+                GlassSurface(
+                    Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    level = com.flow.focus.ui.glass.GlassLevel.Subtle,
+                    tint = if (selected) Flow.colors.accent else null,
                 ) {
-                    MusicCover(item, Modifier.size(42.dp))
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                        Text(item.title, style = Flow.type.label, color = if (selected) Flow.colors.accent else Flow.colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(
-                            downloadErrors[item.id]?.let { "خطا: $it" }
-                                ?: if (vm.isMusicDownloaded(item.id)) item.mood else "${item.mood} · برای پخش لمس کن تا دانلود شود",
-                            style = Flow.type.caption,
-                            color = if (downloadErrors[item.id] != null) Flow.colors.danger else Flow.colors.textSecondary,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    GlassIconButton(
-                        FlowIcons.Check,
-                        { pickerTrackId = item.id },
-                        size = 32.dp,
-                        iconSize = 15.dp,
-                        contentDescription = "افزودن به فهرست پخش",
-                    )
-                    GlassIconButton(
-                        FlowIcons.Award,
-                        { vm.toggleMusicFavorite(item.id) },
-                        size = 32.dp,
-                        iconSize = 15.dp,
-                        active = item.id in favorites,
-                        contentDescription = if (item.id in favorites) "حذف از علاقه‌مندی‌ها" else "افزودن به علاقه‌مندی‌ها",
-                    )
-                    val progress = downloads[item.id]
-                    when {
-                        progress != null -> Text(num("${(progress * 100).toInt()}٪"), style = Flow.type.caption, color = Flow.colors.accent)
-                        vm.isMusicDownloaded(item.id) -> GlassIconButton(FlowIcons.Trash, { vm.removeMusicDownload(item.id) }, size = 32.dp, iconSize = 15.dp, contentDescription = "حذف دانلود")
-                        else -> GlassIconButton(FlowIcons.Download, { vm.playMusic(item.id) }, size = 32.dp, iconSize = 15.dp, contentDescription = "دانلود و پخش")
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 11.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(
+                            Modifier.fillMaxWidth().springClick(scaleDown = 0.985f, onClick = { vm.playMusic(item.id) }),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(11.dp),
+                        ) {
+                            MusicCover(item, Modifier.size(54.dp), corner = 16.dp)
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(item.title, style = Flow.type.bodyStrong, color = if (selected) Flow.colors.accent else Flow.colors.textPrimary, maxLines = 2)
+                                Text("${item.mood} · ${item.durationLabel}", style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 2)
+                                val err = downloadErrors[item.id]
+                                Text(
+                                    when {
+                                        err != null -> "خطا: $err"
+                                        progress != null -> "در حال دانلود…"
+                                        downloaded -> "دانلودشده · آماده‌ی پخش آفلاین"
+                                        else -> "لمس کنید تا دانلود و پخش شود"
+                                    },
+                                    style = Flow.type.caption,
+                                    color = when {
+                                        err != null -> Flow.colors.danger
+                                        downloaded -> Flow.colors.success
+                                        else -> Flow.colors.textSecondary
+                                    },
+                                    maxLines = 2,
+                                )
+                            }
+                            if (progress != null) {
+                                Text(num("${(progress * 100).toInt()}٪"), style = Flow.type.label, color = Flow.colors.accent)
+                            } else {
+                                GlassIconButton(
+                                    if (selected && snapshot.isPlaying) FlowIcons.Pause else FlowIcons.Play,
+                                    { if (selected) vm.toggleMusicPlayback() else vm.playMusic(item.id) },
+                                    size = 42.dp, iconSize = 19.dp, active = selected,
+                                    contentDescription = if (selected && snapshot.isPlaying) "توقف" else "پخش",
+                                )
+                            }
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                            TrackChip(FlowIcons.Layers, "فهرست پخش", false, Modifier.weight(1f)) { pickerTrackId = item.id }
+                            TrackChip(FlowIcons.Heart, if (isFav) "در علاقه‌مندی" else "علاقه‌مندی", isFav, Modifier.weight(1f)) { vm.toggleMusicFavorite(item.id) }
+                            if (downloaded) TrackChip(FlowIcons.Trash, "حذف فایل", false, Modifier.weight(1f)) { vm.removeMusicDownload(item.id) }
+                            else TrackChip(FlowIcons.Download, "دانلود", false, Modifier.weight(1f), enabled = progress == null) { vm.playMusic(item.id) }
+                        }
                     }
                 }
             }
@@ -271,6 +299,31 @@ fun MusicPlayerDialog(vm: AppViewModel, onDismiss: () -> Unit) {
             onAdd = { playlistId -> vm.addMusicTrackToPlaylist(playlistId, id); pickerTrackId = null },
             onDismiss = { pickerTrackId = null },
         )
+    }
+}
+
+/** دکمه‌ی عملیاتی با آیکون و برچسب نوشتاری تا کاربر بداند هر کدام چه می‌کند. */
+@Composable
+internal fun TrackChip(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    active: Boolean,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    val tint = if (active) Flow.colors.accent else Flow.colors.textSecondary
+    Row(
+        modifier
+            .clip(RoundedCornerShape(13.dp))
+            .background(if (active) Flow.colors.accentSoft else Flow.colors.track.copy(alpha = 0.55f))
+            .springClick(enabled = enabled, scaleDown = 0.95f, onClick = onClick)
+            .padding(horizontal = 6.dp, vertical = 9.dp),
+        horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        FlowIcon(icon, tint = tint, size = 15.dp)
+        Text(label, style = Flow.type.caption, color = tint, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -437,10 +490,14 @@ private val coverPalettes = listOf(
 
 /** کاور تولیدی؛ هر آهنگ پالت و طرح (خورشید و تپه، حلقه، اکولایزر، موج) و جزئیات مخصوص خود را دارد. */
 @Composable
-internal fun MusicCover(track: MusicTrack, modifier: Modifier = Modifier, corner: androidx.compose.ui.unit.Dp = 15.dp) {
-    val seed = remember(track.id) {
+internal fun MusicCover(track: MusicTrack, modifier: Modifier = Modifier, corner: androidx.compose.ui.unit.Dp = 15.dp) =
+    CoverArt(track.id, modifier, corner)
+
+@Composable
+internal fun CoverArt(id: String, modifier: Modifier = Modifier, corner: androidx.compose.ui.unit.Dp = 15.dp) {
+    val seed = remember(id) {
         var h = 7
-        track.id.forEach { h = h * 31 + it.code }
+        id.forEach { h = h * 31 + it.code }
         (h xor (h ushr 13)) and 0x7FFFFFFF
     }
     val pal = coverPalettes[seed % coverPalettes.size]
