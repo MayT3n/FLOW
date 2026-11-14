@@ -31,6 +31,7 @@ class DesktopRuntime {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val store = JsonStore(dataFile())
     val repository = FlowRepository(store, scope)
+    val music = DesktopMusicPlayer()
     val data = repository.data
 
     private val _now = MutableStateFlow(System.currentTimeMillis())
@@ -138,6 +139,7 @@ class DesktopRuntime {
 
     fun close() {
         repository.flush()
+        music.close()
         scope.cancel()
     }
 
