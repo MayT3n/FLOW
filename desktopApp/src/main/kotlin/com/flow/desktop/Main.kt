@@ -3,6 +3,7 @@ package com.flow.desktop
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -335,7 +336,7 @@ private fun MetricCard(title: String, value: String, detail: String, modifier: M
 }
 
 @Composable
-private fun Panel(title: String, modifier: Modifier = Modifier, content: @Composable Column.() -> Unit) {
+private fun Panel(title: String, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Card(modifier = modifier, shape = RoundedCornerShape(23.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = .91f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
