@@ -103,6 +103,8 @@ data class RootBackdropFrame(
     /** مختصات صفحه‌ی گوشه‌ی بالا-چپ ریشه؛ برای محاسبه‌ی دقیق offset سطح‌ها در پنجره‌های جدا */
     val rootOrigin: State<Offset>,
     val settings: Settings,
+    /** پس‌زمینه‌ی ثابت (بدون فاز) که یک‌بار ضبط می‌شود و همه‌ی سطح‌های شیشه‌ای از آن نمونه می‌گیرند. */
+    val staticLayer: GraphicsLayer,
 )
 
 val LocalRootBackdrop = compositionLocalOf<RootBackdropFrame?> { null }
@@ -291,6 +293,7 @@ fun GlassBackdropHost(
     val tone = remember { mutableStateOf<Color?>(null) }
     val palette = remember { mutableStateOf(builtinWallpaperPalette(settings.wallpaperId)) }
     val layer = rememberGraphicsLayer()
+    val staticLayer = rememberGraphicsLayer()
     val wallpaperPlan = LocalWallpaperPlan.current
 
     LaunchedEffect(settings.wallpaperId, settings.wallpaperPath, c.isDark) {
@@ -320,7 +323,7 @@ fun GlassBackdropHost(
     } else remember { mutableStateOf(0f) }
 
     val surfacePhase = remember(phase) { derivedStateOf { (phase.value * 90f).toInt() / 90f } }
-    val frame = RootBackdropFrame(image, phase, surfacePhase, tone, palette, rootOrigin, settings)
+    val frame = RootBackdropFrame(image, phase, surfacePhase, tone, palette, rootOrigin, settings, staticLayer)
     Box(
         Modifier.fillMaxSize()
             .onSizeChanged { size.value = it }
@@ -341,6 +344,12 @@ fun GlassBackdropHost(
                     }
                 },
             ) {
+                // یک‌بار (و فقط با تغییر تصویر/پرده/تم) ضبط می‌شود؛ سطح‌های شیشه‌ای هر فریم گرادیان و براش نمی‌سازند.
+                Box(
+                    Modifier.fillMaxSize().drawBehind {
+                        staticLayer.record { drawBackdrop(c, 0f, this.size.width, this.size.height, image.value, settings, wallpaperPlan.value) }
+                    },
+                )
                 Canvas(
                     Modifier.fillMaxSize().graphicsLayer {
                         renderEffect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && settings.wallpaperBlurDp > 0) {
@@ -388,7 +397,6 @@ fun GlassSurface(
         GlassLevel.Regular -> 0.88f
         GlassLevel.Strong -> 1f
     }
-    val wallpaperPlan = LocalWallpaperPlan.current
     var origin by remember { mutableStateOf(Offset.Zero) }
 
     val baseFill = when {
@@ -425,7 +433,10 @@ fun GlassSurface(
             if (blurOn) {
                 Modifier.onGloballyPositioned { coords ->
                     val root = rootBackdrop?.rootOrigin?.value ?: Offset.Zero
-                    origin = coords.positionOnScreen() - root
+                    val raw = coords.positionOnScreen() - root
+                    // مختصات به گام‌های ۴۸ پیکسلی گرد می‌شود: در اسکرول، سطح فقط وقتی دوباره ترسیم و تار می‌شود که گام عوض شود.
+                    val snapped = Offset(kotlin.math.round(raw.x / 48f) * 48f, kotlin.math.round(raw.y / 48f) * 48f)
+                    if (snapped != origin) origin = snapped
                 }
             } else Modifier,
         )
@@ -444,13 +455,12 @@ fun GlassSurface(
                         renderEffect = BlurEffect(radius, radius)
                     }
                     .drawBehind {
-                        val s = rootSize!!.value
                         val frame = rootBackdrop!!
                         translate(-origin.x, -origin.y) {
                             if (liveLayer != null) {
                                 drawLayer(liveLayer)
                             } else {
-                                drawBackdrop(c, frame.surfacePhase.value, s.width.toFloat(), s.height.toFloat(), frame.image.value, frame.settings, wallpaperPlan.value)
+                                drawLayer(frame.staticLayer)
                             }
                         }
                     },
