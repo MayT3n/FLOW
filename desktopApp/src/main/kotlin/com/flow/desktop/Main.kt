@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.res.loadImageBitmap
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.input.key.Key
@@ -26,6 +27,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.IntOffset
@@ -42,6 +44,7 @@ import com.flow.focus.data.AppData
 import com.flow.focus.data.PhaseType
 import com.flow.focus.data.Priority
 import com.flow.focus.data.ThemeMode
+import com.flow.focus.data.GlassQuality
 import com.flow.focus.data.WallpaperFit
 import com.flow.focus.data.GoalPeriod
 import com.flow.focus.data.Task
@@ -54,7 +57,7 @@ import java.io.File
 import javax.swing.JFileChooser
 import javax.swing.filechooser.FileNameExtensionFilter
 
-private val Accent = Color(0xFF91A4FF)
+private val Accent = MedFlowDesign.darkAccent
 private val MutedDark = Color(0xFFA5AEC0)
 private val MutedLight = Color(0xFF667085)
 private val LocalDesktopSettings = androidx.compose.runtime.staticCompositionLocalOf { com.flow.focus.data.Settings() }
@@ -90,6 +93,7 @@ fun main() = application {
 @Composable
 private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Window) {
     var selected by remember { mutableStateOf("خانه") }
+    var compactSidebar by remember { mutableStateOf(false) }
     val data by runtime.data.collectAsState()
     val dark = data.settings.theme != ThemeMode.LIGHT
     DisposableEffect(desktopWindow, dark) {
@@ -98,14 +102,27 @@ private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Wind
     }
     val now by runtime.now.collectAsState()
     val scheme = if (dark) darkColorScheme(
-        primary = Accent, background = Color(0xFF10131B), surface = Color(0xFF1A1F2B),
-        surfaceVariant = Color(0xFF242B39), onBackground = Color(0xFFF4F6FB),
-        onSurface = Color(0xFFF4F6FB), onSurfaceVariant = Color(0xFFB8C0D0)
+        primary = MedFlowDesign.darkAccent,
+        onPrimary = Color(0xFF101A2A),
+        background = MedFlowDesign.darkBackground,
+        surface = MedFlowDesign.darkSurface,
+        surfaceVariant = MedFlowDesign.darkVariant,
+        onBackground = MedFlowDesign.darkText,
+        onSurface = MedFlowDesign.darkText,
+        onSurfaceVariant = MedFlowDesign.darkMuted,
+        outline = Color(0xFF344253)
     ) else lightColorScheme(
-        primary = Color(0xFF5268D8), background = Color(0xFFF2F4F8), surface = Color.White,
-        surfaceVariant = Color(0xFFE9EDF5), onBackground = Color(0xFF202635),
-        onSurface = Color(0xFF202635), onSurfaceVariant = Color(0xFF667085)
+        primary = MedFlowDesign.lightAccent,
+        onPrimary = Color.White,
+        background = MedFlowDesign.lightBackground,
+        surface = MedFlowDesign.lightSurface,
+        surfaceVariant = MedFlowDesign.lightVariant,
+        onBackground = MedFlowDesign.lightText,
+        onSurface = MedFlowDesign.lightText,
+        onSurfaceVariant = MedFlowDesign.lightMuted,
+        outline = MedFlowDesign.lightBorder
     )
+
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         MaterialTheme(colorScheme = scheme) {
             CompositionLocalProvider(LocalDesktopSettings provides data.settings) {
@@ -133,54 +150,119 @@ private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Wind
                 }) {
                     Canvas(Modifier.fillMaxSize()) {
                         if (data.settings.wallpaperId == "mica" && WindowsBackdrop.isSupported() && wallpaper == null) {
-                            // Leave the native window surface transparent so Windows 11 Mica is visible.
+                            // The native Windows Mica surface remains visible beneath the Compose content.
                         } else if (wallpaper != null) {
                             val scale = if (data.settings.wallpaperFit == WallpaperFit.CROP)
                                 maxOf(size.width / wallpaper.width, size.height / wallpaper.height)
                             else minOf(size.width / wallpaper.width, size.height / wallpaper.height)
                             val w = (wallpaper.width * scale).toInt().coerceAtLeast(1)
                             val h = (wallpaper.height * scale).toInt().coerceAtLeast(1)
-                            drawImage(wallpaper, dstOffset = IntOffset((size.width.toInt() - w) / 2, (size.height.toInt() - h) / 2), dstSize = IntSize(w, h))
+                            drawImage(
+                                wallpaper,
+                                dstOffset = IntOffset((size.width.toInt() - w) / 2, (size.height.toInt() - h) / 2),
+                                dstSize = IntSize(w, h)
+                            )
                         } else {
                             val colors = when (data.settings.wallpaperId) {
                                 "aurora" -> listOf(Color(0xFF07172B), Color(0xFF173B59), Color(0xFF382B65))
                                 "midnight" -> listOf(Color(0xFF070D1B), Color(0xFF172A42), Color(0xFF26364B))
                                 "dusk" -> listOf(Color(0xFF241B37), Color(0xFF69435E), Color(0xFF273D5C))
-                                else -> if (dark) listOf(Color(0xFF111722), Color(0xFF171D2B), Color(0xFF111722))
-                                    else listOf(Color(0xFFF4F6FA), Color(0xFFE9EDF5), Color(0xFFF7F8FB))
+                                else -> if (dark)
+                                    listOf(MedFlowDesign.darkBackground, Color(0xFF142131), Color(0xFF182332))
+                                else
+                                    listOf(MedFlowDesign.lightBackground, Color(0xFFE8EDF4), Color(0xFFF8FAFC))
                             }
                             drawRect(Brush.linearGradient(colors))
                         }
-                        if (data.settings.wallpaperDim > 0f) drawRect(Color.Black.copy(alpha = data.settings.wallpaperDim.coerceIn(0f, .65f)))
-                    }
-                    Box(Modifier.fillMaxSize().padding(18.dp)) {
-                        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            Sidebar(selected, { selected = it }, dark, { runtime.updateSettings { it.copy(theme = if (dark) ThemeMode.LIGHT else ThemeMode.DARK) } })
-                    Column(Modifier.weight(1f).fillMaxHeight()) {
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween) {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(selected, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-                                Text(DateFormats.full(java.time.LocalDate.now()), color = muted(), fontSize = 13.sp)
-                            }
-                            Text("فضای شخصی مدیریت زمان", color = muted(), fontSize = 13.sp)
-                        }
-                        Spacer(Modifier.height(12.dp))
-                        Crossfade(targetState = selected, label = "desktop-page-transition") { page ->
-                            when (page) {
-                                "خانه" -> Dashboard(data, now, runtime)
-                                "تمرکز" -> FocusPage(data, now, runtime)
-                                "وظایف" -> TasksPage(data, runtime)
-                                "روتین‌ها" -> RoutinesPage(data, runtime)
-                                "اهداف" -> GoalsPage(data, runtime)
-                                "برنامه‌ریزی" -> PlanningPage(data)
-                                "آمار" -> StatisticsPage(data)
-                                "موسیقی" -> MusicPage(runtime)
-                                "تنظیمات" -> SettingsPage(data, runtime, dark, { runtime.updateSettings { it.copy(theme = if (dark) ThemeMode.LIGHT else ThemeMode.DARK) } })
-                            }
+                        if (data.settings.wallpaperDim > 0f) {
+                            drawRect(Color.Black.copy(alpha = data.settings.wallpaperDim.coerceIn(0f, .65f)))
                         }
                     }
+
+                    Row(
+                        Modifier.fillMaxSize().padding(MedFlowDesign.windowInset),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        // RTL places the navigation rail on the right, while native window controls stay untouched.
+                        Sidebar(
+                            selected = selected,
+                            onSelect = { selected = it },
+                            dark = dark,
+                            onThemeChange = {
+                                runtime.updateSettings {
+                                    it.copy(theme = if (dark) ThemeMode.LIGHT else ThemeMode.DARK)
+                                }
+                            },
+                            compact = compactSidebar,
+                            onToggleCompact = { compactSidebar = !compactSidebar }
+                        )
+
+                        Box(
+                            Modifier.weight(1f).fillMaxHeight(),
+                            contentAlignment = Alignment.TopCenter
+                        ) {
+                            Column(
+                                Modifier.fillMaxHeight()
+                                    .fillMaxWidth()
+                                    .widthIn(max = MedFlowDesign.contentMaxWidth)
+                            ) {
+                                Row(
+                                    Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 9.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                        Text(
+                                            selected,
+                                            fontSize = 27.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            letterSpacing = (-0.35).sp
+                                        )
+                                        Text(
+                                            DateFormats.full(java.time.LocalDate.now()),
+                                            color = muted(),
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                    Column(
+                                        horizontalAlignment = Alignment.End,
+                                        verticalArrangement = Arrangement.spacedBy(5.dp)
+                                    ) {
+                                        Text(
+                                            "MedFlow Workspace",
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = .82f),
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            letterSpacing = .4.sp
+                                        )
+                                        Text(
+                                            "فضای شخصی مدیریت زمان",
+                                            color = muted(),
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+                                Crossfade(
+                                    targetState = selected,
+                                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                                    label = "desktop-page-transition"
+                                ) { page ->
+                                    when (page) {
+                                        "خانه" -> Dashboard(data, now, runtime)
+                                        "تمرکز" -> FocusPage(data, now, runtime)
+                                        "وظایف" -> TasksPage(data, runtime)
+                                        "روتین‌ها" -> RoutinesPage(data, runtime)
+                                        "اهداف" -> GoalsPage(data, runtime)
+                                        "برنامه‌ریزی" -> PlanningPage(data)
+                                        "آمار" -> StatisticsPage(data)
+                                        "موسیقی" -> MusicPage(runtime)
+                                        "تنظیمات" -> SettingsPage(
+                                            data, runtime, dark,
+                                            { runtime.updateSettings { it.copy(theme = if (dark) ThemeMode.LIGHT else ThemeMode.DARK) } }
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -190,38 +272,135 @@ private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Wind
 }
 
 @Composable
-private fun Sidebar(selected: String, onSelect: (String) -> Unit, dark: Boolean, onThemeChange: () -> Unit) {
-    val items = listOf("خانه", "تمرکز", "وظایف", "روتین‌ها", "اهداف", "برنامه‌ریزی", "آمار", "موسیقی", "تنظیمات")
-    Column(Modifier.width(224.dp).fillMaxHeight()
-        .background(MaterialTheme.colorScheme.surface.copy(alpha = .92f), RoundedCornerShape(26.dp))
-        .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = .07f), RoundedCornerShape(26.dp))
-        .padding(16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(40.dp).background(Accent.copy(alpha = .20f), RoundedCornerShape(14.dp)),
-                contentAlignment = Alignment.Center) { Text("M", color = Accent, fontWeight = FontWeight.Bold, fontSize = 21.sp) }
-            Spacer(Modifier.width(10.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                Text("MedFlow", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Text("DESKTOP", color = muted(), fontSize = 10.sp, letterSpacing = 2.sp)
+private fun Sidebar(
+    selected: String,
+    onSelect: (String) -> Unit,
+    dark: Boolean,
+    onThemeChange: () -> Unit,
+    compact: Boolean,
+    onToggleCompact: () -> Unit
+) {
+    val items = listOf(
+        "خانه" to "⌂",
+        "تمرکز" to "◷",
+        "وظایف" to "☷",
+        "روتین‌ها" to "↻",
+        "اهداف" to "◎",
+        "برنامه‌ریزی" to "▦",
+        "آمار" to "▥",
+        "موسیقی" to "♫",
+        "تنظیمات" to "⚙"
+    )
+    val shape = RoundedCornerShape(MedFlowDesign.sidebarRadius)
+    val width = if (compact) MedFlowDesign.sidebarCollapsed else MedFlowDesign.sidebarExpanded
+
+    Column(
+        Modifier.width(width)
+            .fillMaxHeight()
+            .shadow(16.dp, shape)
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = .94f), shape)
+            .border(
+                1.dp,
+                MaterialTheme.colorScheme.onSurface.copy(alpha = if (dark) .09f else .72f),
+                shape
+            )
+            .padding(horizontal = if (compact) 9.dp else 13.dp, vertical = 14.dp)
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = if (compact) 1.dp else 3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = if (compact) Arrangement.Center else Arrangement.Start
+        ) {
+            Box(
+                Modifier.size(40.dp)
+                    .background(
+                        Brush.linearGradient(listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = .24f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = .09f)
+                        )),
+                        RoundedCornerShape(14.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("M", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 21.sp)
+            }
+            if (!compact) {
+                Spacer(Modifier.width(10.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Text("MedFlow", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                    Text("DESKTOP WORKSPACE", color = muted(), fontSize = 8.sp, letterSpacing = 1.45.sp)
+                }
             }
         }
-        Spacer(Modifier.height(28.dp))
-        items.forEach { item ->
+
+        Spacer(Modifier.height(26.dp))
+        items.forEach { (item, glyph) ->
             val active = selected == item
-            Surface(onClick = { onSelect(item) },
-                color = if (active) MaterialTheme.colorScheme.primary.copy(alpha = .14f) else Color.Transparent,
-                shape = RoundedCornerShape(13.dp), modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
-                Text(item, Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                    color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                    fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal)
+            Surface(
+                onClick = { onSelect(item) },
+                color = if (active) MaterialTheme.colorScheme.primary.copy(alpha = if (dark) .17f else .10f)
+                    else Color.Transparent,
+                shape = RoundedCornerShape(MedFlowDesign.controlRadius),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = if (compact) 8.dp else 10.dp, vertical = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = if (compact) Arrangement.Center else Arrangement.Start
+                ) {
+                    Box(
+                        Modifier.size(36.dp)
+                            .background(
+                                if (active) MaterialTheme.colorScheme.primary.copy(alpha = .13f)
+                                else MaterialTheme.colorScheme.onSurface.copy(alpha = .035f),
+                                RoundedCornerShape(11.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            glyph,
+                            color = if (active) MaterialTheme.colorScheme.primary else muted(),
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    if (!compact) {
+                        Spacer(Modifier.width(11.dp))
+                        Text(
+                            item,
+                            color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = .88f),
+                            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
             }
         }
+
         Spacer(Modifier.weight(1f))
         HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .08f))
         TextButton(onClick = onThemeChange, modifier = Modifier.fillMaxWidth()) {
-            Text(if (dark) "☀  حالت روشن" else "☾  حالت تیره", color = muted())
+            Text(if (dark) "☼" else "☾", fontSize = 16.sp)
+            if (!compact) {
+                Spacer(Modifier.width(7.dp))
+                Text(if (dark) "حالت روشن" else "حالت تیره", color = muted())
+            }
         }
-        Text("نسخه‌ی دسکتاپ", color = muted(), fontSize = 10.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
+        TextButton(onClick = onToggleCompact, modifier = Modifier.fillMaxWidth()) {
+            Text(if (compact) "›" else "‹", fontSize = 18.sp)
+            if (!compact) {
+                Spacer(Modifier.width(7.dp))
+                Text("جمع‌کردن منو", color = muted(), fontSize = 11.sp)
+            }
+        }
+        if (!compact) {
+            Text(
+                "نسخه‌ی دسکتاپ",
+                color = muted().copy(alpha = .75f),
+                fontSize = 10.sp,
+                modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 2.dp)
+            )
+        }
     }
 }
 
@@ -308,7 +487,7 @@ private fun FocusCard(data: AppData, now: Long, runtime: DesktopRuntime, modifie
                 }
             }
             Spacer(Modifier.height(26.dp))
-            Text(timerText(remaining), fontSize = 64.sp, fontWeight = FontWeight.Light, letterSpacing = 1.sp)
+            Text(timerText(remaining), fontSize = 66.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Light, letterSpacing = (-1).sp, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(16.dp))
             LinearProgressIndicator(progress = progress, modifier = Modifier.fillMaxWidth(.78f).height(7.dp),
                 color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.surfaceVariant)
@@ -769,6 +948,50 @@ private fun SettingsPage(data: AppData, runtime: DesktopRuntime, dark: Boolean, 
         Slider(value = data.settings.wallpaperDim, onValueChange = { v ->
             runtime.updateSettings { it.copy(wallpaperDim = v.coerceIn(0f, .65f)) }
         }, valueRange = 0f..0.65f)
+        Text("کیفیت افکت شیشه‌ای", color = muted(), fontSize = 12.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            listOf(
+                GlassQuality.LOW to "عملکرد",
+                GlassQuality.MEDIUM to "متعادل",
+                GlassQuality.HIGH to "کیفیت"
+            ).forEach { (quality, label) ->
+                val selected = data.settings.glassQuality == quality
+                if (selected) Button(onClick = {
+                    runtime.updateSettings {
+                        it.copy(
+                            glassQuality = quality,
+                            glassBlurDp = when (quality) {
+                                GlassQuality.LOW -> 0
+                                GlassQuality.MEDIUM -> 12
+                                GlassQuality.HIGH -> 24
+                            },
+                            glassShine = when (quality) {
+                                GlassQuality.LOW -> .12f
+                                GlassQuality.MEDIUM -> .42f
+                                GlassQuality.HIGH -> .72f
+                            }
+                        )
+                    }
+                }) { Text(label) }
+                else OutlinedButton(onClick = {
+                    runtime.updateSettings {
+                        it.copy(
+                            glassQuality = quality,
+                            glassBlurDp = when (quality) {
+                                GlassQuality.LOW -> 0
+                                GlassQuality.MEDIUM -> 12
+                                GlassQuality.HIGH -> 24
+                            },
+                            glassShine = when (quality) {
+                                GlassQuality.LOW -> .12f
+                                GlassQuality.MEDIUM -> .42f
+                                GlassQuality.HIGH -> .72f
+                            }
+                        )
+                    }
+                }) { Text(label) }
+            }
+        }
         Text("شفافیت پنل‌ها", color = muted(), fontSize = 12.sp)
         Slider(value = data.settings.glassOpacity, onValueChange = { v ->
             runtime.updateSettings { it.copy(glassOpacity = v.coerceIn(.55f, 1f)) }
@@ -818,11 +1041,62 @@ private fun MetricCard(title: String, value: String, detail: String, modifier: M
 
 @Composable
 private fun Panel(title: String, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Card(modifier = modifier.animateContentSize().border(1.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = .18f), MaterialTheme.colorScheme.onSurface.copy(alpha = .035f), Color.White.copy(alpha = .08f))), RoundedCornerShape(23.dp)), shape = RoundedCornerShape(23.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = LocalDesktopSettings.current.glassOpacity.coerceIn(.55f, 1f) * .91f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
-        Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+    val settings = LocalDesktopSettings.current
+    val quality = settings.glassQuality
+    val surfaceAlpha = when (quality) {
+        GlassQuality.LOW -> .96f
+        GlassQuality.MEDIUM -> .91f
+        GlassQuality.HIGH -> .85f
+    }
+    val edgeAlpha = when (quality) {
+        GlassQuality.LOW -> .045f
+        GlassQuality.MEDIUM -> .075f
+        GlassQuality.HIGH -> .12f
+    }
+    val depth = when (quality) {
+        GlassQuality.LOW -> 4.dp
+        GlassQuality.MEDIUM -> 8.dp
+        GlassQuality.HIGH -> 13.dp
+    }
+    val opacity = (surfaceAlpha * (.72f + settings.glassOpacity.coerceIn(.55f, 1f) * .28f)).coerceIn(.72f, .98f)
+    val shape = RoundedCornerShape(MedFlowDesign.panelRadius)
+    val edge = Brush.linearGradient(
+        listOf(
+            Color.White.copy(alpha = edgeAlpha + settings.glassShine.coerceIn(0f, 1f) * .10f),
+            MaterialTheme.colorScheme.onSurface.copy(alpha = .025f),
+            MaterialTheme.colorScheme.primary.copy(alpha = edgeAlpha)
+        )
+    )
+
+    Card(
+        modifier = modifier
+            .animateContentSize()
+            .shadow(depth, shape)
+            .border(1.dp, edge, shape),
+        shape = shape,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = opacity)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            Modifier.fillMaxSize().padding(
+                horizontal = MedFlowDesign.panelPaddingHorizontal,
+                vertical = MedFlowDesign.panelPaddingVertical
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(title, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, letterSpacing = .05.sp)
+                Spacer(Modifier.weight(1f))
+                Box(
+                    Modifier.width(22.dp).height(3.dp)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = .72f), RoundedCornerShape(8.dp))
+                )
+            }
             content(this)
         }
     }
@@ -835,7 +1109,7 @@ private fun EmptyText(text: String) {
 
 @Composable
 private fun muted(): Color =
-    if (MaterialTheme.colorScheme.background == Color(0xFF10131B)) MutedDark else MutedLight
+    if (MaterialTheme.colorScheme.background == MedFlowDesign.darkBackground) MedFlowDesign.darkMuted else MedFlowDesign.lightMuted
 
 
 private fun normalizeDigits(input: String): String = input.map { ch ->
