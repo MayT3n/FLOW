@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,13 +29,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
-import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.unit.DpSize
 
 private val Ink = Color(0xFF10131B)
 private val Panel = Color(0xFF1A1F2B)
@@ -45,7 +46,7 @@ fun main() = application {
     Window(
         onCloseRequest = ::exitApplication,
         title = "MedFlow",
-        state = WindowState(width = 1440.dp, height = 900.dp)
+        state = WindowState(size = DpSize(1440.dp, 900.dp))
     ) {
         MedFlowDesktop()
     }
@@ -83,7 +84,7 @@ private fun MedFlowDesktop() {
                                 Text(selected, fontSize = 27.sp, fontWeight = FontWeight.Bold)
                                 Text("فضای متمرکز برای مدیریت زمان و کارها", color = Muted, fontSize = 13.sp)
                             }
-                            Text("شنبه، ۲۳ آبان ۱۴۰۵", color = Muted, fontSize = 13.sp)
+                            Text("نسخه دسکتاپ در حال آماده‌سازی", color = Muted, fontSize = 13.sp)
                         }
                         Spacer(Modifier.height(14.dp))
                         when (selected) {
