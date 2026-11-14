@@ -56,6 +56,7 @@ import com.flow.focus.ui.components.FlowIcons
 import com.flow.focus.ui.glass.GlassBackdropHost
 import com.flow.focus.ui.screens.HomeScreen
 import com.flow.focus.ui.screens.MiniMusicPlayer
+import com.flow.focus.ui.screens.MusicChip
 import com.flow.focus.ui.screens.MusicPlayerDialog
 import com.flow.focus.ui.screens.PlanningScreen
 import com.flow.focus.ui.screens.RoutinesScreen
