@@ -53,8 +53,28 @@ private val LocalDesktopSettings = androidx.compose.runtime.staticCompositionLoc
 
 fun main() = application {
     val runtime = remember { DesktopRuntime() }
-    Window(onCloseRequest = { runtime.close(); exitApplication() }, title = "MedFlow",
-        state = WindowState(size = DpSize(1440.dp, 900.dp))) {
+    var trayInstalled by remember { mutableStateOf(false) }
+    var windowRef by remember { mutableStateOf<java.awt.Window?>(null) }
+    Window(onCloseRequest = {
+        if (trayInstalled) windowRef?.isVisible = false
+        else { runtime.close(); exitApplication() }
+    }, title = "MedFlow", state = WindowState(size = DpSize(1440.dp, 900.dp))) {
+        val desktopWindow = window
+        val tray = remember(desktopWindow) {
+            DesktopTray(desktopWindow) {
+                runtime.close()
+                exitApplication()
+            }
+        }
+        SideEffect { windowRef = desktopWindow }
+        DisposableEffect(tray) {
+            trayInstalled = tray.install()
+            runtime.notificationSink = tray::notify
+            onDispose {
+                runtime.notificationSink = null
+                tray.close()
+            }
+        }
         MedFlowDesktop(runtime)
     }
 }
