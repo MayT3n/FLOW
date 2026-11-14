@@ -37,10 +37,7 @@ private data class OccasionTitle(val fa: String, val en: String? = null)
 object DesktopIranianCalendar {
     private val json = Json { ignoreUnknownKeys = true }
     private val supportedYears = listOf(1405)
-
-    fun supportedJalaliYears(): List<Int> = supportedYears
-
-    fun all(): List<DesktopOccasion> = supportedYears.flatMap { year ->
+    private val cached: List<DesktopOccasion> by lazy(LazyThreadSafetyMode.PUBLICATION) { supportedYears.flatMap { year ->
         listOf("holidays", "events").flatMap { kind ->
             val path = "/calendar/$year-$kind.json"
             val raw = DesktopIranianCalendar::class.java.getResourceAsStream(path)
@@ -48,7 +45,11 @@ object DesktopIranianCalendar {
                 ?: return@flatMap emptyList()
             parse(raw, year)
         }
-    }.distinctBy { it.id }.sortedWith(compareBy({ it.epochDay }, { !it.isHoliday }, { it.titleFa }))
+    }.distinctBy { it.id }.sortedWith(compareBy({ it.epochDay }, { !it.isHoliday }, { it.titleFa })) }
+
+    fun supportedJalaliYears(): List<Int> = supportedYears
+
+    fun all(): List<DesktopOccasion> = cached
 
     fun on(date: LocalDate): List<DesktopOccasion> =
         all().filter { it.epochDay == date.toEpochDay() }
