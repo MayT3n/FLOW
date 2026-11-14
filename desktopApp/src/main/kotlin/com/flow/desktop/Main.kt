@@ -214,10 +214,12 @@ private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Wind
                         }
                     }
 
-                    Row(
-                        Modifier.fillMaxSize().padding(MedFlowDesign.windowInset),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
+                    BoxWithConstraints(Modifier.fillMaxSize().padding(MedFlowDesign.windowInset)) {
+                        val useCompactSidebar = compactSidebar || maxWidth < 1120.dp
+                        Row(
+                            Modifier.fillMaxSize(),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
                         // RTL places the navigation rail on the right, while native window controls stay untouched.
                         Sidebar(
                             selected = selected,
@@ -228,7 +230,7 @@ private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Wind
                                     it.copy(theme = if (dark) ThemeMode.LIGHT else ThemeMode.DARK)
                                 }
                             },
-                            compact = compactSidebar,
+                            compact = useCompactSidebar,
                             onToggleCompact = { compactSidebar = !compactSidebar }
                         )
 
@@ -299,6 +301,7 @@ private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Wind
                                 }
                             }
                         }
+                    }
                     }
                 }
             }
@@ -684,6 +687,11 @@ private fun FocusCard(data: AppData, now: Long, runtime: DesktopRuntime, modifie
     val selectedTask = data.tasks.firstOrNull { it.id == timer.taskId }
     val remaining = PomodoroEngine.remaining(timer, now)
     val progress = PomodoroEngine.progress(timer, now)
+    val animatedProgress by androidx.compose.animation.animateFloatAsState(
+        targetValue = progress.coerceIn(0f, 1f),
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 220),
+        label = "focus-progress"
+    )
     val phaseName = when (timer.phase) {
         PhaseType.FOCUS -> "زمان تمرکز"
         PhaseType.SHORT_BREAK -> "استراحت کوتاه"
@@ -719,7 +727,7 @@ private fun FocusCard(data: AppData, now: Long, runtime: DesktopRuntime, modifie
             Spacer(Modifier.height(26.dp))
             Text(timerText(remaining), fontSize = 66.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Light, letterSpacing = (-1).sp, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(16.dp))
-            LinearProgressIndicator(progress = progress, modifier = Modifier.fillMaxWidth(.78f).height(7.dp),
+            LinearProgressIndicator(progress = animatedProgress, modifier = Modifier.fillMaxWidth(.78f).height(7.dp),
                 color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.surfaceVariant)
             Spacer(Modifier.height(14.dp))
             Text("دور ${fa(timer.round)} از ${fa(data.settings.rounds)}", color = muted())
@@ -891,7 +899,11 @@ private fun GoalsPage(data: AppData, runtime: DesktopRuntime) {
     var period by remember { mutableStateOf(GoalPeriod.DAILY) }
     val today = java.time.LocalDate.now()
     val weekStart = JalaliDate.startOfWeek(today).toEpochDay()
-    Panel("هدف جدید", Modifier.fillMaxWidth()) {
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Panel("هدف جدید", Modifier.fillMaxWidth()) {
         OutlinedTextField(value = title, onValueChange = { title = it }, modifier = Modifier.fillMaxWidth(),
             singleLine = true, label = { Text("عنوان هدف") })
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -915,6 +927,7 @@ private fun GoalsPage(data: AppData, runtime: DesktopRuntime) {
                 Text(if (goal.period == GoalPeriod.DAILY) "روزانه" else "هفتگی", color = muted(), fontSize = 11.sp)
                 TextButton(onClick = { runtime.deleteGoal(goal.id) }) { Text("حذف", color = Color(0xFFE07B7B)) }
             }
+        }
         }
     }
 }
@@ -1154,7 +1167,11 @@ private fun MusicPage(runtime: DesktopRuntime) {
 private fun SettingsPage(data: AppData, runtime: DesktopRuntime, dark: Boolean, onThemeChange: () -> Unit) {
     var startupEnabled by remember { mutableStateOf(WindowsStartup.isEnabled()) }
     var startupMessage by remember { mutableStateOf("") }
-    Panel("ظاهر و داده‌ها", Modifier.fillMaxWidth()) {
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Panel("ظاهر و داده‌ها", Modifier.fillMaxWidth()) {
         Text("پوسته‌ی برنامه", fontWeight = FontWeight.SemiBold)
         OutlinedButton(onClick = onThemeChange) { Text(if (dark) "تغییر به روشن" else "تغییر به تیره") }
         HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .08f))
@@ -1183,7 +1200,8 @@ private fun SettingsPage(data: AppData, runtime: DesktopRuntime, dark: Boolean, 
             listOf(
                 GlassQuality.LOW to "عملکرد",
                 GlassQuality.MEDIUM to "متعادل",
-                GlassQuality.HIGH to "کیفیت"
+                GlassQuality.HIGH to "کیفیت",
+                GlassQuality.ULTRA to "اولترا"
             ).forEach { (quality, label) ->
                 val selected = data.settings.glassQuality == quality
                 if (selected) Button(onClick = {
@@ -1193,12 +1211,14 @@ private fun SettingsPage(data: AppData, runtime: DesktopRuntime, dark: Boolean, 
                             glassBlurDp = when (quality) {
                                 GlassQuality.LOW -> 0
                                 GlassQuality.MEDIUM -> 12
-                                GlassQuality.HIGH -> 24
+                                GlassQuality.HIGH -> 20
+                                GlassQuality.ULTRA -> 28
                             },
                             glassShine = when (quality) {
                                 GlassQuality.LOW -> .12f
                                 GlassQuality.MEDIUM -> .42f
                                 GlassQuality.HIGH -> .72f
+                                GlassQuality.ULTRA -> .92f
                             }
                         )
                     }
@@ -1210,12 +1230,14 @@ private fun SettingsPage(data: AppData, runtime: DesktopRuntime, dark: Boolean, 
                             glassBlurDp = when (quality) {
                                 GlassQuality.LOW -> 0
                                 GlassQuality.MEDIUM -> 12
-                                GlassQuality.HIGH -> 24
+                                GlassQuality.HIGH -> 20
+                                GlassQuality.ULTRA -> 28
                             },
                             glassShine = when (quality) {
                                 GlassQuality.LOW -> .12f
                                 GlassQuality.MEDIUM -> .42f
                                 GlassQuality.HIGH -> .72f
+                                GlassQuality.ULTRA -> .92f
                             }
                         )
                     }
@@ -1253,6 +1275,7 @@ private fun SettingsPage(data: AppData, runtime: DesktopRuntime, dark: Boolean, 
         }
         Text("ذخیره‌سازی خودکار در پوشه‌ی اختصاصی MedFlow در پروفایل ویندوز انجام می‌شود.", color = muted(), fontSize = 12.sp)
         Text("تعداد وظایف: ${fa(data.tasks.size)}  •  جلسات: ${fa(data.sessions.size)}", color = muted(), fontSize = 12.sp)
+        }
     }
 }
 
@@ -1274,27 +1297,34 @@ private fun Panel(title: String, modifier: Modifier = Modifier, content: @Compos
     val settings = LocalDesktopSettings.current
     val quality = settings.glassQuality
     val surfaceAlpha = when (quality) {
-        GlassQuality.LOW -> .96f
-        GlassQuality.MEDIUM -> .91f
-        GlassQuality.HIGH -> .85f
+        GlassQuality.LOW -> .97f
+        GlassQuality.MEDIUM -> .93f
+        GlassQuality.HIGH -> .88f
+        GlassQuality.ULTRA -> .82f
     }
     val edgeAlpha = when (quality) {
-        GlassQuality.LOW -> .045f
-        GlassQuality.MEDIUM -> .075f
-        GlassQuality.HIGH -> .12f
+        GlassQuality.LOW -> .035f
+        GlassQuality.MEDIUM -> .06f
+        GlassQuality.HIGH -> .095f
+        GlassQuality.ULTRA -> .14f
     }
     val depth = when (quality) {
-        GlassQuality.LOW -> 4.dp
-        GlassQuality.MEDIUM -> 8.dp
-        GlassQuality.HIGH -> 13.dp
+        GlassQuality.LOW -> 2.dp
+        GlassQuality.MEDIUM -> 5.dp
+        GlassQuality.HIGH -> 9.dp
+        GlassQuality.ULTRA -> 13.dp
     }
     val opacity = (surfaceAlpha * (.72f + settings.glassOpacity.coerceIn(.55f, 1f) * .28f)).coerceIn(.72f, .98f)
     val shape = RoundedCornerShape(MedFlowDesign.panelRadius)
+    val darkSurface = MaterialTheme.colorScheme.background == MedFlowDesign.darkBackground
+    val edgeHighlight = if (darkSurface) Color.White else Color(0xFF9EADBF)
     val edge = Brush.linearGradient(
         listOf(
-            Color.White.copy(alpha = edgeAlpha + settings.glassShine.coerceIn(0f, 1f) * .10f),
-            MaterialTheme.colorScheme.onSurface.copy(alpha = .025f),
-            MaterialTheme.colorScheme.primary.copy(alpha = edgeAlpha)
+            edgeHighlight.copy(
+                alpha = (edgeAlpha + settings.glassShine.coerceIn(0f, 1f) * .075f).coerceAtMost(.22f)
+            ),
+            MaterialTheme.colorScheme.onSurface.copy(alpha = if (darkSurface) .025f else .018f),
+            MaterialTheme.colorScheme.primary.copy(alpha = edgeAlpha * if (darkSurface) 1f else .68f)
         )
     )
 
