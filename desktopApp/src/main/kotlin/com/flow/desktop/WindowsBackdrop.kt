@@ -25,7 +25,7 @@ object WindowsBackdrop {
             if (hwnd == null || Pointer.nativeValue(hwnd) == 0L) return false
             if (window is RootPaneContainer) {
                 window.rootPane.isOpaque = false
-                window.contentPane.isOpaque = false
+                (window.contentPane as? javax.swing.JComponent)?.isOpaque = false
             }
             window.setBackground(Color(0, 0, 0, 0))
             val mica = Memory(4).apply { setInt(0, 2) } // DWMSBT_MAINWINDOW
