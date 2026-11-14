@@ -25,17 +25,26 @@ Requirements: JDK 17 and WiX Toolset 3 (the Compose packaging task can download 
 
 The MSI is written to `desktopApp/build/compose/binaries/main/msi/`.
 
-## Explicitly incomplete
+## Desktop UI implementation status
 
-This is an incremental desktop port, not yet a feature-complete replacement for the Android app. The following remain to be implemented and validated:
+The Windows desktop branch now includes:
 
-- Full task editor: due date/time, priority, categories, search, filters and sorting.
-- Routine and goal management UI.
-- Full month calendar, offline Iranian occasions and calendar editing.
-- Desktop audio playback, playlists, ambient audio and download management.
-- Wallpaper library and custom wallpaper import.
-- Windows notifications, tray integration, global shortcuts and launch-at-login.
-- Native Windows Mica/Acrylic integration and a genuinely refractive Liquid Glass renderer.
-- Performance profiling across integrated and discrete GPUs, high-DPI/multi-monitor validation, installer upgrade/uninstall tests and clean-machine smoke tests.
+- Responsive Persian RTL workspace shell, expandable/collapsible right navigation and native Windows title bar.
+- Separate light and dark palettes with shared typography, spacing, shapes and surface tokens.
+- Four distinct material profiles. Performance and balanced use Mica; quality and ultra request the Windows DWM Acrylic backdrop and add stronger surface tint, edge reflection and elevation.
+- Responsive dashboard, focus timer with phase/status/progress feedback, persistent tasks, routines, goals, Jalali calendar, analytics, music library, playlists and settings.
+- A contextual mini-player while a track is selected.
+- Wallpaper selection/import, Windows startup integration, tray integration and JSON backup/restore.
 
-No claim of zero bugs or complete Windows integration is made until those items are implemented and tested on real Windows systems.
+The material treatment intentionally combines translucent Compose surfaces with the native *window-level* DWM backdrop. It is not a physically refractive, per-panel blur renderer. Acrylic support depends on the Windows build and can fall back to Mica; no claim is made that every GPU produces identical results.
+
+## Validation boundaries
+
+GitHub Actions compiles the desktop module, runs desktop domain tests, packages the MSI, installs it, launches the installed executable for a smoke test and uninstalls it. This is not a substitute for human visual review at 1366×768, 1920×1080, 2560×1440 and 4K on real Windows hardware.
+
+Still requiring device-level validation or further work:
+
+- Visual comparison and performance profiling across integrated and discrete GPUs, high-DPI and multi-monitor setups.
+- MSI upgrade/uninstall behavior with an existing user-data directory.
+- A dedicated ambient-sound mixer and a physically refractive, per-surface glass renderer.
+- Bundled Persian font assets. The current UI uses the Windows Segoe UI font stack and OS glyph fallback; it does not download fonts at runtime.
