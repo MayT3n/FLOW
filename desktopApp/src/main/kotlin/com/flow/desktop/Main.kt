@@ -94,7 +94,7 @@ private fun MedFlowDesktop(runtime: DesktopRuntime) {
                             "اهداف" -> GoalsPage(data, runtime)
                             "برنامه‌ریزی" -> PlanningPage(data)
                             "آمار" -> StatisticsPage(data)
-                            "موسیقی" -> PlaceholderPage("موسیقی", "پخش‌کننده‌ی دسکتاپ هنوز به موتور مستقل صوتی متصل نشده است.")
+                            "موسیقی" -> MusicPage(runtime)
                             "تنظیمات" -> SettingsPage(data, runtime, dark, { dark = !dark })
                         }
                     }
@@ -515,6 +515,67 @@ private fun StatisticsPage(data: AppData) {
                     Text("${fa(bucket.minutes)} دقیقه", modifier = Modifier.width(82.dp), textAlign = TextAlign.End, fontSize = 11.sp)
                 }
             }
+        }
+    }
+}
+
+
+@Composable
+private fun MusicPage(runtime: DesktopRuntime) {
+    val state by runtime.music.state.collectAsState()
+    val downloads by runtime.music.downloads.collectAsState()
+    val favorites by runtime.music.favorites.collectAsState()
+    var query by remember { mutableStateOf("") }
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Panel("پخش‌کننده‌ی موسیقی", Modifier.fillMaxWidth()) {
+            val current = DesktopMusicCatalog.tracks.firstOrNull { it.id == state.trackId }
+            Text(current?.title ?: "هنوز آهنگی پخش نشده", fontSize = 21.sp, fontWeight = FontWeight.SemiBold)
+            Text(current?.mood ?: "موسیقی بی‌کلام برای زمان تمرکز", color = muted())
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Button(onClick = { runtime.music.togglePlayback() }, enabled = current != null) {
+                    Text(if (state.playing) "مکث" else "ادامه")
+                }
+                OutlinedButton(onClick = { runtime.music.stop() }, enabled = current != null) { Text("توقف") }
+                Text("${fa(state.positionMs / 1000)} / ${fa(state.durationMs / 1000)} ثانیه", color = muted(), fontSize = 12.sp)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("صدا", color = muted())
+                Slider(value = state.volume, onValueChange = { runtime.music.setVolume(it) }, modifier = Modifier.weight(1f))
+                Text("${fa((state.volume * 100).toInt())}٪", color = muted(), fontSize = 12.sp)
+            }
+            if (!state.error.isNullOrBlank()) Text(state.error ?: "", color = Color(0xFFE07B7B), fontSize = 12.sp)
+        }
+        Panel("کتابخانه‌ی آهنگ‌ها", Modifier.fillMaxWidth()) {
+            Text("فهرست سازگار با نسخه‌ی اندروید، با مجوز CC0 1.0. برای پخش، آهنگ ابتدا به‌صورت امن دانلود و سپس به‌صورت محلی اجرا می‌شود.", color = muted(), fontSize = 12.sp)
+            OutlinedTextField(value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(),
+                singleLine = true, label = { Text("جست‌وجوی آهنگ") })
+            val tracks = DesktopMusicCatalog.tracks.filter { query.isBlank() ||
+                it.title.contains(query, true) || it.mood.contains(query, true) }
+            tracks.forEach { track ->
+                val downloaded = runtime.music.isDownloaded(track)
+                val progress = downloads[track.id]
+                Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(track.title, fontWeight = FontWeight.Medium)
+                        Text("${track.mood} · ${track.durationLabel} · ${DesktopMusicCatalog.artist}", color = muted(), fontSize = 11.sp)
+                        if (progress != null) LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
+                        if (state.trackId == track.id) Text(if (state.playing) "در حال پخش" else "آماده‌ی ادامه", color = Accent, fontSize = 11.sp)
+                    }
+                    TextButton(onClick = { runtime.music.toggleFavorite(track.id) }) {
+                        Text(if (track.id in favorites) "★" else "☆", color = if (track.id in favorites) Accent else muted(), fontSize = 20.sp)
+                    }
+                    if (downloaded) {
+                        Button(onClick = { runtime.music.play(track) }) { Text(if (state.trackId == track.id && state.playing) "پخش مجدد" else "پخش") }
+                    } else {
+                        OutlinedButton(onClick = { runtime.music.download(track) }, enabled = progress == null) {
+                            Text(if (progress == null) "دانلود" else "${fa((progress * 100).toInt())}٪")
+                        }
+                    }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .06f))
+            }
+            Text("فایل‌های دانلودشده در پوشه‌ی AppData/Roaming/MedFlow/music نگهداری می‌شوند.", color = muted(), fontSize = 11.sp)
+            Text("منبع موسیقی: ${DesktopMusicCatalog.tracks.firstOrNull()?.sourceUrl ?: ""}", color = muted(), fontSize = 10.sp)
         }
     }
 }
