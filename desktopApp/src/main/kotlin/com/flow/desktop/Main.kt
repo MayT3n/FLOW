@@ -1,6 +1,7 @@
 package com.flow.desktop
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.ColumnScope
@@ -14,10 +15,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.loadImageBitmap
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
@@ -29,6 +33,8 @@ import com.flow.focus.core.JalaliDate
 import com.flow.focus.data.AppData
 import com.flow.focus.data.PhaseType
 import com.flow.focus.data.Priority
+import com.flow.focus.data.ThemeMode
+import com.flow.focus.data.WallpaperFit
 import com.flow.focus.data.GoalPeriod
 import com.flow.focus.data.Task
 import com.flow.focus.data.TimerStatus
@@ -43,6 +49,7 @@ import javax.swing.filechooser.FileNameExtensionFilter
 private val Accent = Color(0xFF91A4FF)
 private val MutedDark = Color(0xFFA5AEC0)
 private val MutedLight = Color(0xFF667085)
+private val LocalDesktopSettings = androidx.compose.runtime.staticCompositionLocalOf { com.flow.focus.data.Settings() }
 
 fun main() = application {
     val runtime = remember { DesktopRuntime() }
@@ -55,8 +62,8 @@ fun main() = application {
 @Composable
 private fun MedFlowDesktop(runtime: DesktopRuntime) {
     var selected by remember { mutableStateOf("خانه") }
-    var dark by remember { mutableStateOf(true) }
     val data by runtime.data.collectAsState()
+    val dark = data.settings.theme != ThemeMode.LIGHT
     val now by runtime.now.collectAsState()
     val scheme = if (dark) darkColorScheme(
         primary = Accent, background = Color(0xFF10131B), surface = Color(0xFF1A1F2B),
@@ -69,12 +76,36 @@ private fun MedFlowDesktop(runtime: DesktopRuntime) {
     )
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         MaterialTheme(colorScheme = scheme) {
-            Box(Modifier.fillMaxSize().background(Brush.linearGradient(
-                if (dark) listOf(Color(0xFF111722), Color(0xFF171D2B), Color(0xFF111722))
-                else listOf(Color(0xFFF4F6FA), Color(0xFFE9EDF5), Color(0xFFF7F8FB))
-            )).padding(18.dp)) {
-                Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Sidebar(selected, { selected = it }, dark, { dark = !dark })
+            CompositionLocalProvider(LocalDesktopSettings provides data.settings) {
+                val wallpaper = remember(data.settings.wallpaperPath) {
+                    data.settings.wallpaperPath?.let { path ->
+                        runCatching { File(path).inputStream().use { loadImageBitmap(it) } }.getOrNull()
+                    }
+                }
+                Box(Modifier.fillMaxSize()) {
+                    Canvas(Modifier.fillMaxSize()) {
+                        if (wallpaper != null) {
+                            val scale = if (data.settings.wallpaperFit == WallpaperFit.CROP)
+                                maxOf(size.width / wallpaper.width, size.height / wallpaper.height)
+                            else minOf(size.width / wallpaper.width, size.height / wallpaper.height)
+                            val w = (wallpaper.width * scale).toInt().coerceAtLeast(1)
+                            val h = (wallpaper.height * scale).toInt().coerceAtLeast(1)
+                            drawImage(wallpaper, dstOffset = IntOffset((size.width.toInt() - w) / 2, (size.height.toInt() - h) / 2), dstSize = IntSize(w, h))
+                        } else {
+                            val colors = when (data.settings.wallpaperId) {
+                                "aurora" -> listOf(Color(0xFF07172B), Color(0xFF173B59), Color(0xFF382B65))
+                                "midnight" -> listOf(Color(0xFF070D1B), Color(0xFF172A42), Color(0xFF26364B))
+                                "dusk" -> listOf(Color(0xFF241B37), Color(0xFF69435E), Color(0xFF273D5C))
+                                else -> if (dark) listOf(Color(0xFF111722), Color(0xFF171D2B), Color(0xFF111722))
+                                    else listOf(Color(0xFFF4F6FA), Color(0xFFE9EDF5), Color(0xFFF7F8FB))
+                            }
+                            drawRect(Brush.linearGradient(colors))
+                        }
+                        if (data.settings.wallpaperDim > 0f) drawRect(Color.Black.copy(alpha = data.settings.wallpaperDim.coerceIn(0f, .65f)))
+                    }
+                    Box(Modifier.fillMaxSize().padding(18.dp)) {
+                        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Sidebar(selected, { selected = it }, dark, { runtime.updateSettings { it.copy(theme = if (dark) ThemeMode.LIGHT else ThemeMode.DARK) } })
                     Column(Modifier.weight(1f).fillMaxHeight()) {
                         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -95,7 +126,9 @@ private fun MedFlowDesktop(runtime: DesktopRuntime) {
                             "برنامه‌ریزی" -> PlanningPage(data)
                             "آمار" -> StatisticsPage(data)
                             "موسیقی" -> MusicPage(runtime)
-                            "تنظیمات" -> SettingsPage(data, runtime, dark, { dark = !dark })
+                            "تنظیمات" -> SettingsPage(data, runtime, dark, { runtime.updateSettings { it.copy(theme = if (dark) ThemeMode.LIGHT else ThemeMode.DARK) } })
+                        }
+                    }
                         }
                     }
                 }
@@ -586,6 +619,30 @@ private fun SettingsPage(data: AppData, runtime: DesktopRuntime, dark: Boolean, 
         Text("پوسته‌ی برنامه", fontWeight = FontWeight.SemiBold)
         OutlinedButton(onClick = onThemeChange) { Text(if (dark) "تغییر به روشن" else "تغییر به تیره") }
         HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .08f))
+        Text("پس‌زمینه", fontWeight = FontWeight.SemiBold)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            listOf("gradient" to "گرادیان", "aurora" to "شفق قطبی", "midnight" to "نیمه‌شب", "dusk" to "غروب").forEach { (id, label) ->
+                if (data.settings.wallpaperId == id && data.settings.wallpaperPath == null) Button(onClick = {
+                    runtime.updateSettings { it.copy(wallpaperId = id, wallpaperPath = null) }
+                }) { Text(label) }
+                else OutlinedButton(onClick = { runtime.updateSettings { it.copy(wallpaperId = id, wallpaperPath = null) } }) { Text(label) }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { chooseWallpaper(runtime) }) { Text("انتخاب تصویر شخصی") }
+            if (data.settings.wallpaperPath != null) OutlinedButton(onClick = {
+                runtime.updateSettings { it.copy(wallpaperId = "gradient", wallpaperPath = null) }
+            }) { Text("حذف تصویر شخصی") }
+        }
+        Text("تیره‌سازی پس‌زمینه", color = muted(), fontSize = 12.sp)
+        Slider(value = data.settings.wallpaperDim, onValueChange = { v ->
+            runtime.updateSettings { it.copy(wallpaperDim = v.coerceIn(0f, .65f)) }
+        }, valueRange = 0f..0.65f)
+        Text("شفافیت پنل‌ها", color = muted(), fontSize = 12.sp)
+        Slider(value = data.settings.glassOpacity, onValueChange = { v ->
+            runtime.updateSettings { it.copy(glassOpacity = v.coerceIn(.55f, 1f)) }
+        }, valueRange = .55f..1f)
+        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .08f))
         Text("پشتیبان‌گیری", fontWeight = FontWeight.SemiBold)
         Text("فایل پشتیبان شامل وظایف، تنظیمات، جلسات و وضعیت تایمر است.", color = muted(), fontSize = 12.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -613,7 +670,7 @@ private fun MetricCard(title: String, value: String, detail: String, modifier: M
 @Composable
 private fun Panel(title: String, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Card(modifier = modifier, shape = RoundedCornerShape(23.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = .91f)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = LocalDesktopSettings.current.glassOpacity.coerceIn(.55f, 1f) * .91f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
         Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
@@ -667,6 +724,23 @@ private fun timerText(ms: Long): String {
 private fun fa(value: Any): String = value.toString().map { ch ->
     if (ch in '0'..'9') ('۰'.code + (ch.code - '0'.code)).toChar() else ch
 }.joinToString("")
+
+
+private fun chooseWallpaper(runtime: DesktopRuntime) {
+    val chooser = JFileChooser().apply {
+        dialogTitle = "انتخاب تصویر پس‌زمینه"
+        fileFilter = FileNameExtensionFilter("Images (PNG, JPG, WEBP)", "png", "jpg", "jpeg", "webp")
+    }
+    if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+        val source = chooser.selectedFile
+        if (source.extension.lowercase() !in setOf("png", "jpg", "jpeg", "webp")) return
+        val destination = File(appDataDirectory(), "wallpaper.${source.extension.lowercase()}")
+        runCatching {
+            source.copyTo(destination, overwrite = true)
+            runtime.updateSettings { it.copy(wallpaperId = "custom", wallpaperPath = destination.absolutePath) }
+        }
+    }
+}
 
 private fun exportBackup(runtime: DesktopRuntime) {
     val chooser = JFileChooser().apply {
