@@ -2,33 +2,20 @@ package com.flow.desktop
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,65 +23,74 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
 import androidx.compose.ui.unit.DpSize
+import com.flow.focus.core.DateFormats
+import com.flow.focus.core.JalaliDate
+import com.flow.focus.data.AppData
+import com.flow.focus.data.PhaseType
+import com.flow.focus.data.Task
+import com.flow.focus.data.TimerStatus
+import com.flow.focus.domain.Planner
+import com.flow.focus.domain.PomodoroEngine
+import com.flow.focus.domain.Stats
+import com.flow.focus.domain.StatsRange
+import java.io.File
+import javax.swing.JFileChooser
+import javax.swing.filechooser.FileNameExtensionFilter
 
-private val Ink = Color(0xFF10131B)
-private val Panel = Color(0xFF1A1F2B)
-private val Muted = Color(0xFF9AA4B5)
-private val Accent = Color(0xFF8B9CFF)
+private val Accent = Color(0xFF91A4FF)
+private val MutedDark = Color(0xFFA5AEC0)
+private val MutedLight = Color(0xFF667085)
 
 fun main() = application {
-    Window(
-        onCloseRequest = ::exitApplication,
-        title = "MedFlow",
-        state = WindowState(size = DpSize(1440.dp, 900.dp))
-    ) {
-        MedFlowDesktop()
+    val runtime = remember { DesktopRuntime() }
+    Window(onCloseRequest = { runtime.close(); exitApplication() }, title = "MedFlow",
+        state = WindowState(size = DpSize(1440.dp, 900.dp))) {
+        MedFlowDesktop(runtime)
     }
 }
 
 @Composable
-private fun MedFlowDesktop() {
+private fun MedFlowDesktop(runtime: DesktopRuntime) {
     var selected by remember { mutableStateOf("خانه") }
     var dark by remember { mutableStateOf(true) }
+    val data by runtime.data.collectAsState()
+    val now by runtime.now.collectAsState()
     val scheme = if (dark) darkColorScheme(
-        background = Ink,
-        surface = Panel,
-        primary = Accent,
-        onBackground = Color(0xFFF4F6FB),
-        onSurface = Color(0xFFF4F6FB)
-    ) else lightColorScheme()
-
-    CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides LayoutDirection.Rtl) {
+        primary = Accent, background = Color(0xFF10131B), surface = Color(0xFF1A1F2B),
+        surfaceVariant = Color(0xFF242B39), onBackground = Color(0xFFF4F6FB),
+        onSurface = Color(0xFFF4F6FB), onSurfaceVariant = Color(0xFFB8C0D0)
+    ) else lightColorScheme(
+        primary = Color(0xFF5268D8), background = Color(0xFFF2F4F8), surface = Color.White,
+        surfaceVariant = Color(0xFFE9EDF5), onBackground = Color(0xFF202635),
+        onSurface = Color(0xFF202635), onSurfaceVariant = Color(0xFF667085)
+    )
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         MaterialTheme(colorScheme = scheme) {
-            Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                Row(Modifier.fillMaxSize().padding(18.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Sidebar(
-                        selected = selected,
-                        onSelect = { selected = it },
-                        dark = dark,
-                        onThemeChange = { dark = !dark }
-                    )
+            Box(Modifier.fillMaxSize().background(Brush.linearGradient(
+                if (dark) listOf(Color(0xFF111722), Color(0xFF171D2B), Color(0xFF111722))
+                else listOf(Color(0xFFF4F6FA), Color(0xFFE9EDF5), Color(0xFFF7F8FB))
+            )).padding(18.dp)) {
+                Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Sidebar(selected, { selected = it }, dark, { dark = !dark })
                     Column(Modifier.weight(1f).fillMaxHeight()) {
-                        Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp),
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column {
-                                Text(selected, fontSize = 27.sp, fontWeight = FontWeight.Bold)
-                                Text("فضای متمرکز برای مدیریت زمان و کارها", color = Muted, fontSize = 13.sp)
+                            horizontalArrangement = Arrangement.SpaceBetween) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(selected, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                                Text(DateFormats.full(java.time.LocalDate.now()), color = muted(), fontSize = 13.sp)
                             }
-                            Text("نسخه دسکتاپ در حال آماده‌سازی", color = Muted, fontSize = 13.sp)
+                            Text("فضای شخصی مدیریت زمان", color = muted(), fontSize = 13.sp)
                         }
-                        Spacer(Modifier.height(14.dp))
+                        Spacer(Modifier.height(12.dp))
                         when (selected) {
-                            "خانه" -> Dashboard()
-                            "تمرکز" -> InfoPanel("تمرکز", "موتور پومودورو در مرحله اتصال به منطق مشترک قرار دارد.")
-                            "وظایف" -> InfoPanel("وظایف", "مدیریت وظایف پس از انتقال امن مدل‌ها و مخزن داده فعال می‌شود.")
-                            "برنامه‌ریزی" -> InfoPanel("برنامه‌ریزی", "تقویم و برنامه‌ریزی جلالی در مرحله مهاجرت قرار دارند.")
-                            "آمار" -> InfoPanel("آمار", "نمودارها پس از اتصال داده‌های واقعی جلسات نمایش داده می‌شوند.")
-                            "موسیقی" -> InfoPanel("موسیقی", "پخش‌کننده دسکتاپ باید مستقل از Android Media3 پیاده‌سازی شود.")
-                            "تنظیمات" -> InfoPanel("تنظیمات", "تنظیمات دسکتاپ و موتور گرافیکی در حال طراحی هستند.")
+                            "خانه" -> Dashboard(data, now, runtime)
+                            "تمرکز" -> FocusPage(data, now, runtime)
+                            "وظایف" -> TasksPage(data, runtime)
+                            "برنامه‌ریزی" -> PlanningPage(data)
+                            "آمار" -> StatisticsPage(data)
+                            "موسیقی" -> PlaceholderPage("موسیقی", "پخش‌کننده‌ی دسکتاپ هنوز به موتور مستقل صوتی متصل نشده است.")
+                            "تنظیمات" -> SettingsPage(data, runtime, dark, { dark = !dark })
                         }
                     }
                 }
@@ -104,102 +100,289 @@ private fun MedFlowDesktop() {
 }
 
 @Composable
-private fun Sidebar(
-    selected: String,
-    onSelect: (String) -> Unit,
-    dark: Boolean,
-    onThemeChange: () -> Unit
-) {
+private fun Sidebar(selected: String, onSelect: (String) -> Unit, dark: Boolean, onThemeChange: () -> Unit) {
     val items = listOf("خانه", "تمرکز", "وظایف", "برنامه‌ریزی", "آمار", "موسیقی", "تنظیمات")
-    Column(
-        Modifier.width(224.dp).fillMaxHeight()
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.88f), RoundedCornerShape(26.dp))
-            .border(1.dp, Color.White.copy(alpha = if (dark) 0.09f else 0.45f), RoundedCornerShape(26.dp))
-            .padding(16.dp)
-    ) {
+    Column(Modifier.width(224.dp).fillMaxHeight()
+        .background(MaterialTheme.colorScheme.surface.copy(alpha = .92f), RoundedCornerShape(26.dp))
+        .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = .07f), RoundedCornerShape(26.dp))
+        .padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier.width(38.dp).height(38.dp)
-                    .background(Accent.copy(alpha = 0.20f), RoundedCornerShape(13.dp)),
-                contentAlignment = Alignment.Center
-            ) { Text("M", color = Accent, fontWeight = FontWeight.Bold, fontSize = 20.sp) }
+            Box(Modifier.size(40.dp).background(Accent.copy(alpha = .20f), RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center) { Text("M", color = Accent, fontWeight = FontWeight.Bold, fontSize = 21.sp) }
             Spacer(Modifier.width(10.dp))
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text("MedFlow", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Text("DESKTOP", color = Muted, fontSize = 10.sp, letterSpacing = 2.sp)
+                Text("DESKTOP", color = muted(), fontSize = 10.sp, letterSpacing = 2.sp)
             }
         }
-        Spacer(Modifier.height(30.dp))
+        Spacer(Modifier.height(28.dp))
         items.forEach { item ->
             val active = selected == item
-            Surface(
-                onClick = { onSelect(item) },
-                color = if (active) Accent.copy(alpha = 0.16f) else Color.Transparent,
-                shape = RoundedCornerShape(13.dp),
-                modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)
-            ) {
-                Text(
-                    item,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                    color = if (active) Accent else MaterialTheme.colorScheme.onSurface,
-                    fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal
-                )
+            Surface(onClick = { onSelect(item) },
+                color = if (active) MaterialTheme.colorScheme.primary.copy(alpha = .14f) else Color.Transparent,
+                shape = RoundedCornerShape(13.dp), modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+                Text(item, Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal)
             }
         }
         Spacer(Modifier.weight(1f))
-        Surface(onClick = onThemeChange, color = Color.Transparent, shape = RoundedCornerShape(12.dp)) {
-            Text(
-                if (dark) "☀  تغییر به حالت روشن" else "☾  تغییر به حالت تیره",
-                modifier = Modifier.fillMaxWidth().padding(10.dp),
-                color = Muted,
-                fontSize = 12.sp
-            )
+        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .08f))
+        TextButton(onClick = onThemeChange, modifier = Modifier.fillMaxWidth()) {
+            Text(if (dark) "☀  حالت روشن" else "☾  حالت تیره", color = muted())
         }
+        Text("نسخه‌ی دسکتاپ", color = muted(), fontSize = 10.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
     }
 }
 
 @Composable
-private fun Dashboard() {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            GlassPanel(Modifier.weight(1f), "وضعیت امروز", "هنوز جلسه‌ای برای امروز ثبت نشده است.", "۰ جلسه")
-            GlassPanel(Modifier.weight(1f), "وظایف باز", "وظایف پس از اتصال مخزن داده نمایش داده می‌شوند.", "—")
-            GlassPanel(Modifier.weight(1f), "زمان تمرکز", "آمار بر اساس جلسات واقعی محاسبه خواهد شد.", "۰ دقیقه")
+private fun Dashboard(data: AppData, now: Long, runtime: DesktopRuntime) {
+    val stats = Stats.summarize(data, StatsRange.DAY, java.time.LocalDate.now())
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            MetricCard("تمرکز امروز", "\${fa(stats.focusMinutes)} دقیقه", "بر اساس جلسات ثبت‌شده", Modifier.weight(1f))
+            MetricCard("وظایف باز", fa(data.tasks.count { !it.done }), "کارهای باقی‌مانده", Modifier.weight(1f))
+            MetricCard("جلسه‌های کامل", fa(stats.completedSessions), "امروز", Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Column(Modifier.weight(1.5f)) {
-                GlassPanel(Modifier.fillMaxWidth().height(300.dp), "شروع تمرکز", "رابط تایمر دسکتاپ در گام بعدی به PomodoroEngine متصل می‌شود.", "آماده")
-            }
-            Column(Modifier.weight(1f)) {
-                GlassPanel(Modifier.fillMaxWidth().height(142.dp), "برنامه امروز", "هنوز داده‌ای بارگذاری نشده است.", "تقویم جلالی")
-                GlassPanel(Modifier.fillMaxWidth().height(142.dp), "روتین‌ها", "روتین‌های ذخیره‌شده پس از مهاجرت نمایش داده می‌شوند.", "—")
+            FocusCard(data, now, runtime, Modifier.weight(1.35f).height(330.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Panel("برنامه‌ی امروز", Modifier.fillMaxWidth()) {
+                    val entries = Planner.entriesFor(data, java.time.LocalDate.now())
+                    if (entries.isEmpty()) EmptyText("برای امروز برنامه‌ای ثبت نشده است.")
+                    else entries.take(5).forEach { entry ->
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(if (entry.done) "✓" else "•", color = Accent, modifier = Modifier.width(24.dp))
+                            Text(entry.title, modifier = Modifier.weight(1f), maxLines = 1)
+                            entry.minute?.let { Text(DateFormats.clock(it), color = muted()) }
+                        }
+                    }
+                }
+                Panel("کارهای بعدی", Modifier.fillMaxWidth()) {
+                    val tasks = data.tasks.filterNot { it.done }.take(4)
+                    if (tasks.isEmpty()) EmptyText("فعلاً وظیفه‌ی بازی وجود ندارد.")
+                    else tasks.forEach { Text("•  \${it.title}") }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun GlassPanel(
-    modifier: Modifier = Modifier,
-    title: String,
-    description: String,
-    value: String
-) {
-    Column(
-        modifier.background(
-            MaterialTheme.colorScheme.surface.copy(alpha = 0.78f),
-            RoundedCornerShape(22.dp)
-        ).border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(22.dp))
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Text(title, color = Muted, fontSize = 13.sp)
-        Text(value, color = MaterialTheme.colorScheme.onSurface, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-        Text(description, color = Muted, fontSize = 12.sp)
+private fun FocusPage(data: AppData, now: Long, runtime: DesktopRuntime) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        FocusCard(data, now, runtime, Modifier.fillMaxWidth().height(420.dp))
+        Panel("نکته", Modifier.fillMaxWidth()) {
+            Text("زمان‌سنج بر اساس زمان پایان ذخیره‌شده کار می‌کند؛ بستن و بازکردن برنامه شمارش معکوس را از صفر شروع نمی‌کند.", color = muted())
+        }
     }
 }
 
 @Composable
-private fun InfoPanel(title: String, description: String) {
-    GlassPanel(Modifier.fillMaxWidth().height(240.dp), title, description, "در حال توسعه")
+private fun FocusCard(data: AppData, now: Long, runtime: DesktopRuntime, modifier: Modifier = Modifier) {
+    val timer = data.timer
+    val remaining = PomodoroEngine.remaining(timer, now)
+    val progress = PomodoroEngine.progress(timer, now)
+    val phaseName = when (timer.phase) {
+        PhaseType.FOCUS -> "زمان تمرکز"
+        PhaseType.SHORT_BREAK -> "استراحت کوتاه"
+        PhaseType.LONG_BREAK -> "استراحت بلند"
+    }
+    Panel(phaseName, modifier) {
+        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PhaseType.entries.forEach { phase ->
+                    val label = when (phase) {
+                        PhaseType.FOCUS -> "تمرکز"
+                        PhaseType.SHORT_BREAK -> "استراحت کوتاه"
+                        PhaseType.LONG_BREAK -> "استراحت بلند"
+                    }
+                    OutlinedButton(onClick = { runtime.selectPhase(phase) }) { Text(label, fontSize = 12.sp) }
+                }
+            }
+            Spacer(Modifier.height(26.dp))
+            Text(timerText(remaining), fontSize = 64.sp, fontWeight = FontWeight.Light, letterSpacing = 1.sp)
+            Spacer(Modifier.height(16.dp))
+            LinearProgressIndicator(progress = progress, modifier = Modifier.fillMaxWidth(.78f).height(7.dp),
+                color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.surfaceVariant)
+            Spacer(Modifier.height(14.dp))
+            Text("دور \${fa(timer.round)} از \${fa(data.settings.rounds)}", color = muted())
+            Spacer(Modifier.height(24.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(onClick = { if (timer.status == TimerStatus.RUNNING) runtime.pause() else runtime.start() }) {
+                    Text(if (timer.status == TimerStatus.RUNNING) "مکث" else if (timer.status == TimerStatus.PAUSED) "ادامه" else "شروع")
+                }
+                OutlinedButton(onClick = runtime::reset) { Text("بازنشانی") }
+                OutlinedButton(onClick = runtime::skip) { Text("رد کردن") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TasksPage(data: AppData, runtime: DesktopRuntime) {
+    var title by remember { mutableStateOf("") }
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Panel("افزودن وظیفه", Modifier.fillMaxWidth()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(value = title, onValueChange = { title = it }, modifier = Modifier.weight(1f),
+                    singleLine = true, label = { Text("عنوان وظیفه") }, shape = RoundedCornerShape(14.dp))
+                Button(onClick = { runtime.addTask(title); title = "" }, enabled = title.isNotBlank()) { Text("افزودن") }
+            }
+        }
+        Panel("فهرست وظایف", Modifier.fillMaxWidth()) {
+            if (data.tasks.isEmpty()) EmptyText("هنوز وظیفه‌ای ثبت نکرده‌ای.")
+            data.tasks.sortedWith(compareBy<Task> { it.done }.thenByDescending { it.createdAt }).forEach { task ->
+                Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = task.done, onCheckedChange = { runtime.setTaskDone(task.id, it) })
+                    Column(Modifier.weight(1f)) {
+                        Text(task.title, fontWeight = FontWeight.Medium, color = if (task.done) muted() else MaterialTheme.colorScheme.onSurface)
+                        Text(if (task.dueDay == null) "بدون سررسید" else "دارای سررسید", color = muted(), fontSize = 11.sp)
+                    }
+                    TextButton(onClick = { runtime.deleteTask(task.id) }) { Text("حذف", color = Color(0xFFE07B7B)) }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .06f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlanningPage(data: AppData) {
+    val today = java.time.LocalDate.now()
+    val jalali = JalaliDate.of(today)
+    val entries = Planner.entriesFor(data, today)
+    Panel("امروز، \${DateFormats.full(today)}", Modifier.fillMaxSize()) {
+        Text(DateFormats.monthYear(jalali), fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+        if (entries.isEmpty()) EmptyText("برای امروز وظیفه یا روتینی در برنامه نیست.")
+        else entries.forEach { entry ->
+            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(8.dp).background(Accent, CircleShape))
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(entry.title, fontWeight = FontWeight.Medium)
+                    Text(if (entry.done) "انجام شده" else "در انتظار انجام", color = muted(), fontSize = 12.sp)
+                }
+                entry.minute?.let { Text(DateFormats.clock(it), color = muted()) }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .06f))
+        }
+        Text("این صفحه از برنامه‌ریز و تاریخ جلالی مشترک پروژه استفاده می‌کند. ویرایش تقویم و روتین‌ها هنوز در رابط دسکتاپ تکمیل نشده است.", color = muted(), fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun StatisticsPage(data: AppData) {
+    var range by remember { mutableStateOf(StatsRange.WEEK) }
+    val summary = Stats.summarize(data, range, java.time.LocalDate.now())
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(StatsRange.DAY to "روز", StatsRange.WEEK to "هفته", StatsRange.MONTH to "ماه").forEach { (r, label) ->
+                if (range == r) Button(onClick = { range = r }) { Text(label) }
+                else OutlinedButton(onClick = { range = r }) { Text(label) }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            MetricCard("زمان تمرکز", "\${fa(summary.focusMinutes)} دقیقه", "در بازه‌ی انتخابی", Modifier.weight(1f))
+            MetricCard("جلسه‌ی کامل", fa(summary.completedSessions), "جلسه", Modifier.weight(1f))
+            MetricCard("روزهای فعال", fa(summary.activeDays), "روز", Modifier.weight(1f))
+        }
+        Panel("روند تمرکز", Modifier.fillMaxWidth()) {
+            if (summary.buckets.all { it.minutes == 0L }) EmptyText("هنوز داده‌ی کافی برای نمودار وجود ندارد.")
+            else summary.buckets.forEach { bucket ->
+                Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(bucket.label, modifier = Modifier.width(48.dp), color = muted())
+                    val max = (summary.buckets.maxOfOrNull { it.minutes } ?: 1L).coerceAtLeast(1L)
+                    Box(Modifier.weight(1f).height(9.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))) {
+                        Box(Modifier.fillMaxWidth((bucket.minutes.toFloat() / max).coerceIn(0f, 1f)).fillMaxHeight()
+                            .background(Accent, RoundedCornerShape(8.dp)))
+                    }
+                    Text("\${fa(bucket.minutes)} دقیقه", modifier = Modifier.width(82.dp), textAlign = TextAlign.End, fontSize = 11.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsPage(data: AppData, runtime: DesktopRuntime, dark: Boolean, onThemeChange: () -> Unit) {
+    Panel("ظاهر و داده‌ها", Modifier.fillMaxWidth()) {
+        Text("پوسته‌ی برنامه", fontWeight = FontWeight.SemiBold)
+        OutlinedButton(onClick = onThemeChange) { Text(if (dark) "تغییر به روشن" else "تغییر به تیره") }
+        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .08f))
+        Text("پشتیبان‌گیری", fontWeight = FontWeight.SemiBold)
+        Text("فایل پشتیبان شامل وظایف، تنظیمات، جلسات و وضعیت تایمر است.", color = muted(), fontSize = 12.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Button(onClick = { exportBackup(runtime) }) { Text("خروجی JSON") }
+            OutlinedButton(onClick = { importBackup(runtime) }) { Text("بازیابی JSON") }
+        }
+        Text("ذخیره‌سازی خودکار در پوشه‌ی اختصاصی MedFlow در پروفایل ویندوز انجام می‌شود.", color = muted(), fontSize = 12.sp)
+        Text("تعداد وظایف: \${fa(data.tasks.size)}  •  جلسات: \${fa(data.sessions.size)}", color = muted(), fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun PlaceholderPage(title: String, message: String) {
+    Panel(title, Modifier.fillMaxWidth().height(240.dp)) { Text(message, color = muted()) }
+}
+
+@Composable
+private fun MetricCard(title: String, value: String, detail: String, modifier: Modifier = Modifier) {
+    Panel(title, modifier.height(132.dp)) {
+        Text(value, fontSize = 27.sp, fontWeight = FontWeight.Bold)
+        Text(detail, color = muted(), fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun Panel(title: String, modifier: Modifier = Modifier, content: @Composable Column.() -> Unit) {
+    Card(modifier = modifier, shape = RoundedCornerShape(23.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = .91f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+        Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            content(this)
+        }
+    }
+}
+
+@Composable
+private fun EmptyText(text: String) {
+    Text(text, color = muted(), fontSize = 13.sp, modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp))
+}
+
+@Composable
+private fun muted(): Color =
+    if (MaterialTheme.colorScheme.background == Color(0xFF10131B)) MutedDark else MutedLight
+
+private fun timerText(ms: Long): String {
+    val seconds = (ms / 1000L).coerceAtLeast(0L)
+    return fa("%02d:%02d".format(seconds / 60, seconds % 60))
+}
+
+private fun fa(value: Any): String = value.toString().map { ch ->
+    if (ch in '0'..'9') ('۰'.code + (ch.code - '0'.code)).toChar() else ch
+}.joinToString("")
+
+private fun exportBackup(runtime: DesktopRuntime) {
+    val chooser = JFileChooser().apply {
+        dialogTitle = "ذخیره‌ی پشتیبان MedFlow"
+        selectedFile = File("MedFlow-backup.json")
+        fileFilter = FileNameExtensionFilter("JSON", "json")
+    }
+    if (chooser.showSaveDialog(null) == JFileChooser.APPROVE_OPTION) {
+        var file = chooser.selectedFile
+        if (!file.name.endsWith(".json", ignoreCase = true)) file = File(file.parentFile, file.name + ".json")
+        file.writeText(runtime.exportJson(), Charsets.UTF_8)
+    }
+}
+
+private fun importBackup(runtime: DesktopRuntime) {
+    val chooser = JFileChooser().apply {
+        dialogTitle = "انتخاب پشتیبان MedFlow"
+        fileFilter = FileNameExtensionFilter("JSON", "json")
+    }
+    if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+        runCatching { runtime.importJson(chooser.selectedFile.readText(Charsets.UTF_8)) }
+    }
 }
