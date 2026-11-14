@@ -1311,17 +1311,65 @@ private fun MusicPage(runtime: DesktopRuntime) {
 private fun SettingsPage(data: AppData, runtime: DesktopRuntime, dark: Boolean, onThemeChange: () -> Unit) {
     var startupEnabled by remember { mutableStateOf(WindowsStartup.isEnabled()) }
     var startupMessage by remember { mutableStateOf("") }
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Panel("ظاهر و داده‌ها", Modifier.fillMaxWidth()) {
-        Text("پوسته‌ی برنامه", fontWeight = FontWeight.SemiBold)
-        OutlinedButton(onClick = onThemeChange) { Text(if (dark) "تغییر به روشن" else "تغییر به تیره") }
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val stacked = maxWidth < 930.dp
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            if (stacked) {
+                AppearanceSettingsPanel(data, runtime, dark, onThemeChange)
+                WindowsSettingsPanel(
+                    data, runtime, startupEnabled, startupMessage,
+                    onStartupChanged = { enabled ->
+                        val success = WindowsStartup.setEnabled(enabled)
+                        startupEnabled = WindowsStartup.isEnabled()
+                        startupMessage = if (success) "تنظیم شروع خودکار ذخیره شد."
+                            else "این گزینه فقط در نسخه‌ی نصب‌شده‌ی ویندوز قابل فعال‌سازی است."
+                    }
+                )
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    AppearanceSettingsPanel(
+                        data, runtime, dark, onThemeChange,
+                        Modifier.weight(1.2f)
+                    )
+                    WindowsSettingsPanel(
+                        data, runtime, startupEnabled, startupMessage,
+                        onStartupChanged = { enabled ->
+                            val success = WindowsStartup.setEnabled(enabled)
+                            startupEnabled = WindowsStartup.isEnabled()
+                            startupMessage = if (success) "تنظیم شروع خودکار ذخیره شد."
+                                else "این گزینه فقط در نسخه‌ی نصب‌شده‌ی ویندوز قابل فعال‌سازی است."
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppearanceSettingsPanel(
+    data: AppData,
+    runtime: DesktopRuntime,
+    dark: Boolean,
+    onThemeChange: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Panel("ظاهر و متریال", modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text("پوسته‌ی برنامه", fontWeight = FontWeight.Medium)
+                Text(if (dark) "تیره‌ی آبی‌ـ‌ذغالی" else "روشن و خنثی", color = muted(), fontSize = 11.sp)
+            }
+            OutlinedButton(onClick = onThemeChange) {
+                Text(if (dark) "تغییر به روشن" else "تغییر به تیره")
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
                 checked = data.settings.animations,
                 onCheckedChange = { enabled ->
@@ -1335,27 +1383,51 @@ private fun SettingsPage(data: AppData, runtime: DesktopRuntime, dark: Boolean, 
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .08f))
         Text("پس‌زمینه", fontWeight = FontWeight.SemiBold)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            listOf("gradient" to "گرادیان", "aurora" to "شفق قطبی", "midnight" to "نیمه‌شب", "dusk" to "غروب", "mica" to "Mica ویندوز").forEach { (id, label) ->
+        Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
+            listOf(
+                "gradient" to "ساده",
+                "aurora" to "شفق",
+                "midnight" to "نیمه‌شب",
+                "dusk" to "غروب",
+                "mica" to "Mica"
+            ).forEach { (id, label) ->
                 val supported = id != "mica" || WindowsBackdrop.isSupported()
-                if (data.settings.wallpaperId == id && data.settings.wallpaperPath == null) Button(onClick = {
-                    runtime.updateSettings { it.copy(wallpaperId = id, wallpaperPath = null) }
-                }, enabled = supported) { Text(label) }
-                else OutlinedButton(onClick = { runtime.updateSettings { it.copy(wallpaperId = id, wallpaperPath = null) } }, enabled = supported) { Text(label) }
+                val selected = data.settings.wallpaperId == id && data.settings.wallpaperPath == null
+                if (selected) {
+                    Button(
+                        onClick = { runtime.updateSettings { it.copy(wallpaperId = id, wallpaperPath = null) } },
+                        enabled = supported,
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 7.dp)
+                    ) { Text(label, fontSize = 11.sp) }
+                } else {
+                    OutlinedButton(
+                        onClick = { runtime.updateSettings { it.copy(wallpaperId = id, wallpaperPath = null) } },
+                        enabled = supported,
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 7.dp)
+                    ) { Text(label, fontSize = 11.sp) }
+                }
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { chooseWallpaper(runtime) }) { Text("انتخاب تصویر شخصی") }
-            if (data.settings.wallpaperPath != null) OutlinedButton(onClick = {
-                runtime.updateSettings { it.copy(wallpaperId = "gradient", wallpaperPath = null) }
-            }) { Text("حذف تصویر شخصی") }
+            if (data.settings.wallpaperPath != null) {
+                OutlinedButton(onClick = {
+                    runtime.updateSettings { it.copy(wallpaperId = "gradient", wallpaperPath = null) }
+                }) { Text("حذف تصویر شخصی") }
+            }
         }
         Text("تیره‌سازی پس‌زمینه", color = muted(), fontSize = 12.sp)
-        Slider(value = data.settings.wallpaperDim, onValueChange = { v ->
-            runtime.updateSettings { it.copy(wallpaperDim = v.coerceIn(0f, .65f)) }
-        }, valueRange = 0f..0.65f)
-        Text("کیفیت افکت شیشه‌ای", color = muted(), fontSize = 12.sp)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Slider(
+            value = data.settings.wallpaperDim,
+            onValueChange = { value ->
+                runtime.updateSettings { it.copy(wallpaperDim = value.coerceIn(0f, .65f)) }
+            },
+            valueRange = 0f..0.65f
+        )
+        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .08f))
+        Text("کیفیت متریال شیشه‌ای", fontWeight = FontWeight.SemiBold)
+        Text("سطح‌های بالاتر از بک‌دراپ Acrylic خود ویندوز استفاده می‌کنند.", color = muted(), fontSize = 11.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
             listOf(
                 GlassQuality.LOW to "عملکرد",
                 GlassQuality.MEDIUM to "متعادل",
@@ -1363,68 +1435,71 @@ private fun SettingsPage(data: AppData, runtime: DesktopRuntime, dark: Boolean, 
                 GlassQuality.ULTRA to "اولترا"
             ).forEach { (quality, label) ->
                 val selected = data.settings.glassQuality == quality
-                if (selected) Button(onClick = {
+                val click = {
                     runtime.updateSettings {
                         it.copy(
                             glassQuality = quality,
                             glassBlurDp = when (quality) {
                                 GlassQuality.LOW -> 0
-                                GlassQuality.MEDIUM -> 12
-                                GlassQuality.HIGH -> 20
-                                GlassQuality.ULTRA -> 28
+                                GlassQuality.MEDIUM -> 8
+                                GlassQuality.HIGH -> 16
+                                GlassQuality.ULTRA -> 24
                             },
                             glassShine = when (quality) {
                                 GlassQuality.LOW -> .12f
-                                GlassQuality.MEDIUM -> .42f
-                                GlassQuality.HIGH -> .72f
-                                GlassQuality.ULTRA -> .92f
+                                GlassQuality.MEDIUM -> .38f
+                                GlassQuality.HIGH -> .68f
+                                GlassQuality.ULTRA -> .9f
                             }
                         )
                     }
-                }) { Text(label) }
-                else OutlinedButton(onClick = {
-                    runtime.updateSettings {
-                        it.copy(
-                            glassQuality = quality,
-                            glassBlurDp = when (quality) {
-                                GlassQuality.LOW -> 0
-                                GlassQuality.MEDIUM -> 12
-                                GlassQuality.HIGH -> 20
-                                GlassQuality.ULTRA -> 28
-                            },
-                            glassShine = when (quality) {
-                                GlassQuality.LOW -> .12f
-                                GlassQuality.MEDIUM -> .42f
-                                GlassQuality.HIGH -> .72f
-                                GlassQuality.ULTRA -> .92f
-                            }
-                        )
+                }
+                if (selected) {
+                    Button(onClick = click, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 7.dp)) {
+                        Text(label, fontSize = 11.sp)
                     }
-                }) { Text(label) }
+                } else {
+                    OutlinedButton(onClick = click, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 7.dp)) {
+                        Text(label, fontSize = 11.sp)
+                    }
+                }
             }
         }
         Text("شفافیت پنل‌ها", color = muted(), fontSize = 12.sp)
-        Slider(value = data.settings.glassOpacity, onValueChange = { v ->
-            runtime.updateSettings { it.copy(glassOpacity = v.coerceIn(.55f, 1f)) }
-        }, valueRange = .55f..1f)
-        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .08f))
-        Text("رفتار ویندوز", fontWeight = FontWeight.SemiBold)
+        Slider(
+            value = data.settings.glassOpacity,
+            onValueChange = { value ->
+                runtime.updateSettings { it.copy(glassOpacity = value.coerceIn(.55f, 1f)) }
+            },
+            valueRange = .55f..1f
+        )
+    }
+}
+
+@Composable
+private fun WindowsSettingsPanel(
+    data: AppData,
+    runtime: DesktopRuntime,
+    startupEnabled: Boolean,
+    startupMessage: String,
+    onStartupChanged: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Panel("ویندوز و داده‌ها", modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
                 checked = startupEnabled,
                 enabled = WindowsStartup.isSupported() && (!startupEnabled || WindowsStartup.executablePath() != null),
-                onCheckedChange = { enabled ->
-                    val success = WindowsStartup.setEnabled(enabled)
-                    startupEnabled = WindowsStartup.isEnabled()
-                    startupMessage = if (success) "تنظیم شروع خودکار ذخیره شد." else "این گزینه فقط در نسخه‌ی نصب‌شده‌ی ویندوز قابل فعال‌سازی است."
-                }
+                onCheckedChange = onStartupChanged
             )
-            Column(Modifier.weight(1f)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text("اجرای خودکار هنگام ورود به ویندوز")
                 Text("فقط برای حساب کاربری فعلی ویندوز", color = muted(), fontSize = 11.sp)
             }
         }
-        if (startupMessage.isNotBlank()) Text(startupMessage, color = muted(), fontSize = 11.sp)
+        if (startupMessage.isNotBlank()) {
+            Text(startupMessage, color = muted(), fontSize = 11.sp)
+        }
         HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .08f))
         Text("پشتیبان‌گیری", fontWeight = FontWeight.SemiBold)
         Text("فایل پشتیبان شامل وظایف، تنظیمات، جلسات و وضعیت تایمر است.", color = muted(), fontSize = 12.sp)
@@ -1432,8 +1507,17 @@ private fun SettingsPage(data: AppData, runtime: DesktopRuntime, dark: Boolean, 
             Button(onClick = { exportBackup(runtime) }) { Text("خروجی JSON") }
             OutlinedButton(onClick = { importBackup(runtime) }) { Text("بازیابی JSON") }
         }
-        Text("ذخیره‌سازی خودکار در پوشه‌ی اختصاصی MedFlow در پروفایل ویندوز انجام می‌شود.", color = muted(), fontSize = 12.sp)
-        Text("تعداد وظایف: ${fa(data.tasks.size)}  •  جلسات: ${fa(data.sessions.size)}", color = muted(), fontSize = 12.sp)
+        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .08f))
+        Text("ذخیره‌سازی خودکار در پوشه‌ی اختصاصی MedFlow انجام می‌شود.", color = muted(), fontSize = 12.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(fa(data.tasks.size), fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
+                Text("وظیفه", color = muted(), fontSize = 11.sp)
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(fa(data.sessions.size), fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
+                Text("جلسه", color = muted(), fontSize = 11.sp)
+            }
         }
     }
 }
