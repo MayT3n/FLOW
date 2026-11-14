@@ -690,7 +690,7 @@ private fun FocusCard(data: AppData, now: Long, runtime: DesktopRuntime, modifie
     val selectedTask = data.tasks.firstOrNull { it.id == timer.taskId }
     val remaining = PomodoroEngine.remaining(timer, now)
     val progress = PomodoroEngine.progress(timer, now)
-    val animatedProgress by androidx.compose.animation.animateFloatAsState(
+    val animatedProgress by androidx.compose.animation.core.animateFloatAsState(
         targetValue = progress.coerceIn(0f, 1f),
         animationSpec = if (LocalDesktopSettings.current.animations)
             androidx.compose.animation.core.tween(durationMillis = 220)
