@@ -70,6 +70,8 @@ import com.flow.focus.data.WallpaperFit
 import com.flow.focus.ui.theme.Flow
 import com.flow.focus.ui.theme.FlowColors
 import com.flow.focus.ui.theme.LocalGlass
+import com.flow.focus.ui.theme.LocalWallpaperPlan
+import com.flow.focus.ui.theme.WallpaperPlan
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.PI
@@ -128,38 +130,12 @@ fun DrawScope.drawFlowBackground(c: FlowColors, phase: Float, w: Float, h: Float
 }
 
 private fun DrawScope.drawBuiltinWallpaper(c: FlowColors, phase: Float, w: Float, h: Float, id: String) {
-    if (id == "gradient" || id == "custom") {
+    val wallpaper = BuiltinWallpapers.find(id)
+    if (wallpaper == null) {
         drawFlowBackground(c, phase, w, h)
         return
     }
-    val palette = when {
-        !c.isDark && id == "aurora" -> listOf(Color(0xFFE8F4F8), Color(0xFFDCEAF5), Color(0xFFE8E4F4))
-        !c.isDark && id == "midnight" -> listOf(Color(0xFFE7EDF5), Color(0xFFDCE5F0), Color(0xFFD2DEEC))
-        !c.isDark && id == "dusk" -> listOf(Color(0xFFF4E8EC), Color(0xFFE9DDE9), Color(0xFFDCE6F2))
-        id == "aurora" -> listOf(Color(0xFF07172B), Color(0xFF173B59), Color(0xFF382B65))
-        id == "midnight" -> listOf(Color(0xFF070D1B), Color(0xFF172A42), Color(0xFF26364B))
-        id == "dusk" -> listOf(Color(0xFF241B37), Color(0xFF69435E), Color(0xFF273D5C))
-        else -> listOf(c.bgTop, c.bgMid, c.bgBottom)
-    }
-    drawRect(Brush.verticalGradient(palette, startY = 0f, endY = h), size = androidx.compose.ui.geometry.Size(w, h))
-    val motion = phase * 2f * PI.toFloat()
-    val glow = when {
-        !c.isDark && id == "aurora" -> Color(0xFF70BFCB)
-        !c.isDark && id == "midnight" -> Color(0xFF799AC5)
-        !c.isDark -> Color(0xFFC58BA8)
-        id == "aurora" -> Color(0xFF68C8D6)
-        id == "midnight" -> Color(0xFF547DB4)
-        else -> Color(0xFFD18B9A)
-    }
-    val center = Offset(w * (0.78f + 0.04f * cos(motion)), h * 0.2f)
-    drawCircle(
-        Brush.radialGradient(listOf(glow.copy(alpha = 0.36f), glow.copy(alpha = 0f)), center = center, radius = w * 0.78f),
-        radius = w * 0.78f, center = center,
-    )
-    drawCircle(
-        Brush.radialGradient(listOf(c.blobB.copy(alpha = 0.26f), Color.Transparent), center = Offset(w * 0.1f, h * 0.84f), radius = w * 0.72f),
-        radius = w * 0.72f, center = Offset(w * 0.1f, h * 0.84f),
-    )
+    drawLook(wallpaper.look(c.isDark), phase, w, h, c.accent)
 }
 
 private fun DrawScope.drawWallpaperImage(image: ImageBitmap, w: Float, h: Float, fit: WallpaperFit, fallback: Color) {
@@ -182,16 +158,15 @@ private fun DrawScope.drawBackdrop(
     h: Float,
     image: ImageBitmap?,
     settings: Settings,
+    plan: WallpaperPlan,
 ) {
     if (settings.wallpaperId == "custom" && image != null) {
         drawWallpaperImage(image, w, h, settings.wallpaperFit, c.bgBottom)
     } else {
         drawBuiltinWallpaper(c, phase, w, h, settings.wallpaperId)
     }
-    if (c.isDark && settings.wallpaperId != "gradient" && settings.wallpaperDim > 0f) {
-        // Light mode keeps photographs and wallpapers untouched; a white scrim washes out their color.
-        drawRect(Color.Black.copy(alpha = settings.wallpaperDim.coerceIn(0f, 0.65f)))
-    }
+    // پرده‌ی تطبیقی موتور والپیپر: تیره در تم تاریک، روشن در تم روشن؛ فقط به اندازه‌ی لازم برای خوانایی.
+    if (plan.scrimAlpha > 0.002f) drawRect(plan.scrimColor.copy(alpha = plan.scrimAlpha.coerceIn(0f, 0.8f)))
 }
 
 /** Samples a compact grid once per wallpaper change to give glass a subtle matching tint. */
@@ -258,7 +233,7 @@ private fun builtinWallpaperPalette(id: String): List<Color> = when (id) {
     else -> listOf(Color(0xFF77899D), Color(0xFF789D9A), Color(0xFF8C80A8))
 }
 
-private fun decodeStoredWallpaper(context: Context, path: String): Bitmap? {
+internal fun decodeStoredWallpaper(context: Context, path: String, maxDimension: Int = MAX_WALLPAPER_DIMENSION): Bitmap? {
     val candidate = File(path).canonicalFile
     val allowedDirectory = File(context.filesDir, "wallpapers").canonicalFile
     if (
@@ -273,7 +248,7 @@ private fun decodeStoredWallpaper(context: Context, path: String): Bitmap? {
     if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
 
     var sampleSize = 1
-    while (maxOf(bounds.outWidth / sampleSize, bounds.outHeight / sampleSize) > MAX_WALLPAPER_DIMENSION) {
+    while (maxOf(bounds.outWidth / sampleSize, bounds.outHeight / sampleSize) > maxDimension) {
         sampleSize *= 2
     }
     return BitmapFactory.decodeFile(
@@ -315,6 +290,7 @@ fun GlassBackdropHost(
     val tone = remember { mutableStateOf<Color?>(null) }
     val palette = remember { mutableStateOf(builtinWallpaperPalette(settings.wallpaperId)) }
     val layer = rememberGraphicsLayer()
+    val wallpaperPlan = LocalWallpaperPlan.current
 
     LaunchedEffect(settings.wallpaperId, settings.wallpaperPath) {
         val path = settings.wallpaperPath
@@ -369,7 +345,7 @@ fun GlassBackdropHost(
                         } else null
                     },
                 ) {
-                    drawBackdrop(c, phase.value, this.size.width, this.size.height, image.value, settings)
+                    drawBackdrop(c, phase.value, this.size.width, this.size.height, image.value, settings, wallpaperPlan.value)
                 }
                 source()
             }
@@ -408,36 +384,22 @@ fun GlassSurface(
         GlassLevel.Regular -> 0.88f
         GlassLevel.Strong -> 1f
     }
+    val wallpaperPlan = LocalWallpaperPlan.current
     var origin by remember { mutableStateOf(Offset.Zero) }
 
-    val wallpaperTone = rootBackdrop?.tone?.value
-    val wallpaperLuminance = wallpaperTone?.let { tone ->
-        0.2126f * tone.red + 0.7152f * tone.green + 0.0722f * tone.blue
-    }
-    // Bright wallpaper needs a slightly stronger dark surface, while dark wallpaper
-    // needs a little more light glass. Only the difficult extremes receive this boost.
-    val contrastBoost = when {
-        c.isDark && wallpaperLuminance != null && wallpaperLuminance > 0.58f -> 0.12f
-        !c.isDark && wallpaperLuminance != null && wallpaperLuminance > 0.72f -> 0.05f
-        !c.isDark && wallpaperLuminance != null && wallpaperLuminance < 0.30f -> 0.08f
-        !c.isDark && wallpaperLuminance != null -> 0f
-        else -> 0f
-    }
     val baseFill = when {
         g.quality == GlassQuality.LOW -> c.glassFillStrong
         level == GlassLevel.Strong -> c.glassFillStrong
         level == GlassLevel.Subtle -> c.glassFill.copy(alpha = c.glassFill.alpha * 0.82f)
         else -> c.glassFill
-    }.let { surface -> surface.copy(alpha = (surface.alpha + contrastBoost).coerceAtMost(0.76f)) }
+    }
     val fill = baseFill.copy(alpha = (baseFill.alpha * g.opacity.coerceIn(0.65f, 1.18f)).coerceIn(0f, 0.88f))
     val shine = if (g.quality == GlassQuality.LOW) 0.15f else g.shine
     val animationSpec = if (g.animations) tween<Color>(220) else snap()
     val targetTint = tint?.copy(alpha = 0.16f) ?: Color.Transparent
-    val paletteTint = rootBackdrop?.palette?.value?.firstOrNull() ?: rootBackdrop?.tone?.value
-    val paletteOverlay = paletteTint?.copy(alpha = if (c.isDark) 0.06f else 0.025f) ?: Color.Transparent
     // Fill, wallpaper tint and surface tint are alpha-composited into ONE color (compositing is associative),
     // so every surface runs a single color animator and a single drawRect instead of three of each.
-    val layerColor = targetTint.compositeOver(paletteOverlay.compositeOver(fill))
+    val layerColor = targetTint.compositeOver(fill)
     val animatedFill by animateColorAsState(layerColor, animationSpec, label = "glass-layer")
     val animatedShine by animateFloatAsState(
         targetValue = shine,
@@ -484,7 +446,7 @@ fun GlassSurface(
                             if (liveLayer != null) {
                                 drawLayer(liveLayer)
                             } else {
-                                drawBackdrop(c, frame.surfacePhase.value, s.width.toFloat(), s.height.toFloat(), frame.image.value, frame.settings)
+                                drawBackdrop(c, frame.surfacePhase.value, s.width.toFloat(), s.height.toFloat(), frame.image.value, frame.settings, wallpaperPlan.value)
                             }
                         }
                     },

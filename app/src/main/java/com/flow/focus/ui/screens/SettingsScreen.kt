@@ -89,6 +89,8 @@ import com.flow.focus.ui.glass.LocalRootBackdrop
 import com.flow.focus.ui.glass.GlassSurface
 import com.flow.focus.ui.glass.springClick
 import com.flow.focus.ui.theme.Flow
+import com.flow.focus.ui.glass.BuiltinWallpapers
+import com.flow.focus.ui.theme.perceptual
 import com.flow.focus.ui.theme.LocalDockContentPadding
 import com.flow.focus.ui.theme.LocalGlass
 import java.time.LocalDate
@@ -162,22 +164,21 @@ private fun WallpaperOption(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    val palette = when (id) {
-        "aurora" -> listOf(Color(0xFF101B39), Color(0xFF514080), Color(0xFF132E4E))
-        "midnight" -> listOf(Color(0xFF080F20), Color(0xFF1D2D45), Color(0xFF334B62))
-        "dusk" -> listOf(Color(0xFF30213F), Color(0xFF76506D), Color(0xFF293B59))
-        "gradient" -> listOf(Flow.colors.bgTop, Flow.colors.bgMid, Flow.colors.bgBottom)
-        else -> listOf(Color(0xFF18233F), Color(0xFF34466B), Color(0xFF242C4D))
-    }
+    val isDark = Flow.colors.isDark
+    val look = BuiltinWallpapers.find(id)?.look(isDark)
+    val palette = look?.stops ?: if (id == "gradient") listOf(Flow.colors.bgTop, Flow.colors.bgMid, Flow.colors.bgBottom)
+        else listOf(Color(0xFF18233F), Color(0xFF34466B), Color(0xFF242C4D))
+    // برچسب باید روی هر دو تم خوانا باشد؛ روی پس‌زمینه‌ی روشن، متن تیره.
+    val labelColor = if (palette[1].perceptual() > 0.62f) Color(0xFF14202E) else Color.White
     Box(
         modifier.height(76.dp).clip(RoundedCornerShape(17.dp))
             .background(Brush.verticalGradient(palette))
-            .border(if (selected) 2.dp else 1.dp, if (selected) Flow.colors.accent else Color.White.copy(alpha = 0.22f), RoundedCornerShape(17.dp))
+            .border(if (selected) 2.dp else 1.dp, if (selected) Flow.colors.accent else Color.White.copy(alpha = 0.35f), RoundedCornerShape(17.dp))
             .semantics { this.selected = selected }
             .springClick(role = Role.RadioButton, scaleDown = 0.97f, onClick = onClick),
         contentAlignment = Alignment.BottomStart,
     ) {
-        Text(label, Modifier.padding(horizontal = 9.dp, vertical = 7.dp), style = Flow.type.caption, color = Color.White, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        Text(label, Modifier.padding(horizontal = 9.dp, vertical = 7.dp), style = Flow.type.caption, color = labelColor, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
     }
 }
 
@@ -197,13 +198,9 @@ private fun WallpaperPreviewSurface(
             }
         } else null
     }
-    val palette = when (id) {
-        "aurora" -> listOf(Color(0xFF07172B), Color(0xFF173B59), Color(0xFF382B65))
-        "midnight" -> listOf(Color(0xFF070D1B), Color(0xFF172A42), Color(0xFF26364B))
-        "dusk" -> listOf(Color(0xFF241B37), Color(0xFF69435E), Color(0xFF273D5C))
-        "gradient" -> listOf(Flow.colors.bgTop, Flow.colors.bgMid, Flow.colors.bgBottom)
-        else -> listOf(Color(0xFF18233F), Color(0xFF34466B), Color(0xFF242C4D))
-    }
+    val palette = BuiltinWallpapers.find(id)?.look(Flow.colors.isDark)?.stops
+        ?: if (id == "gradient") listOf(Flow.colors.bgTop, Flow.colors.bgMid, Flow.colors.bgBottom)
+        else listOf(Color(0xFF18233F), Color(0xFF34466B), Color(0xFF242C4D))
     Box(
         Modifier.fillMaxWidth().height(176.dp).clip(RoundedCornerShape(22.dp))
             .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(22.dp)),
@@ -225,7 +222,7 @@ private fun WallpaperPreviewSurface(
                     contentScale = if (fit == WallpaperFit.CROP) ContentScale.Crop else ContentScale.Fit,
                 )
             }
-            if (id != "gradient" && dim > 0f) {
+            if (id != "gradient" && dim > 0f && Flow.colors.isDark) {
                 Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = dim.coerceIn(0f, 0.65f))))
             }
         }
@@ -418,9 +415,9 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 WallpaperOption("gradient", "اصلی", st.wallpaperId == "gradient", Modifier.width(70.dp)) { wallpaperPreviewId = "gradient" }
-                WallpaperOption("aurora", "شفق", st.wallpaperId == "aurora", Modifier.width(70.dp)) { wallpaperPreviewId = "aurora" }
-                WallpaperOption("midnight", "نیمه‌شب", st.wallpaperId == "midnight", Modifier.width(70.dp)) { wallpaperPreviewId = "midnight" }
-                WallpaperOption("dusk", "غروب", st.wallpaperId == "dusk", Modifier.width(70.dp)) { wallpaperPreviewId = "dusk" }
+                BuiltinWallpapers.all.forEach { w ->
+                    WallpaperOption(w.id, w.label, st.wallpaperId == w.id, Modifier.width(70.dp)) { wallpaperPreviewId = w.id }
+                }
                 if (!st.wallpaperPath.isNullOrBlank()) {
                     WallpaperOption("custom", "شخصی", st.wallpaperId == "custom", Modifier.width(70.dp)) { wallpaperPreviewId = "custom" }
                 }
@@ -581,10 +578,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             Text(
                 when (previewId) {
                     "gradient" -> "پس‌زمینه‌ی گرادیانی اصلی MatFocus"
-                    "aurora" -> "طیف آبی و بنفش با نور نرم"
-                    "midnight" -> "رنگ‌های تیره و آرام"
-                    "dusk" -> "ترکیب گرم غروب و آبی تیره"
-                    else -> "تصویر انتخاب‌شده از گالری"
+                    else -> BuiltinWallpapers.find(previewId)?.description ?: "تصویر انتخاب‌شده از گالری"
                 },
                 style = Flow.type.caption,
                 color = Flow.colors.textSecondary,

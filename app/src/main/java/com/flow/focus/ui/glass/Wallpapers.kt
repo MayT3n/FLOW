@@ -1,0 +1,96 @@
+package com.flow.focus.ui.glass
+
+import androidx.compose.runtime.Immutable
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
+
+/** ظاهر یک پس‌زمینه‌ی داخلی در یک تم: سه ایستگاه گرادیان عمودی و دو نور رنگی. */
+@Immutable
+class WallpaperLook(
+    val stops: List<Color>,
+    val glow: Color,
+    val glow2: Color,
+    val glowAlpha: Float = 0.36f,
+)
+
+/** پس‌زمینه‌ی داخلی؛ برای هر تم (روشن/تاریک) یک طراحی جداگانه دارد، نه یک نسخه‌ی وارونه. */
+@Immutable
+class BuiltinWallpaper(
+    val id: String,
+    val label: String,
+    val description: String,
+    val dark: WallpaperLook,
+    val light: WallpaperLook,
+) {
+    fun look(isDark: Boolean) = if (isDark) dark else light
+}
+
+object BuiltinWallpapers {
+    val all: List<BuiltinWallpaper> = listOf(
+        BuiltinWallpaper(
+            "aurora", "شفق", "طیف آبی و بنفش با نور نرم",
+            dark = WallpaperLook(listOf(Color(0xFF07172B), Color(0xFF173B59), Color(0xFF382B65)), Color(0xFF68C8D6), Color(0xFF6B7DD1)),
+            light = WallpaperLook(listOf(Color(0xFFE8F4F8), Color(0xFFDCEAF5), Color(0xFFE8E4F4)), Color(0xFF70BFCB), Color(0xFFB9A8E0)),
+        ),
+        BuiltinWallpaper(
+            "midnight", "نیمه‌شب", "رنگ‌های تیره و آرام",
+            dark = WallpaperLook(listOf(Color(0xFF070D1B), Color(0xFF172A42), Color(0xFF26364B)), Color(0xFF547DB4), Color(0xFF7D8FA8)),
+            light = WallpaperLook(listOf(Color(0xFFE7EDF5), Color(0xFFDCE5F0), Color(0xFFD2DEEC)), Color(0xFF799AC5), Color(0xFFA9B8D0)),
+        ),
+        BuiltinWallpaper(
+            "dusk", "غروب", "ترکیب گرم غروب و آبی تیره",
+            dark = WallpaperLook(listOf(Color(0xFF241B37), Color(0xFF69435E), Color(0xFF273D5C)), Color(0xFFD18B9A), Color(0xFF9C739A)),
+            light = WallpaperLook(listOf(Color(0xFFF4E8EC), Color(0xFFE9DDE9), Color(0xFFDCE6F2)), Color(0xFFC58BA8), Color(0xFFB6A0D0)),
+        ),
+        BuiltinWallpaper(
+            "ocean", "اقیانوس", "آبی‌سبز عمیق با درخشش آب",
+            dark = WallpaperLook(listOf(Color(0xFF04202B), Color(0xFF0B4A5E), Color(0xFF0D2F4F)), Color(0xFF2EC4B6), Color(0xFF3A86FF)),
+            light = WallpaperLook(listOf(Color(0xFFE6F7F6), Color(0xFFD5EEF2), Color(0xFFD7E6F7)), Color(0xFF4CC9C0), Color(0xFF7FB2F0)),
+        ),
+        BuiltinWallpaper(
+            "ember", "آتش", "سرخ و نارنجی گرم با نور زغال",
+            dark = WallpaperLook(listOf(Color(0xFF2A1410), Color(0xFF6B2E22), Color(0xFF3A1F36)), Color(0xFFFF8A5B), Color(0xFFE5527A)),
+            light = WallpaperLook(listOf(Color(0xFFFCEFE6), Color(0xFFF8E1D6), Color(0xFFF3DCE4)), Color(0xFFFFA177), Color(0xFFEE8FA8)),
+        ),
+        BuiltinWallpaper(
+            "forest", "جنگل", "سبز نعنایی با سایه‌ی آبی",
+            dark = WallpaperLook(listOf(Color(0xFF0A1F18), Color(0xFF1B4A3A), Color(0xFF1F3347)), Color(0xFF5ED6A0), Color(0xFF7FB77E)),
+            light = WallpaperLook(listOf(Color(0xFFEAF6EE), Color(0xFFDDEFE4), Color(0xFFDDE9F0)), Color(0xFF7BD3A8), Color(0xFFA8CF8A)),
+        ),
+    )
+
+    val ids: Set<String> = all.map { it.id }.toSet()
+
+    fun find(id: String): BuiltinWallpaper? = all.firstOrNull { it.id == id }
+
+    /** شناسه‌های مجاز برای ذخیره‌سازی تنظیمات. */
+    val allowedIds: Set<String> = ids + setOf("gradient", "custom")
+}
+
+/** رسم پس‌زمینه‌ی داخلی [wallpaper] با طراحی مخصوص تم فعلی. */
+internal fun DrawScope.drawLook(look: WallpaperLook, phase: Float, w: Float, h: Float, accentBloom: Color) {
+    drawRect(Brush.verticalGradient(look.stops, startY = 0f, endY = h), size = Size(w, h))
+    val motion = phase * 2f * PI.toFloat()
+    val c1 = Offset(w * (0.78f + 0.04f * cos(motion)), h * (0.2f + 0.015f * sin(motion)))
+    drawCircle(
+        Brush.radialGradient(listOf(look.glow.copy(alpha = look.glowAlpha), look.glow.copy(alpha = 0f)), center = c1, radius = w * 0.78f),
+        radius = w * 0.78f, center = c1,
+    )
+    val c2 = Offset(w * (0.1f + 0.03f * sin(motion)), h * 0.84f)
+    drawCircle(
+        Brush.radialGradient(listOf(look.glow2.copy(alpha = look.glowAlpha * 0.72f), Color.Transparent), center = c2, radius = w * 0.72f),
+        radius = w * 0.72f, center = c2,
+    )
+    // نور سوم، بسیار ملایم، در پایین‌ِ وسط؛ عمق افق را می‌سازد
+    val c3 = Offset(w * 0.55f, h * 1.02f)
+    drawCircle(
+        Brush.radialGradient(listOf(accentBloom.copy(alpha = 0.14f), Color.Transparent), center = c3, radius = w * 0.9f),
+        radius = w * 0.9f, center = c3,
+    )
+}

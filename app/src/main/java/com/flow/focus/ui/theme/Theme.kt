@@ -2,6 +2,12 @@ package com.flow.focus.ui.theme
 
 import android.content.Context
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import com.flow.focus.ui.glass.decodeStoredWallpaper
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
@@ -196,7 +202,24 @@ fun FlowTheme(settings: Settings, content: @Composable () -> Unit) {
     var systemAnimations by remember { mutableStateOf(systemAnimationsEnabled(ctx)) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { systemAnimations = systemAnimationsEnabled(ctx) }
     val animations = settings.animations && systemAnimations
-    val colors = animateFlowColors(if (dark) DarkColors else LightColors, animations)
+    val base = if (dark) DarkColors else LightColors
+    // پروفایل تصویر شخصی از نمونه‌ی کوچک (۲۵۶px) خارج از رشته‌ی UI ساخته می‌شود.
+    var customProfile by remember { mutableStateOf<WallpaperProfile?>(null) }
+    LaunchedEffect(settings.wallpaperId, settings.wallpaperPath) {
+        val path = settings.wallpaperPath
+        customProfile = if (settings.wallpaperId == "custom" && !path.isNullOrBlank()) {
+            withContext(Dispatchers.IO) {
+                runCatching { decodeStoredWallpaper(ctx.applicationContext, path, 256)?.let { sampleProfile(it) } }.getOrNull()
+            }
+        } else null
+    }
+    val profile = customProfile?.takeIf { settings.wallpaperId == "custom" } ?: builtinProfile(settings.wallpaperId, base)
+    val baseDim = if (settings.wallpaperId == "gradient") 0f else settings.wallpaperDim
+    val plan = remember(profile, dark, baseDim) { planFor(profile, base, baseDim) }
+    val adapted = remember(profile, plan, dark) { adaptColors(base, profile, plan) }
+    val colors = animateFlowColors(adapted, animations)
+    val scrimAlpha = animateFloatAsState(plan.scrimAlpha, if (animations) tween(Motion.ThemeSwitch) else snap(), label = "scrim")
+    val planState = remember(plan) { derivedStateOf { plan.copy(scrimAlpha = scrimAlpha.value) } }
     val family = remember { loadFontFamily(ctx) }
     val type = remember(family) { FlowTypography(family) }
     val cap = remember { GlassGovernor.deviceCap(ctx) }
@@ -208,6 +231,7 @@ fun FlowTheme(settings: Settings, content: @Composable () -> Unit) {
             LocalFlowColors provides colors,
             LocalFlowType provides type,
             LocalGlass provides glass,
+            LocalWallpaperPlan provides planState,
             LocalPersianDigits provides settings.persianDigits,
             LocalLayoutDirection provides LayoutDirection.Rtl,
             content = content,
