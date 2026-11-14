@@ -66,6 +66,35 @@ class NotificationHelper(private val ctx: Context) {
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 
+    /** رنگ هر فاز؛ هم رنگ اعلان و هم حلقه‌ی آیکون بزرگ است. */
+    private fun phaseColor(p: PhaseType): Int = when (p) {
+        PhaseType.FOCUS -> 0xFF79A9E4.toInt()
+        PhaseType.SHORT_BREAK -> 0xFF55B98A.toInt()
+        PhaseType.LONG_BREAK -> 0xFFB48CE0.toInt()
+    }
+
+    /** آیکون بزرگ: حلقه‌ی رنگی فاز با نقطه‌ی درخشان، مشابه حلقه‌ی تایمر داخل برنامه. */
+    private fun ringBitmap(color: Int, sweep: Float): android.graphics.Bitmap {
+        val size = 192
+        val bmp = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val c = android.graphics.Canvas(bmp)
+        val stroke = size * 0.1f
+        val pad = stroke / 2f + 6f
+        val rect = android.graphics.RectF(pad, pad, size - pad, size - pad)
+        val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            style = android.graphics.Paint.Style.STROKE; strokeWidth = stroke; strokeCap = android.graphics.Paint.Cap.ROUND
+        }
+        p.color = (color and 0x00FFFFFF) or 0x33000000
+        c.drawArc(rect, 0f, 360f, false, p)
+        p.color = color
+        c.drawArc(rect, -90f, sweep.coerceIn(8f, 360f), false, p)
+        val f = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { this.color = (color and 0x00FFFFFF) or 0x55000000 }
+        c.drawCircle(size / 2f, size / 2f, size * 0.2f, f)
+        f.color = color
+        c.drawCircle(size / 2f, size / 2f, size * 0.1f, f)
+        return bmp
+    }
+
     fun phaseTitle(p: PhaseType) = when (p) {
         PhaseType.FOCUS -> "زمان تمرکز"
         PhaseType.SHORT_BREAK -> "استراحت کوتاه"
@@ -84,6 +113,9 @@ class NotificationHelper(private val ctx: Context) {
             .setSmallIcon(R.drawable.ic_stat_flow)
             .setContentTitle(phaseTitle(state.phase))
             .setContentText(taskTitle ?: "MatFocus")
+            .setSubText("MatFocus")
+            .setColor(phaseColor(state.phase))
+            .setLargeIcon(ringBitmap(phaseColor(state.phase), 300f))
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setSilent(true)
@@ -103,6 +135,9 @@ class NotificationHelper(private val ctx: Context) {
         val mins = (state.remainingMs + 59_999) / 60_000
         val b = NotificationCompat.Builder(ctx, CH_RUNNING)
             .setSmallIcon(R.drawable.ic_stat_flow)
+            .setSubText("MatFocus")
+            .setColor(phaseColor(state.phase))
+            .setLargeIcon(ringBitmap(phaseColor(state.phase), 150f))
             .setContentTitle(phaseTitle(state.phase) + " — متوقف")
             .setContentText((taskTitle ?: "MatFocus") + " · حدود $mins دقیقه مانده")
             .setOngoing(true)
@@ -127,6 +162,10 @@ class NotificationHelper(private val ctx: Context) {
             .setSmallIcon(R.drawable.ic_stat_flow)
             .setContentTitle(title)
             .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setSubText("MatFocus")
+            .setColor(phaseColor(next))
+            .setLargeIcon(ringBitmap(phaseColor(finished), 360f))
             .setAutoCancel(true)
             .setCategory(NotificationCompat.CATEGORY_EVENT)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -140,6 +179,10 @@ class NotificationHelper(private val ctx: Context) {
             .setSmallIcon(R.drawable.ic_stat_flow)
             .setContentTitle("یادآوری وظیفه")
             .setContentText(task.title)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(task.title))
+            .setSubText("MatFocus")
+            .setColor(phaseColor(PhaseType.FOCUS))
+            .setLargeIcon(ringBitmap(phaseColor(PhaseType.FOCUS), 360f))
             .setAutoCancel(true)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setPriority(NotificationCompat.PRIORITY_HIGH)

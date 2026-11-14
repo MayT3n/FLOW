@@ -19,6 +19,8 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -126,6 +128,7 @@ private fun RequestNotificationPermission(wanted: Boolean) {
 private fun AppScaffold(vm: AppViewModel, data: AppData) {
     var tab by rememberSaveable { mutableStateOf(0) }
     var musicOpen by rememberSaveable { mutableStateOf(false) }
+    var miniCollapsed by rememberSaveable { mutableStateOf(false) }
     val music by vm.musicSnapshot.collectAsStateWithLifecycle()
     var dockAreaHeightPx by rememberSaveable { mutableStateOf(0) }
     val contentBottomPadding = with(LocalDensity.current) {
@@ -179,8 +182,25 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
                 verticalArrangement = Arrangement.spacedBy(9.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                if (music.connected && music.currentTrackId != null) {
-                    MiniMusicPlayer(vm, music, onOpen = { musicOpen = true })
+                val hasTrack = music.connected && music.currentTrackId != null
+                // سه حالت: نوار مینی (پیش‌فرض با آهنگ فعال)، دایره‌ی کوچک‌شده، و پلیر کامل.
+                AnimatedContent(
+                    targetState = if (hasTrack && !miniCollapsed) 0 else 1,
+                    modifier = Modifier.fillMaxWidth(),
+                    transitionSpec = {
+                        (fadeIn(Motion.enter(Motion.Medium)) + scaleIn(Motion.enter(Motion.Long), initialScale = 0.88f)) togetherWith
+                            (fadeOut(Motion.exit(Motion.Short)) + scaleOut(Motion.exit(Motion.Short), targetScale = 0.9f))
+                    },
+                    contentAlignment = Alignment.CenterEnd,
+                    label = "mini-music",
+                ) { mode ->
+                    if (mode == 0) {
+                        MiniMusicPlayer(vm, music, onOpen = { musicOpen = true }, onCollapse = { miniCollapsed = true })
+                    } else {
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                            MusicChip(vm, music, onClick = { if (hasTrack) miniCollapsed = false else musicOpen = true })
+                        }
+                    }
                 }
                 FlowDock(dockItems, tab, { tab = it }, Modifier.fillMaxWidth())
             }

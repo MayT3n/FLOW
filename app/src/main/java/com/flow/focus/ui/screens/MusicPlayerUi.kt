@@ -32,6 +32,8 @@ import com.flow.focus.music.MusicTrack
 import com.flow.focus.music.MusicPlaylist
 import com.flow.focus.ui.AppViewModel
 import com.flow.focus.ui.components.FlowDialog
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.ui.graphics.graphicsLayer
 import com.flow.focus.ui.components.FlowIcon
 import com.flow.focus.ui.components.FlowIcons
 import com.flow.focus.ui.components.FlowProgressBar
@@ -61,6 +63,7 @@ fun MiniMusicPlayer(
     vm: AppViewModel,
     snapshot: MusicSnapshot,
     onOpen: () -> Unit,
+    onCollapse: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val track = MusicCatalog.tracks.firstOrNull { it.id == snapshot.currentTrackId }
@@ -73,7 +76,7 @@ fun MiniMusicPlayer(
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             MusicCover(track, Modifier.size(42.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -94,6 +97,7 @@ fun MiniMusicPlayer(
                 contentDescription = if (snapshot.isPlaying) "توقف موسیقی" else "پخش موسیقی",
             )
             GlassIconButton(FlowIcons.ChevronNext, { vm.nextMusic() }, size = 36.dp, iconSize = 17.dp, contentDescription = "آهنگ بعدی")
+            GlassIconButton(FlowIcons.ChevronDown, onCollapse, size = 30.dp, iconSize = 15.dp, contentDescription = "کوچک‌کردن پلیر")
         }
     }
 }
@@ -249,7 +253,7 @@ fun MusicPlayerDialog(vm: AppViewModel, onDismiss: () -> Unit) {
             }
         }
         Text(
-            "آهنگ‌ها با مجوز CC0 1.0 از AERIS MUSIC‌اند و بعد از دانلود پخش می‌شوند. حجم دانلودشده: ${formatBytes(vm.downloadedMusicBytes())}",
+            "آهنگ‌ها لوفای OpenLo-Fi با مجوز CC0 1.0 اند و بعد از دانلود پخش می‌شوند. حجم دانلودشده: ${formatBytes(vm.downloadedMusicBytes())}",
             style = Flow.type.caption,
             color = Flow.colors.textSecondary,
         )
@@ -411,47 +415,120 @@ private fun TrackPlaylistPickerDialog(
     }
 }
 
+private val coverPalettes = listOf(
+    listOf(Color(0xFF14283D), Color(0xFF5E8BB8), Color(0xFFBFE0FF)),
+    listOf(Color(0xFF3A2250), Color(0xFFB4709D), Color(0xFFFFD1EA)),
+    listOf(Color(0xFF0F3A36), Color(0xFF5FB59E), Color(0xFFCFFFEF)),
+    listOf(Color(0xFF52301F), Color(0xFFD58A52), Color(0xFFFFE2BF)),
+    listOf(Color(0xFF1B2757), Color(0xFF6F7FE0), Color(0xFFDCE0FF)),
+    listOf(Color(0xFF4A1F2C), Color(0xFFD9637C), Color(0xFFFFD6DD)),
+    listOf(Color(0xFF233A1A), Color(0xFF86B85A), Color(0xFFEEFFCC)),
+    listOf(Color(0xFF2A2F3A), Color(0xFF8E9BB3), Color(0xFFF0F4FF)),
+    listOf(Color(0xFF402B12), Color(0xFFE0B04F), Color(0xFFFFF3C2)),
+    listOf(Color(0xFF0E3350), Color(0xFF3FB6D9), Color(0xFFD2F6FF)),
+    listOf(Color(0xFF3B1F4A), Color(0xFF8E5BD6), Color(0xFFE8D6FF)),
+    listOf(Color(0xFF123B2A), Color(0xFF3DBE8B), Color(0xFFD1FFE9)),
+    listOf(Color(0xFF4E2A12), Color(0xFFE5733F), Color(0xFFFFDCC4)),
+    listOf(Color(0xFF1E2F4F), Color(0xFFE08FA3), Color(0xFFFFE3EA)),
+    listOf(Color(0xFF2E2433), Color(0xFFA98BBF), Color(0xFFF4E8FF)),
+    listOf(Color(0xFF0B2D3A), Color(0xFF6BD1B4), Color(0xFFE0FFF6)),
+)
+
+/** کاور تولیدی؛ هر آهنگ پالت و طرح (خورشید و تپه، حلقه، اکولایزر، موج) و جزئیات مخصوص خود را دارد. */
 @Composable
-private fun MusicCover(track: MusicTrack, modifier: Modifier = Modifier) {
-    val palettes = listOf(
-        listOf(Color(0xFF18283A), Color(0xFF7489A4)),
-        listOf(Color(0xFF3C294C), Color(0xFFB98FA3)),
-        listOf(Color(0xFF153E3B), Color(0xFF86B5A6)),
-        listOf(Color(0xFF563B2D), Color(0xFFD0A26E)),
-        listOf(Color(0xFF1F3156), Color(0xFF7C9CCB)),
-    )
-    val index = (track.id.hashCode().ushr(1) % palettes.size)
-    val colors = palettes[index]
-    Box(modifier.clip(RoundedCornerShape(15.dp))) {
+internal fun MusicCover(track: MusicTrack, modifier: Modifier = Modifier, corner: androidx.compose.ui.unit.Dp = 15.dp) {
+    val seed = remember(track.id) {
+        var h = 7
+        track.id.forEach { h = h * 31 + it.code }
+        (h xor (h ushr 13)) and 0x7FFFFFFF
+    }
+    val pal = coverPalettes[seed % coverPalettes.size]
+    val motif = (seed / 16) % 4
+    val jitter = ((seed / 64) % 10) / 10f
+    Box(modifier.clip(RoundedCornerShape(corner))) {
         Canvas(Modifier.matchParentSize()) {
-            drawRect(Brush.linearGradient(colors, start = Offset.Zero, end = Offset(size.width, size.height)))
-            val unit = size.minDimension
-            val center = Offset(size.width * (if (index % 2 == 0) 0.66f else 0.42f), size.height * 0.48f)
-            drawCircle(Color.White.copy(alpha = 0.09f), unit * 0.39f, center)
-            drawCircle(Color.White.copy(alpha = 0.06f), unit * 0.29f, center)
-            drawArc(
-                color = Color.White.copy(alpha = 0.82f),
-                startAngle = 205f + index * 11f,
-                sweepAngle = 225f,
-                useCenter = false,
-                topLeft = Offset(center.x - unit * 0.34f, center.y - unit * 0.34f),
-                size = Size(unit * 0.68f, unit * 0.68f),
-                style = Stroke(width = (unit * 0.018f).coerceAtLeast(1f), cap = StrokeCap.Round),
-            )
-            val path = Path().apply {
-                moveTo(size.width * 0.08f, size.height * (0.58f + index * 0.018f))
-                cubicTo(
-                    size.width * 0.28f, size.height * 0.36f,
-                    size.width * 0.55f, size.height * 0.82f,
-                    size.width * 0.91f, size.height * 0.43f,
-                )
+            val w = size.width
+            val h = size.height
+            val u = size.minDimension
+            val rnd = kotlin.random.Random(seed)
+            drawRect(Brush.linearGradient(listOf(pal[0], pal[1]), start = Offset(0f, 0f), end = Offset(w * 0.8f, h)))
+            fun hill(y: Float, amp: Float, phase: Float, alpha: Float, color: Color) {
+                val path = Path().apply {
+                    moveTo(0f, h)
+                    var x = 0f
+                    while (x <= w + 4f) {
+                        lineTo(x, y + kotlin.math.sin(x / w * 6.28f * 1.1f + phase) * amp * h)
+                        x += w / 24f
+                    }
+                    lineTo(w, h); close()
+                }
+                drawPath(path, color.copy(alpha = alpha))
             }
-            drawPath(path, Color.White.copy(alpha = 0.72f), style = Stroke(width = (unit * 0.018f).coerceAtLeast(1f), cap = StrokeCap.Round))
-            drawCircle(Color.White.copy(alpha = 0.88f), unit * 0.026f, Offset(size.width * 0.72f, size.height * 0.24f))
-            drawRect(
-                Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.16f), Color.Transparent)),
-                size = Size(size.width, size.height * 0.42f),
-            )
+            when (motif) {
+                0 -> {
+                    val c = Offset(w * (0.3f + 0.4f * jitter), h * 0.36f)
+                    drawCircle(Brush.radialGradient(listOf(pal[2].copy(alpha = 0.55f), Color.Transparent), c, u * 0.7f), u * 0.7f, c)
+                    drawCircle(pal[2].copy(alpha = 0.92f), u * 0.17f, c)
+                    hill(h * 0.62f, 0.05f, jitter * 5f, 0.45f, pal[0])
+                    hill(h * 0.74f, 0.045f, jitter * 3f + 2f, 0.7f, pal[0])
+                    hill(h * 0.86f, 0.03f, jitter * 7f, 0.95f, pal[0])
+                }
+                1 -> {
+                    val c = Offset(w * (0.35f + 0.3f * jitter), h * 0.5f)
+                    for (i in 1..5) drawCircle(pal[2].copy(alpha = 0.34f - i * 0.04f), u * (0.1f + i * 0.1f), c, style = Stroke(width = u * 0.016f))
+                    drawCircle(pal[2].copy(alpha = 0.9f), u * 0.055f, c)
+                    drawArc(
+                        pal[2].copy(alpha = 0.85f), 200f + jitter * 90f, 110f, false,
+                        topLeft = Offset(c.x - u * 0.42f, c.y - u * 0.42f), size = Size(u * 0.84f, u * 0.84f),
+                        style = Stroke(width = u * 0.03f, cap = StrokeCap.Round),
+                    )
+                }
+                2 -> {
+                    drawCircle(pal[2].copy(alpha = 0.85f), u * 0.1f, Offset(w * (0.25f + 0.5f * jitter), h * 0.24f))
+                    val n = 9
+                    val gap = w * 0.035f
+                    val bw = (w * 0.82f - gap * (n - 1)) / n
+                    for (i in 0 until n) {
+                        val bh = h * (0.18f + 0.46f * rnd.nextFloat())
+                        drawRoundRect(
+                            pal[2].copy(alpha = 0.35f + 0.5f * (i / (n - 1f))),
+                            Offset(w * 0.09f + i * (bw + gap), h * 0.92f - bh), Size(bw, bh),
+                            androidx.compose.ui.geometry.CornerRadius(bw / 2f),
+                        )
+                    }
+                }
+                else -> {
+                    drawCircle(pal[2].copy(alpha = 0.9f), u * 0.075f, Offset(w * (0.2f + 0.6f * jitter), h * 0.22f))
+                    for (i in 0 until 5) hill(h * (0.42f + i * 0.11f), 0.035f + i * 0.004f, jitter * 4f + i * 1.3f, 0.2f + i * 0.14f, pal[2])
+                }
+            }
+            drawRect(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.18f), Color.Transparent)), size = Size(w, h * 0.45f))
+        }
+    }
+}
+
+/** حالت کوچک‌شده‌ی پلیر بالای داک: کاور چرخان؛ لمس آن نوار مینی را برمی‌گرداند. */
+@Composable
+fun MusicChip(vm: AppViewModel, snapshot: MusicSnapshot, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val track = MusicCatalog.tracks.firstOrNull { it.id == snapshot.currentTrackId }
+    val animations = Flow.glass.animations
+    val infinite = androidx.compose.animation.core.rememberInfiniteTransition(label = "chip")
+    val spin = infinite.animateFloat(
+        0f, 360f,
+        androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(14_000, easing = androidx.compose.animation.core.LinearEasing)),
+        label = "spin",
+    )
+    GlassSurface(modifier.size(56.dp).springClick(onClick = onClick), shape = androidx.compose.foundation.shape.CircleShape) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            if (track != null) {
+                MusicCover(
+                    track,
+                    Modifier.size(44.dp).graphicsLayer { rotationZ = if (snapshot.isPlaying && animations) spin.value else 0f },
+                    corner = 22.dp,
+                )
+            } else {
+                FlowIcon(FlowIcons.Music, tint = Flow.colors.accent, size = 24.dp)
+            }
         }
     }
 }

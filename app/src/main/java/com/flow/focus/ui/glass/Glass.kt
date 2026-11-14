@@ -41,6 +41,10 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
@@ -535,8 +539,29 @@ fun Modifier.springClick(
         animationSpec = if (anim) spring(dampingRatio = 0.5f, stiffness = 600f) else snap(),
         label = "press",
     )
+    // لمس نقطه‌ی مشخصی از کارت را کمی «فرو می‌برد»: چرخش سه‌بعدی بسیار ملایم (حداکثر ۶ درجه) با پرسپکتیو.
+    var touch by remember { mutableStateOf(Offset.Zero) }
+    val tiltX by animateFloatAsState(if (pressed && enabled) touch.x else 0f, if (anim) spring(0.55f, 420f) else snap(), label = "tiltX")
+    val tiltY by animateFloatAsState(if (pressed && enabled) touch.y else 0f, if (anim) spring(0.55f, 420f) else snap(), label = "tiltY")
     this
-        .graphicsLayer { scaleX = scale; scaleY = scale }
+        .pointerInput(enabled, anim) {
+            if (!enabled || !anim) return@pointerInput
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                val w = size.width.coerceAtLeast(1)
+                val h = size.height.coerceAtLeast(1)
+                touch = Offset((down.position.x / w - 0.5f) * 2f, (down.position.y / h - 0.5f) * 2f)
+                waitForUpOrCancellation()
+            }
+        }
+        .graphicsLayer {
+            scaleX = scale; scaleY = scale
+            if (tiltX != 0f || tiltY != 0f) {
+                rotationY = tiltX * 6f
+                rotationX = -tiltY * 6f
+                cameraDistance = 18f * density
+            }
+        }
         .clickable(interactionSource = src, indication = null, enabled = enabled, role = role, onClick = onClick)
 }
 
