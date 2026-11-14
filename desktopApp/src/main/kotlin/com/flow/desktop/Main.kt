@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
@@ -129,6 +130,8 @@ fun main() = application {
 private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Window) {
     var selected by remember { mutableStateOf("خانه") }
     var compactSidebar by remember { mutableStateOf(false) }
+    var commandOpen by remember { mutableStateOf(false) }
+    var commandQuery by remember { mutableStateOf("") }
     val data by runtime.data.collectAsState()
     val dark = data.settings.theme != ThemeMode.LIGHT
     DisposableEffect(desktopWindow, dark, data.settings.glassQuality) {
@@ -168,7 +171,11 @@ private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Wind
                     }
                 }
                 Box(Modifier.fillMaxSize().onPreviewKeyEvent { event ->
-                    if (event.type == KeyEventType.KeyDown && event.isCtrlPressed) {
+                    if (event.type == KeyEventType.KeyDown && event.isCtrlPressed && event.key == Key.K) {
+                        commandQuery = ""
+                        commandOpen = true
+                        true
+                    } else if (event.type == KeyEventType.KeyDown && event.isCtrlPressed) {
                         val page = when (event.key) {
                             Key.One -> "خانه"
                             Key.Two -> "تمرکز"
@@ -310,6 +317,86 @@ private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Wind
                             }
                         }
                     }
+                    }
+                    if (commandOpen) {
+                        MedFlowCommandDialog(
+                            query = commandQuery,
+                            onQueryChange = { commandQuery = it },
+                            onSelect = { selected = it; commandOpen = false },
+                            onDismiss = { commandOpen = false }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MedFlowCommandDialog(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val commands = listOf(
+        "خانه" to "نمای کلی و وضعیت امروز",
+        "تمرکز" to "باز کردن زمان‌سنج پومودورو",
+        "وظایف" to "جست‌وجو و مدیریت وظایف",
+        "روتین‌ها" to "برنامه‌ی هفتگی تکرارشونده",
+        "اهداف" to "هدف‌های روزانه و هفتگی",
+        "برنامه‌ریزی" to "تقویم جلالی و برنامه",
+        "آمار" to "گزارش زمان تمرکز",
+        "موسیقی" to "کتابخانه و پخش‌کننده",
+        "تنظیمات" to "ظاهر، داده‌ها و رفتار ویندوز"
+    )
+    val filtered = commands.filter {
+        query.isBlank() || it.first.contains(query, true) || it.second.contains(query, true)
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier.widthIn(min = 380.dp, max = 520.dp),
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = .97f)
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 14.dp)
+        ) {
+            Column(
+                Modifier.fillMaxWidth().padding(19.dp),
+                verticalArrangement = Arrangement.spacedBy(11.dp)
+            ) {
+                Text("دستور سریع", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Text("برای باز کردن این پنجره از Ctrl + K استفاده کن.", color = muted(), fontSize = 11.sp)
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    placeholder = { Text("جست‌وجوی صفحه یا قابلیت...") }
+                )
+                if (filtered.isEmpty()) {
+                    EmptyText("موردی پیدا نشد.")
+                } else {
+                    filtered.forEach { (page, description) ->
+                        Surface(
+                            onClick = { onSelect(page) },
+                            shape = RoundedCornerShape(11.dp),
+                            color = Color.Transparent,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(page, fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                                    Text(description, color = muted(), fontSize = 11.sp)
+                                }
+                                Text("↵", color = MaterialTheme.colorScheme.primary, fontSize = 17.sp)
+                            }
+                        }
                     }
                 }
             }
