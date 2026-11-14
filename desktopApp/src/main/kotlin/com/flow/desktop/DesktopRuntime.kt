@@ -4,10 +4,14 @@ import com.flow.focus.data.AppData
 import com.flow.focus.data.FlowRepository
 import com.flow.focus.data.JsonStore
 import com.flow.focus.data.PhaseType
+import com.flow.focus.data.Goal
+import com.flow.focus.data.Routine
 import com.flow.focus.data.Task
+import com.flow.focus.data.Priority
 import com.flow.focus.data.TimerStatus
 import com.flow.focus.domain.PomodoroEngine
 import java.io.File
+import java.time.LocalDate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -72,16 +76,51 @@ class DesktopRuntime {
         current.copy(timer = result.state, sessions = current.sessions + listOfNotNull(result.session))
     }
 
-    fun addTask(title: String) {
+    fun addTask(
+        title: String,
+        notes: String = "",
+        dueDate: LocalDate? = null,
+        dueMinute: Int? = null,
+        priority: Priority = Priority.MEDIUM,
+        categoryId: String = "personal",
+        estimatedPomodoros: Int = 1,
+    ) {
         val clean = title.trim()
         if (clean.isEmpty()) return
         val nowMs = System.currentTimeMillis()
         repository.upsertTask(Task(
             id = FlowRepository.newId(),
             title = clean,
+            notes = notes.trim(),
+            dueDay = dueDate?.toEpochDay(),
+            dueMinute = dueMinute,
+            priority = priority,
+            categoryId = categoryId,
+            estimatedPomodoros = estimatedPomodoros.coerceIn(1, 20),
             createdAt = nowMs
         ))
     }
+
+    fun addRoutine(title: String, weekdays: List<Int>, minute: Int? = null, categoryId: String = "personal", pomodoros: Int = 1) {
+        val clean = title.trim()
+        if (clean.isEmpty() || weekdays.isEmpty()) return
+        repository.upsertRoutine(Routine(
+            id = FlowRepository.newId(), title = clean, weekdays = weekdays.distinct().filter { it in 0..6 },
+            minute = minute, categoryId = categoryId, pomodoros = pomodoros.coerceIn(1, 20)
+        ))
+    }
+
+    fun deleteRoutine(id: String) = repository.deleteRoutine(id)
+    fun toggleRoutine(routineId: String, day: LocalDate) = repository.toggleRoutineCheck(routineId, day.toEpochDay())
+
+    fun addGoal(title: String, period: com.flow.focus.data.GoalPeriod, startDay: Long) {
+        val clean = title.trim()
+        if (clean.isEmpty()) return
+        repository.addGoal(Goal(FlowRepository.newId(), clean, period, startDay))
+    }
+
+    fun toggleGoal(id: String) = repository.toggleGoal(id)
+    fun deleteGoal(id: String) = repository.deleteGoal(id)
 
     fun setTaskDone(id: String, done: Boolean) =
         repository.setTaskDone(id, done, System.currentTimeMillis())
