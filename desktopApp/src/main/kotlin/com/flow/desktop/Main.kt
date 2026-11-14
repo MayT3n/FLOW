@@ -631,11 +631,21 @@ private fun MusicPage(runtime: DesktopRuntime) {
             val current = DesktopMusicCatalog.tracks.firstOrNull { it.id == state.trackId }
             Text(current?.title ?: "هنوز آهنگی پخش نشده", fontSize = 21.sp, fontWeight = FontWeight.SemiBold)
             Text(current?.mood ?: "موسیقی بی‌کلام برای زمان تمرکز", color = muted())
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(onClick = { runtime.music.previous() }, enabled = current != null) { Text("قبلی") }
                 Button(onClick = { runtime.music.togglePlayback() }, enabled = current != null) {
                     Text(if (state.playing) "مکث" else "ادامه")
                 }
+                OutlinedButton(onClick = { runtime.music.next() }, enabled = current != null) { Text("بعدی") }
                 OutlinedButton(onClick = { runtime.music.stop() }, enabled = current != null) { Text("توقف") }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(onClick = { runtime.music.toggleShuffle() }) {
+                    Text(if (state.shuffle) "تصادفی: روشن" else "تصادفی: خاموش")
+                }
+                OutlinedButton(onClick = { runtime.music.cycleRepeatMode() }) {
+                    Text(when (state.repeatMode) { 1 -> "تکرار فهرست"; 2 -> "تکرار آهنگ"; else -> "تکرار: خاموش" })
+                }
                 Text("${fa(state.positionMs / 1000)} / ${fa(state.durationMs / 1000)} ثانیه", color = muted(), fontSize = 12.sp)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
