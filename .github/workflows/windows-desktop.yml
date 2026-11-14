@@ -44,6 +44,26 @@ jobs:
         run: .\gradlew.bat :desktopApp:test --stacktrace
       - name: Package Windows MSI
         run: .\gradlew.bat :desktopApp:packageMsi
+      - name: Install and smoke-test Windows MSI
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem "desktopApp/build/compose/binaries/main/msi" -Filter "*.msi" | Select-Object -First 1
+          if (-not $msi) { throw "MSI output was not found." }
+
+          $install = Start-Process -FilePath "msiexec.exe" -ArgumentList @("/i", $msi.FullName, "/qn", "/norestart") -Wait -PassThru
+          if ($install.ExitCode -notin @(0, 3010)) { throw "MSI installation failed with exit code $($install.ExitCode)." }
+
+          $exe = Get-ChildItem -Path @("$env:ProgramFiles", "$env:LOCALAPPDATA\Programs") -Filter "MedFlow.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $exe) { throw "Installed MedFlow.exe was not found." }
+
+          $app = Start-Process -FilePath $exe.FullName -PassThru
+          Start-Sleep -Seconds 8
+          $app.Refresh()
+          if ($app.HasExited) { throw "MedFlow exited during the Windows startup smoke test." }
+          Stop-Process -Id $app.Id -Force
+
+          $uninstall = Start-Process -FilePath "msiexec.exe" -ArgumentList @("/x", $msi.FullName, "/qn", "/norestart") -Wait -PassThru
+          if ($uninstall.ExitCode -notin @(0, 3010)) { throw "MSI uninstall failed with exit code $($uninstall.ExitCode)." }
       - name: Upload MSI
         uses: actions/upload-artifact@v4
         with:
