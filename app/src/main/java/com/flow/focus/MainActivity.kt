@@ -96,7 +96,7 @@ fun FlowRoot(vm: AppViewModel) {
     val data by vm.data.collectAsStateWithLifecycle()
     FlowTheme(data.settings) {
         SystemBars(Flow.colors.isDark)
-        RequestNotificationPermission(data.settings.notifications)
+        RequestNotificationPermission(data.settings.notifications) { vm.maybeWelcome() }
         AppScaffold(vm, data)
     }
 }
@@ -114,13 +114,18 @@ private fun SystemBars(dark: Boolean) {
 }
 
 @Composable
-private fun RequestNotificationPermission(wanted: Boolean) {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+private fun RequestNotificationPermission(wanted: Boolean, onReady: () -> Unit) {
     val ctx = LocalContext.current
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> if (granted) onReady() }
     LaunchedEffect(wanted) {
-        if (wanted && ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+        if (!wanted) return@LaunchedEffect
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
             launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            kotlinx.coroutines.delay(1200)
+            onReady()
         }
     }
 }

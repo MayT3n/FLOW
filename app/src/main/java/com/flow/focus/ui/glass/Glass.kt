@@ -54,6 +54,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.GraphicsLayer
@@ -107,8 +108,8 @@ data class RootBackdropFrame(
     /** مختصات صفحه‌ی گوشه‌ی بالا-چپ ریشه؛ برای محاسبه‌ی دقیق offset سطح‌ها در پنجره‌های جدا */
     val rootOrigin: State<Offset>,
     val settings: Settings,
-    /** پس‌زمینه‌ی ثابت (بدون فاز) که یک‌بار ضبط می‌شود و همه‌ی سطح‌های شیشه‌ای از آن نمونه می‌گیرند. */
-    val staticLayer: GraphicsLayer,
+    /** پس‌زمینه‌ی ثابت و از-پیش-تارشده (تصویر کوچک‌مقیاس) که همه‌ی سطح‌های شیشه‌ای فقط بزرگ‌نمایی‌اش می‌کنند. */
+    val blurred: androidx.compose.runtime.State<ImageBitmap?>,
 )
 
 val LocalRootBackdrop = compositionLocalOf<RootBackdropFrame?> { null }
@@ -297,7 +298,8 @@ fun GlassBackdropHost(
     val tone = remember { mutableStateOf<Color?>(null) }
     val palette = remember { mutableStateOf(builtinWallpaperPalette(settings.wallpaperId)) }
     val layer = rememberGraphicsLayer()
-    val staticLayer = rememberGraphicsLayer()
+    val blurredState = remember { mutableStateOf<ImageBitmap?>(null) }
+    val glassForStatic = LocalGlass.current
     val wallpaperPlan = LocalWallpaperPlan.current
 
     LaunchedEffect(settings.wallpaperId, settings.wallpaperPath, c.isDark) {
@@ -327,7 +329,7 @@ fun GlassBackdropHost(
     } else remember { mutableStateOf(0f) }
 
     val surfacePhase = remember(phase) { derivedStateOf { (phase.value * 90f).toInt() / 90f } }
-    val frame = RootBackdropFrame(image, phase, surfacePhase, tone, palette, rootOrigin, settings, staticLayer)
+    val frame = RootBackdropFrame(image, phase, surfacePhase, tone, palette, rootOrigin, settings, blurredState)
     Box(
         Modifier.fillMaxSize()
             .onSizeChanged { size.value = it }
@@ -351,7 +353,28 @@ fun GlassBackdropHost(
                 // یک‌بار (و فقط با تغییر تصویر/پرده/تم) ضبط می‌شود؛ سطح‌های شیشه‌ای هر فریم گرادیان و براش نمی‌سازند.
                 Box(
                     Modifier.fillMaxSize().drawBehind {
-                        staticLayer.record { drawBackdrop(c, 0f, this.size.width, this.size.height, image.value, settings, wallpaperPlan.value) }
+                        val strength = when (glassForStatic.quality) {
+                            GlassQuality.LOW -> 0f
+                            GlassQuality.MEDIUM -> 0.42f
+                            GlassQuality.HIGH -> 0.78f
+                        }
+                        val extra = settings.wallpaperBlurDp.dp.toPx() * 0.35f
+                        val maxR = if (glassForStatic.quality == GlassQuality.MEDIUM) 16.dp.toPx() else 30.dp.toPx()
+                        val r = (glassForStatic.blurDp.dp.toPx() * strength * 0.82f + extra * strength).coerceAtMost(maxR)
+                        // بلور = رسم در مقیاس کوچک و بزرگ‌نمایی با فیلتر نرم؛ فقط وقتی پس‌زمینه عوض شود دوباره ساخته می‌شود.
+                        val factor = (r / 1.5f).coerceIn(3f, 20f)
+                        val bw = (size.width / factor).toInt().coerceAtLeast(8)
+                        val bh = (size.height / factor).toInt().coerceAtLeast(8)
+                        val bmp = ImageBitmap(bw, bh)
+                        val sw = size.width
+                        val sh = size.height
+                        val canvasScope = androidx.compose.ui.graphics.drawscope.CanvasDrawScope()
+                        canvasScope.draw(this, layoutDirection, androidx.compose.ui.graphics.Canvas(bmp), androidx.compose.ui.geometry.Size(bw.toFloat(), bh.toFloat())) {
+                            scale(bw / sw, bh / sh, pivot = Offset.Zero) {
+                                drawBackdrop(c, 0f, sw, sh, image.value, settings, wallpaperPlan.value)
+                            }
+                        }
+                        blurredState.value = bmp
                     },
                 )
                 Canvas(
@@ -438,37 +461,45 @@ fun GlassSurface(
                 Modifier.onGloballyPositioned { coords ->
                     val root = rootBackdrop?.rootOrigin?.value ?: Offset.Zero
                     val raw = coords.positionOnScreen() - root
-                    // مختصات به گام‌های ۴۸ پیکسلی گرد می‌شود: در اسکرول، سطح فقط وقتی دوباره ترسیم و تار می‌شود که گام عوض شود.
-                    val snapped = Offset(kotlin.math.round(raw.x / 48f) * 48f, kotlin.math.round(raw.y / 48f) * 48f)
-                    if (snapped != origin) origin = snapped
+                    if (raw != origin) origin = raw
                 }
             } else Modifier,
         )
 
     Box(outer) {
         if (blurOn) {
-            Box(
-                Modifier
-                    .matchParentSize()
-                    .graphicsLayer {
-                        val extra = rootBackdrop!!.settings.wallpaperBlurDp.dp.toPx() * 0.35f
-                        // Prevent extreme settings from turning each surface into an expensive full-screen blur pass.
-                        val requested = g.blurDp.dp.toPx() * blurStrength * levelBlur + extra * blurStrength
-                        val maxRadius = if (g.quality == GlassQuality.MEDIUM) 16.dp.toPx() else 30.dp.toPx()
-                        val radius = requested.coerceAtMost(maxRadius)
-                        renderEffect = BlurEffect(radius, radius)
-                    }
-                    .drawBehind {
+            if (liveLayer != null) {
+                // سطح‌های شناور (داک، مینی‌پلیر) محتوای زنده را تار می‌کنند؛ تعدادشان کم است.
+                Box(
+                    Modifier
+                        .matchParentSize()
+                        .graphicsLayer {
+                            val extra = rootBackdrop!!.settings.wallpaperBlurDp.dp.toPx() * 0.35f
+                            val requested = g.blurDp.dp.toPx() * blurStrength * levelBlur + extra * blurStrength
+                            val maxRadius = if (g.quality == GlassQuality.MEDIUM) 16.dp.toPx() else 30.dp.toPx()
+                            val radius = requested.coerceAtMost(maxRadius)
+                            renderEffect = BlurEffect(radius, radius)
+                        }
+                        .drawBehind {
+                            translate(-origin.x, -origin.y) { drawLayer(liveLayer) }
+                        },
+                )
+            } else {
+                // سطح‌های داخل صفحه از یک لایه‌ی پس‌زمینه‌ی از-پیش-تار‌شده نمونه می‌گیرند:
+                // هر سطح فقط یک drawLayer ارزان است و بلور در اسکرول تکرار نمی‌شود.
+                Box(
+                    Modifier.matchParentSize().drawBehind {
                         val frame = rootBackdrop!!
-                        translate(-origin.x, -origin.y) {
-                            if (liveLayer != null) {
-                                drawLayer(liveLayer)
-                            } else {
-                                drawLayer(frame.staticLayer)
+                        val bmp = frame.blurred.value
+                        val full = rootSize!!.value
+                        if (bmp != null) {
+                            translate(-origin.x, -origin.y) {
+                                drawImage(bmp, dstSize = androidx.compose.ui.unit.IntSize(full.width, full.height), filterQuality = androidx.compose.ui.graphics.FilterQuality.High)
                             }
                         }
                     },
-            )
+                )
+            }
         }
         Box(
             Modifier.matchParentSize().drawBehind {

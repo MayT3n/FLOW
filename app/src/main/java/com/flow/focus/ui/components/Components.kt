@@ -494,9 +494,15 @@ fun Chip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifie
 
 /** پوسته‌ی واحد پنجره‌ها؛ عنوان، بستن، فاصله‌گذاری و سطح شیشه‌ای در تمام دیالوگ‌ها یکسان است. */
 @Composable
+private fun animations0(): Boolean = LocalGlass.current.animations
+
+@Composable
 fun FlowDialog(onDismiss: () -> Unit, title: String? = null, onSwipeDown: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
     val dragY = remember { androidx.compose.animation.core.Animatable(0f) }
     val dragScope = androidx.compose.runtime.rememberCoroutineScope()
+    // ورود سه‌بعدی پنجره: از کمی خوابیده (چرخش حول محور افقی) به حالت ایستاده، با پرسپکتیو؛ فقط یک Animatable ساده.
+    val enter3d = remember { androidx.compose.animation.core.Animatable(if (animations0()) 0f else 1f) }
+    LaunchedEffect(Unit) { enter3d.animateTo(1f, spring(0.72f, 260f)) }
     val animations = LocalGlass.current.animations
     var visible by remember { mutableStateOf(true) }
     val enterState = rememberEnterState(visible)
@@ -519,6 +525,8 @@ fun FlowDialog(onDismiss: () -> Unit, title: String? = null, onSwipeDown: (() ->
             GlassSurface(
                 Modifier.widthIn(max = 440.dp).fillMaxWidth().padding(horizontal = 18.dp, vertical = 22.dp)
                     .graphicsLayer {
+                        rotationX = (1f - enter3d.value) * 16f
+                        cameraDistance = 22f * density
                         translationY = dragY.value
                         alpha = (1f - dragY.value / 1400f).coerceIn(0.35f, 1f)
                     },

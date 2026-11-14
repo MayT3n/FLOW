@@ -173,6 +173,26 @@ class NotificationHelper(private val ctx: Context) {
         safeNotify(ID_DONE, b.build())
     }
 
+    /** اعلان خوش‌آمدگویی؛ همین اعلان برای «ارسال آزمایشی» در تنظیمات هم استفاده می‌شود. */
+    fun showWelcome(s: Settings, test: Boolean = false) {
+        if (!s.notifications && !test) return
+        val text = if (test) "اعلان‌ها درست کار می‌کنند. وقتی جلسه‌ی تمرکز تمام شود، همین‌جا خبرت می‌کنیم."
+        else "از امروز هر جلسه‌ی تمرکز را آرام و روان دنبال می‌کنیم. وقتی آماده‌ای، یک جلسه شروع کن."
+        val b = NotificationCompat.Builder(ctx, doneChannelId(s.sound, s.vibration))
+            .setSmallIcon(R.drawable.ic_stat_flow)
+            .setContentTitle(if (test) "اعلان آزمایشی MatFocus" else "به MatFocus خوش آمدی")
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setSubText("MatFocus")
+            .setColor(phaseColor(PhaseType.FOCUS))
+            .setLargeIcon(ringBitmap(phaseColor(PhaseType.FOCUS), 360f))
+            .setAutoCancel(true)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setContentIntent(openApp())
+        safeNotify(ID_WELCOME, b.build())
+    }
+
     fun showReminder(task: Task, s: Settings) {
         if (!s.notifications) return
         val b = NotificationCompat.Builder(ctx, doneChannelId(s.sound, s.vibration))
@@ -207,5 +227,6 @@ class NotificationHelper(private val ctx: Context) {
         const val ID_RUNNING = 1
         const val ID_DONE = 2
         const val ID_AMBIENT = 3
+        const val ID_WELCOME = 4
     }
 }

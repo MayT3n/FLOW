@@ -45,6 +45,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     val data: StateFlow<AppData> get() = c.repo.data
+
+    /** اعلان خوش‌آمد فقط یک‌بار بعد از نصب؛ اگر اجازه هنوز داده نشده باشد، بعداً دوباره تلاش می‌شود. */
+    fun maybeWelcome() {
+        val prefs = getApplication<Application>().getSharedPreferences("flow_ui", 0)
+        if (prefs.getBoolean("welcomed", false)) return
+        val st = data.value.settings
+        if (!st.notifications) return
+        if (!androidx.core.app.NotificationManagerCompat.from(getApplication()).areNotificationsEnabled()) return
+        c.notifier.showWelcome(st)
+        prefs.edit().putBoolean("welcomed", true).apply()
+    }
+
+    fun sendTestNotification() = c.notifier.showWelcome(data.value.settings, test = true)
     val offlineCalendarOccasions: StateFlow<List<CalendarOccasion>> get() = _offlineCalendarOccasions
     val ambientPlaying: StateFlow<String?> get() = c.ambient.playing
     val ambientDownloadProgress get() = c.ambient.downloadProgress

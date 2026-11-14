@@ -520,6 +520,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
 
         AnimatedSettingsSection(selectedPage == "notifications", "اعلان‌ها") {
             SwitchRow("اعلان‌ها", st.notifications, { v -> vm.updateSettings { it.copy(notifications = v) } }, subtitle = "پایان جلسه، تایمر در حال اجرا و یادآوری وظایف")
+            GlassButton("ارسال اعلان آزمایشی", { vm.sendTestNotification() }, Modifier.fillMaxWidth(), icon = FlowIcons.Bell)
             SwitchRow("صدا", st.sound, { v -> vm.updateSettings { it.copy(sound = v) } })
             SwitchRow("لرزش", st.vibration, { v -> vm.updateSettings { it.copy(vibration = v) } })
         }
