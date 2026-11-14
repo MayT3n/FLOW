@@ -131,7 +131,7 @@ data class Settings(
     val ambientAuto: Boolean = true,
     val dailyGoalMin: Int = 120,
     /** شناسه‌ی پس‌زمینه: gradient, aurora, midnight, dusk یا custom */
-    val wallpaperId: String = "gradient",
+    val wallpaperId: String = "study_room",
     /** مسیر نسخه‌ی بهینه‌شده‌ی تصویر شخصی در حافظه‌ی خصوصی برنامه */
     val wallpaperPath: String? = null,
     val wallpaperFit: WallpaperFit = WallpaperFit.CROP,

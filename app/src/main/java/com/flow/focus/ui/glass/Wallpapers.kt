@@ -72,6 +72,12 @@ object BuiltinWallpapers {
             art = true,
         ),
         BuiltinWallpaper(
+            "study_room", "اتاق مطالعه", "میز مطالعه؛ شب گرم و روز روشن",
+            dark = WallpaperLook(listOf(Color(0xFF14171F), Color(0xFF1A1D24), Color(0xFF232733)), Color(0xFFFFB766), Color(0xFF6B7DD1)),
+            light = WallpaperLook(listOf(Color(0xFFF6E9D3), Color(0xFFF1DCC0), Color(0xFFE9D3BD)), Color(0xFFFFD9A0), Color(0xFFE8A27A)),
+            art = true,
+        ),
+        BuiltinWallpaper(
             "study_desk", "میز مطالعه", "میز مطالعه‌ی شبانه با چراغ و پنجره‌ی ستاره‌ای",
             dark = WallpaperLook(listOf(Color(0xFF0B1226), Color(0xFF1B2A4A), Color(0xFF2B2F55)), Color(0xFFFFB766), Color(0xFF6B7DD1)),
             light = WallpaperLook(listOf(Color(0xFFF4EAD9), Color(0xFFF1DCC3), Color(0xFFE6D0C4)), Color(0xFFFFD9A0), Color(0xFFEE8FA8)),

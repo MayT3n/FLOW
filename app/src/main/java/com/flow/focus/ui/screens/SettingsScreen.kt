@@ -197,6 +197,59 @@ private fun WallpaperOption(
 }
 
 @Composable
+private fun ThemeModeCard(
+    title: String,
+    subtitle: String,
+    mode: ThemeMode,
+    selected: Boolean,
+    wallpaperId: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val b = BuiltinWallpapers.find(wallpaperId)
+    fun stops(dark: Boolean) = b?.look(dark)?.stops
+        ?: if (dark) listOf(Color(0xFF0B1226), Color(0xFF1B2A4A), Color(0xFF2B2F55)) else listOf(Color(0xFFF4EAD9), Color(0xFFF1DCC3), Color(0xFFE6D0C4))
+    val shape = RoundedCornerShape(20.dp)
+    val ctx = androidx.compose.ui.platform.LocalContext.current.applicationContext
+    val thumbs = remember(wallpaperId, mode) { mutableStateOf<List<ImageBitmap?>>(emptyList()) }
+    LaunchedEffect(wallpaperId, mode) {
+        thumbs.value = withContext(Dispatchers.IO) {
+            val need = when (mode) { ThemeMode.LIGHT -> listOf(false); ThemeMode.DARK -> listOf(true); ThemeMode.SYSTEM -> listOf(false, true) }
+            need.map { loadWallpaperArt(ctx, wallpaperId, it, sample = 6)?.asImageBitmap() }
+        }
+    }
+    Column(
+        modifier.clip(shape)
+            .background(Flow.colors.glassFill)
+            .border(if (selected) 2.5.dp else 1.dp, if (selected) Flow.colors.accent else Flow.colors.glassEdge, shape)
+            .semantics { this.selected = selected }
+            .springClick(role = Role.RadioButton, scaleDown = 0.97f, onClick = onClick)
+            .padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(Modifier.fillMaxWidth().height(110.dp).clip(RoundedCornerShape(14.dp))) {
+            val modes = if (mode == ThemeMode.SYSTEM) listOf(false, true) else listOf(mode == ThemeMode.DARK)
+            Row(Modifier.fillMaxSize()) {
+                modes.forEachIndexed { i, dark ->
+                    Box(Modifier.weight(1f).fillMaxSize().background(Brush.verticalGradient(stops(dark)))) {
+                        thumbs.value.getOrNull(i)?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop) }
+                    }
+                }
+            }
+            if (selected) {
+                Box(Modifier.align(Alignment.TopEnd).padding(6.dp).size(24.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Flow.colors.accent), contentAlignment = Alignment.Center) {
+                    FlowIcon(FlowIcons.Check, tint = Flow.colors.textOnAccent, size = 15.dp)
+                }
+            }
+        }
+        Column(Modifier.padding(horizontal = 4.dp, vertical = 2.dp), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(title, style = Flow.type.label, color = Flow.colors.textPrimary, maxLines = 1)
+            Text(subtitle, style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        }
+    }
+}
+
+@Composable
 private fun WallpaperPreviewSurface(
     id: String,
     path: String?,
@@ -417,10 +470,13 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
         }
 
         AnimatedSettingsSection(selectedPage == "appearance", "ظاهر") {
-            Text("تم", style = Flow.type.body, color = Flow.colors.textPrimary)
-            SegmentedControl(listOf("روشن", "تاریک", "سیستم"), listOf(ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM).indexOf(st.theme), {
-                vm.updateSettings { s -> s.copy(theme = listOf(ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM)[it]) }
-            })
+            Text("حالت نمایش", style = Flow.type.body, color = Flow.colors.textPrimary)
+            Text("تعویض بین روشن و تاریک با انیمیشن نرم انجام می‌شود", style = Flow.type.caption, color = Flow.colors.textSecondary)
+            Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                ThemeModeCard("خودکار", "هم‌رنگ سیستم", ThemeMode.SYSTEM, st.theme == ThemeMode.SYSTEM, st.wallpaperId, Modifier.weight(1f)) { vm.updateSettings { s -> s.copy(theme = ThemeMode.SYSTEM) } }
+                ThemeModeCard("روشن", "روز و روشنایی", ThemeMode.LIGHT, st.theme == ThemeMode.LIGHT, st.wallpaperId, Modifier.weight(1f)) { vm.updateSettings { s -> s.copy(theme = ThemeMode.LIGHT) } }
+                ThemeModeCard("تاریک", "شب و تمرکز", ThemeMode.DARK, st.theme == ThemeMode.DARK, st.wallpaperId, Modifier.weight(1f)) { vm.updateSettings { s -> s.copy(theme = ThemeMode.DARK) } }
+            }
             Text("اعداد", style = Flow.type.body, color = Flow.colors.textPrimary, modifier = Modifier.padding(top = 8.dp))
             SegmentedControl(listOf("فارسی ۱۲۳", "انگلیسی 123"), if (st.persianDigits) 0 else 1, { vm.updateSettings { s -> s.copy(persianDigits = it == 0) } })
             SwitchRow("انیمیشن‌ها", st.animations, { v -> vm.updateSettings { it.copy(animations = v) } }, subtitle = "خاموش کردن، مصرف باتری را کم می‌کند")

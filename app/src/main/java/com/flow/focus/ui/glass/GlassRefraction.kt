@@ -22,11 +22,19 @@ internal val refractionSupported: Boolean get() = Build.VERSION.SDK_INT >= Build
 internal class RefractionPainter {
     private val shader = RuntimeShader(SRC)
     private var lastBitmap: ImageBitmap? = null
+    private var lastPrev: ImageBitmap? = null
     private var bitmapShader: BitmapShader? = null
+    private var prevShader: BitmapShader? = null
+
+    private fun shaderFor(bmp: ImageBitmap) = BitmapShader(bmp.asAndroidBitmap(), Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).also {
+        it.filterMode = BitmapShader.FILTER_MODE_LINEAR
+    }
 
     fun draw(
         scope: DrawScope,
         blurred: ImageBitmap,
+        previous: ImageBitmap?,
+        mix: Float,
         origin: Offset,
         rootWidth: Int,
         radiusPx: Float,
@@ -36,12 +44,19 @@ internal class RefractionPainter {
         rim: Float,
     ) {
         if (lastBitmap !== blurred) {
-            bitmapShader = BitmapShader(blurred.asAndroidBitmap(), Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).also {
-                it.filterMode = BitmapShader.FILTER_MODE_LINEAR
-            }
+            bitmapShader = shaderFor(blurred)
             lastBitmap = blurred
             shader.setInputShader("bg", bitmapShader!!)
+            lastPrev = null
         }
+        // «قبلی» فقط حین تعویض تم/تصویر فرق دارد؛ بیرون از انتقال همان تصویر جاری است و نمونه‌ی دوم رد می‌شود.
+        val prev = previous ?: blurred
+        if (lastPrev !== prev) {
+            prevShader = if (prev === blurred) bitmapShader else shaderFor(prev)
+            lastPrev = prev
+            shader.setInputShader("bg2", prevShader!!)
+        }
+        shader.setFloatUniform("mixT", if (previous == null) 1f else mix.coerceIn(0f, 1f))
         val s = scope.size
         shader.setFloatUniform("size", s.width, s.height)
         shader.setFloatUniform("origin", origin.x, origin.y)
@@ -57,6 +72,8 @@ internal class RefractionPainter {
     private companion object {
         const val SRC = """
 uniform shader bg;
+uniform shader bg2;
+uniform float mixT;
 uniform float2 size;
 uniform float2 origin;
 uniform float scale;
@@ -71,6 +88,12 @@ float sdBox(float2 p, float2 hb, float r) {
     return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
 }
 
+half4 smp(float2 p) {
+    half4 a = bg.eval(p);
+    if (mixT >= 0.999) return a;
+    return mix(bg2.eval(p), a, half(mixT));
+}
+
 half4 main(float2 fc) {
     float2 hb = size * 0.5;
     float2 p = fc - hb;
@@ -82,10 +105,10 @@ half4 main(float2 fc) {
     float prof = pow(1.0 - t, 2.2);
     float2 off = -n * prof * pull;
     float2 base = fc + origin;
-    half4 c = bg.eval((base + off) * scale);
+    half4 c = smp((base + off) * scale);
     if (disp > 0.0) {
-        half4 cr = bg.eval((base + off * (1.0 + disp)) * scale);
-        half4 cb = bg.eval((base + off * (1.0 - disp)) * scale);
+        half4 cr = smp((base + off * (1.0 + disp)) * scale);
+        half4 cb = smp((base + off * (1.0 - disp)) * scale);
         c = half4(cr.r, c.g, cb.b, 1.0);
     }
     float edge = pow(1.0 - t, 3.0);

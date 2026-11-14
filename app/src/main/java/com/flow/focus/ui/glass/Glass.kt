@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
@@ -110,6 +111,9 @@ data class RootBackdropFrame(
     val settings: Settings,
     /** پس‌زمینه‌ی ثابت و از-پیش-تارشده (تصویر کوچک‌مقیاس) که همه‌ی سطح‌های شیشه‌ای فقط بزرگ‌نمایی‌اش می‌کنند. */
     val blurred: androidx.compose.runtime.State<ImageBitmap?>,
+    /** تصویر تار قبلی و پیشرفت کراس‌فید (۰..۱) حین تعویض تم؛ بیرون از انتقال null/۱ است. */
+    val prevBlurred: ImageBitmap?,
+    val fade: androidx.compose.runtime.State<Float>,
     /** نسخه‌ی کم‌تار برای سطح‌های Subtle در «کیفیت زیاد». */
     val blurredLight: androidx.compose.runtime.State<ImageBitmap?>,
 )
@@ -147,8 +151,8 @@ private fun DrawScope.drawBuiltinWallpaper(c: FlowColors, phase: Float, w: Float
     drawLook(wallpaper.look(c.isDark), phase, w, h, c.accent)
 }
 
-private fun DrawScope.drawWallpaperImage(image: ImageBitmap, w: Float, h: Float, fit: WallpaperFit, fallback: Color) {
-    drawRect(fallback, size = androidx.compose.ui.geometry.Size(w, h))
+private fun DrawScope.drawWallpaperImage(image: ImageBitmap, w: Float, h: Float, fit: WallpaperFit, fallback: Color, alpha: Float = 1f) {
+    if (alpha >= 1f) drawRect(fallback, size = androidx.compose.ui.geometry.Size(w, h))
     val scale = if (fit == WallpaperFit.CROP) maxOf(w / image.width, h / image.height) else minOf(w / image.width, h / image.height)
     val dstWidth = (image.width * scale).toInt().coerceAtLeast(1)
     val dstHeight = (image.height * scale).toInt().coerceAtLeast(1)
@@ -156,6 +160,7 @@ private fun DrawScope.drawWallpaperImage(image: ImageBitmap, w: Float, h: Float,
         image = image,
         dstOffset = IntOffset((w.toInt() - dstWidth) / 2, (h.toInt() - dstHeight) / 2),
         dstSize = IntSize(dstWidth, dstHeight),
+        alpha = alpha,
         filterQuality = FilterQuality.Medium,
     )
 }
@@ -168,12 +173,18 @@ private fun DrawScope.drawBackdrop(
     image: ImageBitmap?,
     settings: Settings,
     plan: WallpaperPlan,
+    previous: ImageBitmap? = null,
+    fade: Float = 1f,
 ) {
     val art = BuiltinWallpapers.find(settings.wallpaperId)?.art == true
     if ((settings.wallpaperId == "custom" || art) && image != null) {
         drawWallpaperImage(image, w, h, if (art) WallpaperFit.CROP else settings.wallpaperFit, c.bgBottom)
     } else {
         drawBuiltinWallpaper(c, phase, w, h, settings.wallpaperId)
+    }
+    // تعویض تم/تصویر: تصویر قبلی با محو شدن روی تصویر جدید می‌ماند (کراس‌فید).
+    if (previous != null && fade < 1f) {
+        drawWallpaperImage(previous, w, h, if (art) WallpaperFit.CROP else settings.wallpaperFit, c.bgBottom, alpha = 1f - fade)
     }
     // پرده‌ی تطبیقی موتور والپیپر: تیره در تم تاریک، روشن در تم روشن؛ فقط به اندازه‌ی لازم برای خوانایی.
     if (plan.scrimAlpha > 0.002f) drawRect(plan.scrimColor.copy(alpha = plan.scrimAlpha.coerceIn(0f, 0.8f)))
@@ -333,7 +344,19 @@ fun GlassBackdropHost(
     } else remember { mutableStateOf(0f) }
 
     val surfacePhase = remember(phase) { derivedStateOf { (phase.value * 90f).toInt() / 90f } }
-    val frame = RootBackdropFrame(image, phase, surfacePhase, tone, palette, rootOrigin, settings, blurredState, blurredLightState)
+    // کراس‌فید تعویض تم/تصویر: تصویر و تار قبلی تا پایان انتقال نگه داشته می‌شوند.
+    val imageNow = image.value
+    val lastImage = remember { arrayOfNulls<ImageBitmap>(1) }
+    val prevImage = remember(imageNow) { lastImage[0] }
+    val prevBlurred = remember(imageNow) { androidx.compose.runtime.snapshots.Snapshot.withoutReadObservation { blurredState.value } }
+    SideEffect { lastImage[0] = imageNow }
+    val fade = remember(imageNow) {
+        androidx.compose.animation.core.Animatable(if (g.animations && prevImage != null) 0f else 1f)
+    }
+    LaunchedEffect(imageNow) {
+        if (fade.value < 1f) fade.animateTo(1f, tween(560, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+    }
+    val frame = RootBackdropFrame(image, phase, surfacePhase, tone, palette, rootOrigin, settings, blurredState, if (prevImage != null) prevBlurred else null, fade.asState(), blurredLightState)
     Box(
         Modifier.fillMaxSize()
             .onSizeChanged { size.value = it }
@@ -400,7 +423,7 @@ fun GlassBackdropHost(
                         } else null
                     },
                 ) {
-                    drawBackdrop(c, phase.value, this.size.width, this.size.height, image.value, settings, wallpaperPlan.value)
+                    drawBackdrop(c, phase.value, this.size.width, this.size.height, image.value, settings, wallpaperPlan.value, prevImage, fade.value)
                 }
                 source()
             }
@@ -518,14 +541,18 @@ fun GlassSurface(
                                 val radiusPx = (shape as? androidx.compose.foundation.shape.CornerBasedShape)
                                     ?.topStart?.toPx(size, androidx.compose.ui.unit.Density(dp)) ?: 0f
                                 refraction.draw(
-                                    this, bmp, origin, full.width, radiusPx,
+                                    this, bmp, frame.prevBlurred, frame.fade.value, origin, full.width, radiusPx,
                                     bevelPx = minOf(size.minDimension * 0.5f, (if (hi) 26f else 20f) * dp),
                                     pullPx = (if (hi) 16f else 9f) * dp * lv,
                                     dispersion = if (hi) 0.07f else 0f,
                                     rim = (if (c.isDark) 0.5f else 0.42f) * (if (hi) 1f else 0.7f) * lv.coerceAtLeast(0.8f),
                                 )
                             } else translate(-origin.x, -origin.y) {
-                                drawImage(bmp, dstSize = androidx.compose.ui.unit.IntSize(full.width, full.height), filterQuality = androidx.compose.ui.graphics.FilterQuality.Low)
+                                val dst = androidx.compose.ui.unit.IntSize(full.width, full.height)
+                                val prevB = frame.prevBlurred
+                                val t = frame.fade.value
+                                if (prevB != null && t < 1f) drawImage(prevB, dstSize = dst, filterQuality = androidx.compose.ui.graphics.FilterQuality.Low)
+                                drawImage(bmp, dstSize = dst, alpha = if (prevB != null) t else 1f, filterQuality = androidx.compose.ui.graphics.FilterQuality.Low)
                             }
                         }
                     },
