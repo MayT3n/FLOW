@@ -562,132 +562,87 @@ private fun SidebarGlyph(icon: String, tint: Color) {
 
 @Composable
 private fun Dashboard(data: AppData, now: Long, runtime: DesktopRuntime) {
-    val todayStats = Stats.summarize(data, StatsRange.DAY, java.time.LocalDate.now())
-    val weekStats = Stats.summarize(data, StatsRange.WEEK, java.time.LocalDate.now())
     val today = java.time.LocalDate.now()
+    val todayStats = Stats.summarize(data, StatsRange.DAY, today)
+    val weekStats = Stats.summarize(data, StatsRange.WEEK, today)
     val maxWeekMinutes = (weekStats.buckets.maxOfOrNull { it.minutes } ?: 1L).coerceAtLeast(1L)
 
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            MetricCard(
-                "تمرکز امروز",
-                "${fa(todayStats.focusMinutes)} دقیقه",
-                "زمان ثبت‌شده",
-                Modifier.weight(1f)
-            )
-            MetricCard(
-                "وظایف باز",
-                fa(data.tasks.count { !it.done }),
-                "کارهای باقی‌مانده",
-                Modifier.weight(1f)
-            )
-            MetricCard(
-                "جلسه‌های کامل",
-                fa(todayStats.completedSessions),
-                "جلسه‌ی امروز",
-                Modifier.weight(1f)
-            )
-        }
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val narrow = maxWidth < 1040.dp
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(13.dp)
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                MetricCard(
+                    "تمرکز امروز",
+                    fa(todayStats.focusMinutes) + " دقیقه",
+                    "زمان ثبت‌شده",
+                    Modifier.weight(1f)
+                )
+                MetricCard(
+                    "وظایف باز",
+                    fa(data.tasks.count { !it.done }),
+                    "کارهای باقی‌مانده",
+                    Modifier.weight(1f)
+                )
+                MetricCard(
+                    "جلسه‌های کامل",
+                    fa(todayStats.completedSessions),
+                    "جلسه‌ی امروز",
+                    Modifier.weight(1f)
+                )
+            }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            FocusCard(data, now, runtime, Modifier.weight(1.3f).height(370.dp))
-            Column(
-                Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Panel("برنامه‌ی امروز", Modifier.fillMaxWidth()) {
-                    val entries = Planner.entriesFor(data, today)
-                    if (entries.isEmpty()) {
-                        EmptyText("برای امروز برنامه‌ای ثبت نشده است.")
-                    } else {
-                        entries.take(5).forEach { entry ->
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    Modifier.size(7.dp).background(
-                                        if (entry.done) Color(0xFF55B88A) else MaterialTheme.colorScheme.primary,
-                                        CircleShape
-                                    )
-                                )
-                                Spacer(Modifier.width(10.dp))
-                                Text(entry.title, Modifier.weight(1f), maxLines = 1, fontSize = 12.sp)
-                                entry.minute?.let {
-                                    Text(DateFormats.clock(it), color = muted(), fontSize = 11.sp)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Panel("کارهای بعدی", Modifier.fillMaxWidth()) {
-                    val tasks = data.tasks.filterNot { it.done }
-                        .sortedWith(compareBy<Task> { it.dueDay ?: Long.MAX_VALUE }.thenByDescending { it.priority.ordinal })
-                        .take(4)
-                    if (tasks.isEmpty()) {
-                        EmptyText("همه‌ی وظایف فعلی انجام شده‌اند.")
-                    } else {
-                        tasks.forEachIndexed { index, task ->
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                    Text(task.title, fontWeight = FontWeight.Medium, fontSize = 12.sp, maxLines = 1)
-                                    val due = task.dueDay?.let {
-                                        DateFormats.full(java.time.LocalDate.ofEpochDay(it))
-                                    } ?: task.priority.label
-                                    Text(due, color = muted(), fontSize = 10.sp, maxLines = 1)
-                                }
-                                Checkbox(
-                                    checked = task.done,
-                                    onCheckedChange = { runtime.setTaskDone(task.id, it) }
-                                )
-                            }
-                            if (index != tasks.lastIndex) {
-                                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .055f))
-                            }
-                        }
+            if (narrow) {
+                FocusCard(data, now, runtime, Modifier.fillMaxWidth().height(340.dp))
+                TodayAgendaPanel(data, today)
+                NextTasksPanel(data, runtime)
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(13.dp)) {
+                    FocusCard(data, now, runtime, Modifier.weight(1.22f).height(346.dp))
+                    Column(
+                        Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(13.dp)
+                    ) {
+                        TodayAgendaPanel(data, today)
+                        NextTasksPanel(data, runtime)
                     }
                 }
             }
-        }
 
-        Panel("نمای هفتگی تمرکز", Modifier.fillMaxWidth()) {
-            Text("بر اساس جلسه‌های واقعی ثبت‌شده در این هفته", color = muted(), fontSize = 11.sp)
-            if (weekStats.buckets.all { it.minutes == 0L }) {
-                EmptyText("با ثبت اولین جلسه، روند هفتگی اینجا نمایش داده می‌شود.")
-            } else {
-                Row(
-                    Modifier.fillMaxWidth().height(94.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    weekStats.buckets.forEach { bucket ->
-                        val ratio = (bucket.minutes.toFloat() / maxWeekMinutes).coerceIn(0f, 1f)
-                        Column(
-                            Modifier.weight(1f).fillMaxHeight(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Bottom
-                        ) {
-                            Text(fa(bucket.minutes), color = muted(), fontSize = 10.sp, maxLines = 1)
-                            Spacer(Modifier.height(5.dp))
-                            Box(
-                                Modifier.fillMaxWidth(.56f).height(54.dp)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(7.dp)),
-                                contentAlignment = Alignment.BottomCenter
+            Panel("روند هفتگی تمرکز", Modifier.fillMaxWidth()) {
+                Text("مقایسه بر پایه‌ی جلسه‌های واقعی ثبت‌شده", color = muted(), fontSize = 11.sp)
+                if (weekStats.buckets.all { it.minutes == 0L }) {
+                    EmptyText("با ثبت اولین جلسه، روند هفتگی اینجا نمایش داده می‌شود.")
+                } else {
+                    Row(
+                        Modifier.fillMaxWidth().height(94.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        weekStats.buckets.forEach { bucket ->
+                            val ratio = (bucket.minutes.toFloat() / maxWeekMinutes).coerceIn(0f, 1f)
+                            Column(
+                                Modifier.weight(1f).fillMaxHeight(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Bottom
                             ) {
+                                Text(fa(bucket.minutes), color = muted(), fontSize = 10.sp, maxLines = 1)
+                                Spacer(Modifier.height(5.dp))
                                 Box(
-                                    Modifier.fillMaxWidth().fillMaxHeight(ratio)
-                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = .82f), RoundedCornerShape(7.dp))
-                                )
+                                    Modifier.fillMaxWidth(.56f).height(54.dp)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .72f), RoundedCornerShape(7.dp)),
+                                    contentAlignment = Alignment.BottomCenter
+                                ) {
+                                    Box(
+                                        Modifier.fillMaxWidth().fillMaxHeight(ratio)
+                                            .background(MaterialTheme.colorScheme.primary.copy(alpha = .78f), RoundedCornerShape(7.dp))
+                                    )
+                                }
+                                Spacer(Modifier.height(5.dp))
+                                Text(bucket.label, color = muted(), fontSize = 10.sp)
                             }
-                            Spacer(Modifier.height(5.dp))
-                            Text(bucket.label, color = muted(), fontSize = 10.sp)
                         }
                     }
                 }
@@ -697,9 +652,65 @@ private fun Dashboard(data: AppData, now: Long, runtime: DesktopRuntime) {
 }
 
 @Composable
+private fun TodayAgendaPanel(data: AppData, today: java.time.LocalDate, modifier: Modifier = Modifier) {
+    Panel("برنامه‌ی امروز", modifier.fillMaxWidth()) {
+        val entries = Planner.entriesFor(data, today)
+        if (entries.isEmpty()) {
+            EmptyText("برای امروز برنامه‌ای ثبت نشده است.")
+        } else {
+            entries.take(5).forEach { entry ->
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier.size(7.dp).background(
+                            if (entry.done) Color(0xFF55B88A) else MaterialTheme.colorScheme.primary,
+                            CircleShape
+                        )
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(entry.title, Modifier.weight(1f), maxLines = 1, fontSize = 12.sp)
+                    entry.minute?.let {
+                        Text(DateFormats.clock(it), color = muted(), fontSize = 11.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NextTasksPanel(data: AppData, runtime: DesktopRuntime, modifier: Modifier = Modifier) {
+    Panel("کارهای بعدی", modifier.fillMaxWidth()) {
+        val tasks = data.tasks.filterNot { it.done }
+            .sortedWith(compareBy<Task> { it.dueDay ?: Long.MAX_VALUE }.thenByDescending { it.priority.ordinal })
+            .take(4)
+        if (tasks.isEmpty()) {
+            EmptyText("همه‌ی وظایف فعلی انجام شده‌اند.")
+        } else {
+            tasks.forEachIndexed { index, task ->
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(task.title, fontWeight = FontWeight.Medium, fontSize = 12.sp, maxLines = 1)
+                        val due = task.dueDay?.let { DateFormats.full(java.time.LocalDate.ofEpochDay(it)) }
+                            ?: task.priority.label
+                        Text(due, color = muted(), fontSize = 10.sp, maxLines = 1)
+                    }
+                    Checkbox(
+                        checked = task.done,
+                        onCheckedChange = { runtime.setTaskDone(task.id, it) }
+                    )
+                }
+                if (index != tasks.lastIndex) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .055f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun FocusPage(data: AppData, now: Long, runtime: DesktopRuntime) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        FocusCard(data, now, runtime, Modifier.fillMaxWidth().height(420.dp))
+        FocusCard(data, now, runtime, Modifier.fillMaxWidth().height(390.dp))
         Panel("نکته", Modifier.fillMaxWidth()) {
             Text("زمان‌سنج بر اساس زمان پایان ذخیره‌شده کار می‌کند؛ بستن و بازکردن برنامه شمارش معکوس را از صفر شروع نمی‌کند.", color = muted())
         }
@@ -712,9 +723,9 @@ private fun FocusCard(data: AppData, now: Long, runtime: DesktopRuntime, modifie
     val timer = data.timer
     val selectedTask = data.tasks.firstOrNull { it.id == timer.taskId }
     val remaining = PomodoroEngine.remaining(timer, now)
-    val progress = PomodoroEngine.progress(timer, now)
+    val progress = PomodoroEngine.progress(timer, now).coerceIn(0f, 1f)
     val animatedProgress by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = progress.coerceIn(0f, 1f),
+        targetValue = progress,
         animationSpec = if (LocalDesktopSettings.current.animations)
             androidx.compose.animation.core.tween(durationMillis = 220)
         else androidx.compose.animation.core.snap(),
@@ -725,43 +736,115 @@ private fun FocusCard(data: AppData, now: Long, runtime: DesktopRuntime, modifie
         PhaseType.SHORT_BREAK -> "استراحت کوتاه"
         PhaseType.LONG_BREAK -> "استراحت بلند"
     }
+    val statusLabel = when (timer.status) {
+        TimerStatus.RUNNING -> "در حال اجرا"
+        TimerStatus.PAUSED -> "متوقف‌شده"
+        TimerStatus.IDLE -> "آماده"
+    }
+    val statusTint = if (timer.status == TimerStatus.RUNNING) Color(0xFF4BAA83)
+        else MaterialTheme.colorScheme.onSurfaceVariant
+
     Panel(phaseName, modifier) {
-        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Box {
-                OutlinedButton(onClick = { taskMenuExpanded = true }) {
-                    Text(selectedTask?.title ?: "بدون وظیفه‌ی مرتبط", maxLines = 1)
+        Column(
+            Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Surface(
+                    color = statusTint.copy(alpha = .12f),
+                    shape = RoundedCornerShape(999.dp)
+                ) {
+                    Text(
+                        statusLabel,
+                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
+                        color = statusTint,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
-                DropdownMenu(expanded = taskMenuExpanded, onDismissRequest = { taskMenuExpanded = false }) {
-                    DropdownMenuItem(text = { Text("بدون وظیفه‌ی مرتبط") }, onClick = {
-                        runtime.selectTask(null); taskMenuExpanded = false
-                    })
-                    data.tasks.filterNot { it.done }.forEach { task ->
-                        DropdownMenuItem(text = { Text(task.title) }, onClick = {
-                            runtime.selectTask(task.id); taskMenuExpanded = false
+                Box {
+                    OutlinedButton(
+                        onClick = { taskMenuExpanded = true },
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp)
+                    ) {
+                        Text(selectedTask?.title ?: "بدون وظیفه‌ی مرتبط", maxLines = 1)
+                    }
+                    DropdownMenu(expanded = taskMenuExpanded, onDismissRequest = { taskMenuExpanded = false }) {
+                        DropdownMenuItem(text = { Text("بدون وظیفه‌ی مرتبط") }, onClick = {
+                            runtime.selectTask(null)
+                            taskMenuExpanded = false
                         })
+                        data.tasks.filterNot { it.done }.forEach { task ->
+                            DropdownMenuItem(text = { Text(task.title) }, onClick = {
+                                runtime.selectTask(task.id)
+                                taskMenuExpanded = false
+                            })
+                        }
                     }
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+
+            Spacer(Modifier.height(14.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 PhaseType.entries.forEach { phase ->
                     val label = when (phase) {
                         PhaseType.FOCUS -> "تمرکز"
                         PhaseType.SHORT_BREAK -> "استراحت کوتاه"
                         PhaseType.LONG_BREAK -> "استراحت بلند"
                     }
-                    OutlinedButton(onClick = { runtime.selectPhase(phase) }) { Text(label, fontSize = 12.sp) }
+                    val active = timer.phase == phase
+                    Surface(
+                        onClick = { runtime.selectPhase(phase) },
+                        color = if (active) MaterialTheme.colorScheme.primary.copy(alpha = .15f)
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .42f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(
+                            label,
+                            modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
+                            color = if (active) MaterialTheme.colorScheme.primary else muted(),
+                            fontSize = 11.sp,
+                            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal
+                        )
+                    }
                 }
             }
-            Spacer(Modifier.height(26.dp))
-            Text(timerText(remaining), fontSize = 66.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Light, letterSpacing = (-1).sp, color = MaterialTheme.colorScheme.onSurface)
-            Spacer(Modifier.height(16.dp))
-            LinearProgressIndicator(progress = animatedProgress, modifier = Modifier.fillMaxWidth(.78f).height(7.dp),
-                color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.surfaceVariant)
-            Spacer(Modifier.height(14.dp))
-            Text("دور ${fa(timer.round)} از ${fa(data.settings.rounds)}", color = muted())
-            Spacer(Modifier.height(24.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(onClick = { if (timer.status == TimerStatus.RUNNING) runtime.pause() else runtime.start() }) {
+
+            Spacer(Modifier.height(12.dp))
+            Text(
+                timerText(remaining),
+                fontSize = 61.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Light,
+                letterSpacing = (-1.4).sp,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(Modifier.height(6.dp))
+            Row(Modifier.fillMaxWidth(.82f), verticalAlignment = Alignment.CenterVertically) {
+                Text("پیشرفت جلسه", color = muted(), fontSize = 10.sp)
+                Spacer(Modifier.weight(1f))
+                Text(fa((progress * 100).toInt()) + "٪", color = muted(), fontSize = 10.sp)
+            }
+            Spacer(Modifier.height(5.dp))
+            LinearProgressIndicator(
+                progress = animatedProgress,
+                modifier = Modifier.fillMaxWidth(.82f).height(6.dp),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+            Spacer(Modifier.height(8.dp))
+            Text("دور " + fa(timer.round) + " از " + fa(data.settings.rounds), color = muted(), fontSize = 11.sp)
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                Button(
+                    onClick = { if (timer.status == TimerStatus.RUNNING) runtime.pause() else runtime.start() },
+                    contentPadding = PaddingValues(horizontal = 22.dp, vertical = 9.dp)
+                ) {
                     Text(if (timer.status == TimerStatus.RUNNING) "مکث" else if (timer.status == TimerStatus.PAUSED) "ادامه" else "شروع")
                 }
                 OutlinedButton(onClick = runtime::reset) { Text("بازنشانی") }
