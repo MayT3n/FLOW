@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -169,17 +170,29 @@ private fun WallpaperOption(
     val look = BuiltinWallpapers.find(id)?.look(isDark)
     val palette = look?.stops ?: if (id == "gradient") listOf(Flow.colors.bgTop, Flow.colors.bgMid, Flow.colors.bgBottom)
         else listOf(Color(0xFF18233F), Color(0xFF34466B), Color(0xFF242C4D))
-    // برچسب باید روی هر دو تم خوانا باشد؛ روی پس‌زمینه‌ی روشن، متن تیره.
-    val labelColor = if (palette[1].perceptual() > 0.62f) Color(0xFF14202E) else Color.White
+    val ctx = androidx.compose.ui.platform.LocalContext.current.applicationContext
+    val thumb = remember(id, isDark) { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(id, isDark) {
+        thumb.value = withContext(Dispatchers.IO) { loadWallpaperArt(ctx, id, isDark, sample = 4)?.asImageBitmap() }
+    }
+    val shape = RoundedCornerShape(20.dp)
     Box(
-        modifier.height(76.dp).clip(RoundedCornerShape(17.dp))
+        modifier.height(150.dp).clip(shape)
             .background(Brush.verticalGradient(palette))
-            .border(if (selected) 2.dp else 1.dp, if (selected) Flow.colors.accent else Color.White.copy(alpha = 0.35f), RoundedCornerShape(17.dp))
             .semantics { this.selected = selected }
             .springClick(role = Role.RadioButton, scaleDown = 0.97f, onClick = onClick),
         contentAlignment = Alignment.BottomStart,
     ) {
-        Text(label, Modifier.padding(horizontal = 9.dp, vertical = 7.dp), style = Flow.type.caption, color = labelColor, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        thumb.value?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop) }
+        // سایه‌ی پایین برای خوانایی برچسب روی هر تصویر، مستقل از روشنی آن
+        Box(Modifier.fillMaxWidth().height(64.dp).align(Alignment.BottomCenter).background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.62f)))))
+        Text(label, Modifier.padding(horizontal = 12.dp, vertical = 10.dp), style = Flow.type.label, color = Color.White, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        if (selected) {
+            Box(Modifier.align(Alignment.TopEnd).padding(9.dp).size(26.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Flow.colors.accent), contentAlignment = Alignment.Center) {
+                FlowIcon(FlowIcons.Check, tint = Flow.colors.textOnAccent, size = 16.dp)
+            }
+        }
+        Box(Modifier.matchParentSize().border(if (selected) 2.5.dp else 1.dp, if (selected) Flow.colors.accent else Color.White.copy(alpha = 0.3f), shape))
     }
 }
 
@@ -415,16 +428,19 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
 
         AnimatedSettingsSection(selectedPage == "wallpaper", "پس‌زمینه") {
             Text("انتخاب پس‌زمینه", style = Flow.type.body, color = Flow.colors.textPrimary)
-            Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                WallpaperOption("gradient", "اصلی", st.wallpaperId == "gradient", Modifier.width(70.dp)) { wallpaperPreviewId = "gradient" }
-                BuiltinWallpapers.all.forEach { w ->
-                    WallpaperOption(w.id, w.label, st.wallpaperId == w.id, Modifier.width(70.dp)) { wallpaperPreviewId = w.id }
-                }
-                if (!st.wallpaperPath.isNullOrBlank()) {
-                    WallpaperOption("custom", "شخصی", st.wallpaperId == "custom", Modifier.width(70.dp)) { wallpaperPreviewId = "custom" }
+            val wallpaperItems = buildList {
+                add("gradient" to "اصلی")
+                BuiltinWallpapers.all.forEach { add(it.id to it.label) }
+                if (!st.wallpaperPath.isNullOrBlank()) add("custom" to "شخصی")
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                wallpaperItems.chunked(2).forEach { pair ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        pair.forEach { (id, label) ->
+                            WallpaperOption(id, label, st.wallpaperId == id, Modifier.weight(1f)) { wallpaperPreviewId = id }
+                        }
+                        if (pair.size == 1) Spacer(Modifier.weight(1f))
+                    }
                 }
             }
             GlassButton(

@@ -39,31 +39,37 @@ object BuiltinWallpapers {
             "aurora", "شفق", "طیف آبی و بنفش با نور نرم",
             dark = WallpaperLook(listOf(Color(0xFF07172B), Color(0xFF173B59), Color(0xFF382B65)), Color(0xFF68C8D6), Color(0xFF6B7DD1)),
             light = WallpaperLook(listOf(Color(0xFFE8F4F8), Color(0xFFDCEAF5), Color(0xFFE8E4F4)), Color(0xFF70BFCB), Color(0xFFB9A8E0)),
+            art = true,
         ),
         BuiltinWallpaper(
             "midnight", "نیمه‌شب", "رنگ‌های تیره و آرام",
             dark = WallpaperLook(listOf(Color(0xFF070D1B), Color(0xFF172A42), Color(0xFF26364B)), Color(0xFF547DB4), Color(0xFF7D8FA8)),
             light = WallpaperLook(listOf(Color(0xFFE7EDF5), Color(0xFFDCE5F0), Color(0xFFD2DEEC)), Color(0xFF799AC5), Color(0xFFA9B8D0)),
+            art = true,
         ),
         BuiltinWallpaper(
             "dusk", "غروب", "ترکیب گرم غروب و آبی تیره",
             dark = WallpaperLook(listOf(Color(0xFF241B37), Color(0xFF69435E), Color(0xFF273D5C)), Color(0xFFD18B9A), Color(0xFF9C739A)),
             light = WallpaperLook(listOf(Color(0xFFF4E8EC), Color(0xFFE9DDE9), Color(0xFFDCE6F2)), Color(0xFFC58BA8), Color(0xFFB6A0D0)),
+            art = true,
         ),
         BuiltinWallpaper(
             "ocean", "اقیانوس", "آبی‌سبز عمیق با درخشش آب",
             dark = WallpaperLook(listOf(Color(0xFF04202B), Color(0xFF0B4A5E), Color(0xFF0D2F4F)), Color(0xFF2EC4B6), Color(0xFF3A86FF)),
             light = WallpaperLook(listOf(Color(0xFFE6F7F6), Color(0xFFD5EEF2), Color(0xFFD7E6F7)), Color(0xFF4CC9C0), Color(0xFF7FB2F0)),
+            art = true,
         ),
         BuiltinWallpaper(
             "ember", "آتش", "سرخ و نارنجی گرم با نور زغال",
             dark = WallpaperLook(listOf(Color(0xFF2A1410), Color(0xFF6B2E22), Color(0xFF3A1F36)), Color(0xFFFF8A5B), Color(0xFFE5527A)),
             light = WallpaperLook(listOf(Color(0xFFFCEFE6), Color(0xFFF8E1D6), Color(0xFFF3DCE4)), Color(0xFFFFA177), Color(0xFFEE8FA8)),
+            art = true,
         ),
         BuiltinWallpaper(
             "forest", "جنگل", "سبز نعنایی با سایه‌ی آبی",
             dark = WallpaperLook(listOf(Color(0xFF0A1F18), Color(0xFF1B4A3A), Color(0xFF1F3347)), Color(0xFF5ED6A0), Color(0xFF7FB77E)),
             light = WallpaperLook(listOf(Color(0xFFEAF6EE), Color(0xFFDDEFE4), Color(0xFFDDE9F0)), Color(0xFF7BD3A8), Color(0xFFA8CF8A)),
+            art = true,
         ),
         BuiltinWallpaper(
             "study_desk", "میز مطالعه", "میز مطالعه‌ی شبانه با چراغ و پنجره‌ی ستاره‌ای",
@@ -100,12 +106,12 @@ object BuiltinWallpapers {
 }
 
 /** تصویر هنری یک پس‌زمینه‌ی داخلی برای تم فعلی؛ null اگر پس‌زمینه تصویری نباشد. */
-internal fun loadWallpaperArt(context: android.content.Context, id: String, isDark: Boolean): android.graphics.Bitmap? {
+internal fun loadWallpaperArt(context: android.content.Context, id: String, isDark: Boolean, sample: Int = 1): android.graphics.Bitmap? {
     if (BuiltinWallpapers.find(id)?.art != true) return null
     val res = context.resources
     val resId = res.getIdentifier("${id}_${if (isDark) "dark" else "light"}", "drawable", context.packageName)
     if (resId == 0) return null
-    return runCatching { android.graphics.BitmapFactory.decodeResource(res, resId) }.getOrNull()
+    return runCatching { android.graphics.BitmapFactory.decodeResource(res, resId, android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }) }.getOrNull()
 }
 
 /** رسم پس‌زمینه‌ی داخلی [wallpaper] با طراحی مخصوص تم فعلی. */
