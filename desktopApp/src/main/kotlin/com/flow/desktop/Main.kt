@@ -62,6 +62,27 @@ private val MutedDark = Color(0xFFA5AEC0)
 private val MutedLight = Color(0xFF667085)
 private val LocalDesktopSettings = androidx.compose.runtime.staticCompositionLocalOf { com.flow.focus.data.Settings() }
 
+// Segoe UI is available on Windows 11 and provides a native-feeling Persian-capable UI fallback.
+private val WindowsUiFont = FontFamily("Segoe UI")
+private val BaseDesktopTypography = Typography()
+private val MedFlowTypography = Typography(
+    displayLarge = BaseDesktopTypography.displayLarge.copy(fontFamily = WindowsUiFont),
+    displayMedium = BaseDesktopTypography.displayMedium.copy(fontFamily = WindowsUiFont),
+    displaySmall = BaseDesktopTypography.displaySmall.copy(fontFamily = WindowsUiFont),
+    headlineLarge = BaseDesktopTypography.headlineLarge.copy(fontFamily = WindowsUiFont),
+    headlineMedium = BaseDesktopTypography.headlineMedium.copy(fontFamily = WindowsUiFont),
+    headlineSmall = BaseDesktopTypography.headlineSmall.copy(fontFamily = WindowsUiFont),
+    titleLarge = BaseDesktopTypography.titleLarge.copy(fontFamily = WindowsUiFont),
+    titleMedium = BaseDesktopTypography.titleMedium.copy(fontFamily = WindowsUiFont),
+    titleSmall = BaseDesktopTypography.titleSmall.copy(fontFamily = WindowsUiFont),
+    bodyLarge = BaseDesktopTypography.bodyLarge.copy(fontFamily = WindowsUiFont),
+    bodyMedium = BaseDesktopTypography.bodyMedium.copy(fontFamily = WindowsUiFont),
+    bodySmall = BaseDesktopTypography.bodySmall.copy(fontFamily = WindowsUiFont),
+    labelLarge = BaseDesktopTypography.labelLarge.copy(fontFamily = WindowsUiFont),
+    labelMedium = BaseDesktopTypography.labelMedium.copy(fontFamily = WindowsUiFont),
+    labelSmall = BaseDesktopTypography.labelSmall.copy(fontFamily = WindowsUiFont)
+)
+
 fun main() = application {
     val runtime = remember { DesktopRuntime() }
     var trayInstalled by remember { mutableStateOf(false) }
@@ -124,7 +145,7 @@ private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Wind
     )
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-        MaterialTheme(colorScheme = scheme) {
+        MaterialTheme(colorScheme = scheme, typography = MedFlowTypography) {
             CompositionLocalProvider(LocalDesktopSettings provides data.settings) {
                 val wallpaper = remember(data.settings.wallpaperPath) {
                     data.settings.wallpaperPath?.let { path ->
