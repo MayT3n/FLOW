@@ -32,6 +32,8 @@ class DesktopRuntime {
     private val store = JsonStore(dataFile())
     val repository = FlowRepository(store, scope)
     val music = DesktopMusicPlayer()
+    @Volatile var notificationSink: ((String, String) -> Unit)? = null
+    @Volatile private var closed = false
     val data = repository.data
 
     private val _now = MutableStateFlow(System.currentTimeMillis())
@@ -46,6 +48,15 @@ class DesktopRuntime {
                     val (timer, sessions) = PomodoroEngine.catchUp(snapshot.timer, snapshot.settings, nowMs)
                     repository.update { current ->
                         current.copy(timer = timer, sessions = current.sessions + sessions)
+                    }
+                    if (snapshot.settings.notifications) {
+                        sessions.lastOrNull()?.let { finished ->
+                            val title = if (finished.type == PhaseType.FOCUS) "جلسه‌ی تمرکز تمام شد" else "استراحت تمام شد"
+                            val message = if (timer.phase == PhaseType.LONG_BREAK) "وقت استراحت بلند است."
+                                else if (timer.phase == PhaseType.SHORT_BREAK) "وقت استراحت کوتاه است."
+                                else "آماده‌ی تمرکز بعدی هستی؟"
+                            notificationSink?.invoke(title, message)
+                        }
                     }
                 }
                 _now.value = nowMs
@@ -137,7 +148,10 @@ class DesktopRuntime {
 
     fun importJson(json: String): Boolean = repository.importJson(json)
 
+    @Synchronized
     fun close() {
+        if (closed) return
+        closed = true
         repository.flush()
         music.close()
         scope.cancel()
