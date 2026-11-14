@@ -618,7 +618,7 @@ private fun MusicPage(runtime: DesktopRuntime) {
                         Text(if (track.id in favorites) "★" else "☆", color = if (track.id in favorites) Accent else muted(), fontSize = 20.sp)
                     }
                     if (downloaded) {
-                        Button(onClick = { runtime.music.play(track) }) { Text(if (state.trackId == track.id && state.playing) "پخش مجدد" else "پخش") }
+                        Button(onClick = { runtime.music.play(track) }, enabled = state.trackId != track.id || !state.playing) { Text(if (state.trackId == track.id && state.playing) "در حال پخش" else "پخش") }
                     } else {
                         OutlinedButton(onClick = { runtime.music.download(track) }, enabled = progress == null) {
                             Text(if (progress == null) "دانلود" else "${fa((progress * 100).toInt())}٪")
