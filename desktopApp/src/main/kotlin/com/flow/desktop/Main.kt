@@ -17,6 +17,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Stroke
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.res.loadImageBitmap
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -312,15 +316,15 @@ private fun Sidebar(
     onToggleCompact: () -> Unit
 ) {
     val items = listOf(
-        "خانه" to "⌂",
-        "تمرکز" to "◷",
-        "وظایف" to "☷",
-        "روتین‌ها" to "↻",
-        "اهداف" to "◎",
-        "برنامه‌ریزی" to "▦",
-        "آمار" to "▥",
-        "موسیقی" to "♫",
-        "تنظیمات" to "⚙"
+        "خانه" to "home",
+        "تمرکز" to "timer",
+        "وظایف" to "tasks",
+        "روتین‌ها" to "routine",
+        "اهداف" to "target",
+        "برنامه‌ریزی" to "calendar",
+        "آمار" to "chart",
+        "موسیقی" to "music",
+        "تنظیمات" to "settings"
     )
     val shape = RoundedCornerShape(MedFlowDesign.sidebarRadius)
     val width = if (compact) MedFlowDesign.sidebarCollapsed else MedFlowDesign.sidebarExpanded
@@ -388,11 +392,9 @@ private fun Sidebar(
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            glyph,
-                            color = if (active) MaterialTheme.colorScheme.primary else muted(),
-                            fontSize = 19.sp,
-                            fontWeight = FontWeight.Medium
+                        SidebarGlyph(
+                            icon = glyph,
+                            tint = if (active) MaterialTheme.colorScheme.primary else muted()
                         )
                     }
                     if (!compact) {
@@ -431,6 +433,100 @@ private fun Sidebar(
                 fontSize = 10.sp,
                 modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 2.dp)
             )
+        }
+    }
+}
+
+@Composable
+private fun SidebarGlyph(icon: String, tint: Color) {
+    Canvas(Modifier.size(19.dp)) {
+        val w = size.width
+        val h = size.height
+        val sw = 1.65.dp.toPx()
+        val stroke = Stroke(width = sw, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        fun path(block: Path.() -> Unit) {
+            drawPath(Path().apply(block), tint, style = stroke)
+        }
+        fun line(x1: Float, y1: Float, x2: Float, y2: Float) {
+            drawLine(tint, androidx.compose.ui.geometry.Offset(x1, y1), androidx.compose.ui.geometry.Offset(x2, y2), sw, cap = StrokeCap.Round)
+        }
+        when (icon) {
+            "home" -> path {
+                moveTo(w * .13f, h * .48f); lineTo(w * .5f, h * .16f); lineTo(w * .87f, h * .48f)
+                moveTo(w * .23f, h * .43f); lineTo(w * .23f, h * .86f); lineTo(w * .77f, h * .86f)
+                lineTo(w * .77f, h * .43f)
+                moveTo(w * .43f, h * .86f); lineTo(w * .43f, h * .62f); lineTo(w * .57f, h * .62f); lineTo(w * .57f, h * .86f)
+            }
+            "timer" -> {
+                drawCircle(tint, radius = w * .36f, center = androidx.compose.ui.geometry.Offset(w * .5f, h * .55f), style = stroke)
+                line(w * .5f, h * .04f, w * .5f, h * .16f)
+                line(w * .38f, h * .04f, w * .62f, h * .04f)
+                line(w * .5f, h * .55f, w * .5f, h * .31f)
+                line(w * .5f, h * .55f, w * .68f, h * .64f)
+            }
+            "tasks" -> path {
+                moveTo(w * .42f, h * .2f); lineTo(w * .86f, h * .2f)
+                moveTo(w * .42f, h * .5f); lineTo(w * .86f, h * .5f)
+                moveTo(w * .42f, h * .8f); lineTo(w * .86f, h * .8f)
+                moveTo(w * .12f, h * .2f); lineTo(w * .2f, h * .28f); lineTo(w * .32f, h * .12f)
+                moveTo(w * .12f, h * .5f); lineTo(w * .2f, h * .58f); lineTo(w * .32f, h * .42f)
+                moveTo(w * .16f, h * .8f); lineTo(w * .3f, h * .8f)
+            }
+            "routine" -> {
+                path {
+                    moveTo(w * .77f, h * .34f); lineTo(w * .77f, h * .13f); lineTo(w * .56f, h * .13f)
+                    moveTo(w * .77f, h * .13f); lineTo(w * .62f, h * .29f)
+                    moveTo(w * .23f, h * .66f); lineTo(w * .23f, h * .87f); lineTo(w * .44f, h * .87f)
+                    moveTo(w * .23f, h * .87f); lineTo(w * .38f, h * .71f)
+                }
+                drawArc(tint, 35f, 145f, false, androidx.compose.ui.geometry.Offset(w * .13f, h * .22f), androidx.compose.ui.geometry.Size(w * .74f, h * .62f), style = stroke)
+                drawArc(tint, 215f, 145f, false, androidx.compose.ui.geometry.Offset(w * .13f, h * .16f), androidx.compose.ui.geometry.Size(w * .74f, h * .62f), style = stroke)
+            }
+            "target" -> {
+                drawCircle(tint, radius = w * .38f, style = stroke)
+                drawCircle(tint, radius = w * .23f, style = stroke)
+                drawCircle(tint, radius = w * .07f)
+            }
+            "calendar" -> path {
+                moveTo(w * .17f, h * .25f); lineTo(w * .83f, h * .25f); lineTo(w * .83f, h * .86f)
+                lineTo(w * .17f, h * .86f); close()
+                moveTo(w * .17f, h * .42f); lineTo(w * .83f, h * .42f)
+                moveTo(w * .34f, h * .12f); lineTo(w * .34f, h * .34f)
+                moveTo(w * .66f, h * .12f); lineTo(w * .66f, h * .34f)
+                moveTo(w * .34f, h * .56f); lineTo(w * .34f, h * .63f)
+                moveTo(w * .5f, h * .56f); lineTo(w * .5f, h * .63f)
+                moveTo(w * .66f, h * .56f); lineTo(w * .66f, h * .63f)
+                moveTo(w * .34f, h * .73f); lineTo(w * .34f, h * .8f)
+            }
+            "chart" -> {
+                path {
+                    moveTo(w * .14f, h * .12f); lineTo(w * .14f, h * .86f); lineTo(w * .9f, h * .86f)
+                }
+                drawRoundRect(tint, androidx.compose.ui.geometry.Offset(w * .25f, h * .56f), androidx.compose.ui.geometry.Size(w * .13f, h * .3f), androidx.compose.ui.geometry.CornerRadius(w * .035f))
+                drawRoundRect(tint, androidx.compose.ui.geometry.Offset(w * .46f, h * .36f), androidx.compose.ui.geometry.Size(w * .13f, h * .5f), androidx.compose.ui.geometry.CornerRadius(w * .035f))
+                drawRoundRect(tint, androidx.compose.ui.geometry.Offset(w * .67f, h * .19f), androidx.compose.ui.geometry.Size(w * .13f, h * .67f), androidx.compose.ui.geometry.CornerRadius(w * .035f))
+            }
+            "music" -> {
+                path {
+                    moveTo(w * .55f, h * .18f); lineTo(w * .55f, h * .68f)
+                    lineTo(w * .84f, h * .61f); lineTo(w * .84f, h * .1f)
+                    lineTo(w * .55f, h * .18f)
+                }
+                drawCircle(tint, radius = w * .12f, center = androidx.compose.ui.geometry.Offset(w * .39f, h * .75f))
+                drawCircle(tint, radius = w * .12f, center = androidx.compose.ui.geometry.Offset(w * .69f, h * .67f))
+            }
+            "settings" -> {
+                drawCircle(tint, radius = w * .31f, style = stroke)
+                drawCircle(tint, radius = w * .11f, style = stroke)
+                for (i in 0 until 8) {
+                    val angle = i * (Math.PI / 4.0)
+                    val x1 = w * .5f + kotlin.math.cos(angle).toFloat() * w * .35f
+                    val y1 = h * .5f + kotlin.math.sin(angle).toFloat() * h * .35f
+                    val x2 = w * .5f + kotlin.math.cos(angle).toFloat() * w * .46f
+                    val y2 = h * .5f + kotlin.math.sin(angle).toFloat() * h * .46f
+                    line(x1, y1, x2, y2)
+                }
+            }
         }
     }
 }
