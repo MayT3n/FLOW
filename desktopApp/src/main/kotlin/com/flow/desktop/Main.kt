@@ -83,6 +83,14 @@ private val MedFlowTypography = Typography(
     labelSmall = BaseDesktopTypography.labelSmall.copy(fontFamily = WindowsUiFont)
 )
 
+private val MedFlowShapes = Shapes(
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(20.dp),
+    extraLarge = RoundedCornerShape(24.dp)
+)
+
 fun main() = application {
     val runtime = remember { DesktopRuntime() }
     var trayInstalled by remember { mutableStateOf(false) }
@@ -145,7 +153,7 @@ private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Wind
     )
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-        MaterialTheme(colorScheme = scheme, typography = MedFlowTypography) {
+        MaterialTheme(colorScheme = scheme, typography = MedFlowTypography, shapes = MedFlowShapes) {
             CompositionLocalProvider(LocalDesktopSettings provides data.settings) {
                 val wallpaper = remember(data.settings.wallpaperPath) {
                     data.settings.wallpaperPath?.let { path ->
