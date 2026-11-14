@@ -1,4 +1,5 @@
 import java.net.URL
+import java.net.HttpURLConnection
 
 plugins {
     id("org.jetbrains.kotlin.jvm")
@@ -23,7 +24,7 @@ val downloadVazirmatnFonts by tasks.registering {
                 target.parentFile.mkdirs()
                 val connection = URL(
                     "https://raw.githubusercontent.com/rastikerdar/vazirmatn/master/fonts/ttf/$name"
-                ).openConnection() as java.net.HttpURLConnection
+                ).openConnection() as HttpURLConnection
                 connection.connectTimeout = 15_000
                 connection.readTimeout = 30_000
                 connection.setRequestProperty("User-Agent", "MedFlow-Desktop-Build")
