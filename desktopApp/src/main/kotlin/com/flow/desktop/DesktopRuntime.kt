@@ -122,6 +122,8 @@ class DesktopRuntime {
     fun toggleGoal(id: String) = repository.toggleGoal(id)
     fun deleteGoal(id: String) = repository.deleteGoal(id)
 
+    fun saveTask(task: Task) = repository.upsertTask(task)
+
     fun setTaskDone(id: String, done: Boolean) =
         repository.setTaskDone(id, done, System.currentTimeMillis())
 
