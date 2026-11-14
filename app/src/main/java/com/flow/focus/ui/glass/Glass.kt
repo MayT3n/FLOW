@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.os.Build
 import java.io.File
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -26,8 +27,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,18 +39,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionOnScreen
@@ -63,6 +76,8 @@ import com.flow.focus.data.WallpaperFit
 import com.flow.focus.ui.theme.Flow
 import com.flow.focus.ui.theme.FlowColors
 import com.flow.focus.ui.theme.LocalGlass
+import com.flow.focus.ui.theme.LocalWallpaperPlan
+import com.flow.focus.ui.theme.WallpaperPlan
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.PI
@@ -87,11 +102,30 @@ val LocalRootSize = compositionLocalOf<State<IntSize>?> { null }
 data class RootBackdropFrame(
     val image: State<ImageBitmap?>,
     val phase: State<Float>,
+    /** فاز کم‌تحرک برای نمونه‌برداری سطح‌ها؛ فقط چند بار در ثانیه تغییر می‌کند تا کارت‌ها هر فریم دوباره Blur نشوند. */
+    val surfacePhase: State<Float>,
     val tone: State<Color?>,
+    val palette: State<List<Color>>,
+    /** مختصات صفحه‌ی گوشه‌ی بالا-چپ ریشه؛ برای محاسبه‌ی دقیق offset سطح‌ها در پنجره‌های جدا */
+    val rootOrigin: State<Offset>,
     val settings: Settings,
+    /** پس‌زمینه‌ی ثابت و از-پیش-تارشده (تصویر کوچک‌مقیاس) که همه‌ی سطح‌های شیشه‌ای فقط بزرگ‌نمایی‌اش می‌کنند. */
+    val blurred: androidx.compose.runtime.State<ImageBitmap?>,
+    /** تصویر تار قبلی و پیشرفت کراس‌فید (۰..۱) حین تعویض تم؛ بیرون از انتقال null/۱ است. */
+    val prevBlurred: ImageBitmap?,
+    val fade: androidx.compose.runtime.State<Float>,
+    /** نسخه‌ی کم‌تار برای سطح‌های Subtle در «کیفیت زیاد». */
+    val blurredLight: androidx.compose.runtime.State<ImageBitmap?>,
 )
 
 val LocalRootBackdrop = compositionLocalOf<RootBackdropFrame?> { null }
+
+/**
+ * لایه‌ی زنده‌ی پشت شیشه: پس‌زمینه + محتوای صفحه‌ی فعلی. فقط عناصر شناور (Dock، مینی‌پلیر) آن را می‌بینند،
+ * پس محتوای واقعی که زیرشان اسکرول می‌شود تار می‌شود. دیالوگ‌ها و منوها (پنجره‌ی جدا) null می‌گیرند و
+ * از پس‌زمینه‌ی ثابت نمونه می‌گیرند.
+ */
+val LocalBackdropLayer = compositionLocalOf<GraphicsLayer?> { null }
 
 fun DrawScope.drawFlowBackground(c: FlowColors, phase: Float, w: Float, h: Float) {
     drawRect(Brush.verticalGradient(listOf(c.bgTop, c.bgMid, c.bgBottom), startY = 0f, endY = h), size = androidx.compose.ui.geometry.Size(w, h))
@@ -109,36 +143,16 @@ fun DrawScope.drawFlowBackground(c: FlowColors, phase: Float, w: Float, h: Float
 }
 
 private fun DrawScope.drawBuiltinWallpaper(c: FlowColors, phase: Float, w: Float, h: Float, id: String) {
-    if (id == "gradient" || id == "custom") {
+    val wallpaper = BuiltinWallpapers.find(id)
+    if (wallpaper == null) {
         drawFlowBackground(c, phase, w, h)
         return
     }
-    val palette = when (id) {
-        "aurora" -> listOf(Color(0xFF07172B), Color(0xFF173B59), Color(0xFF382B65))
-        "midnight" -> listOf(Color(0xFF070D1B), Color(0xFF172A42), Color(0xFF26364B))
-        "dusk" -> listOf(Color(0xFF241B37), Color(0xFF69435E), Color(0xFF273D5C))
-        else -> listOf(c.bgTop, c.bgMid, c.bgBottom)
-    }
-    drawRect(Brush.verticalGradient(palette, startY = 0f, endY = h), size = androidx.compose.ui.geometry.Size(w, h))
-    val motion = phase * 2f * PI.toFloat()
-    val glow = when (id) {
-        "aurora" -> Color(0xFF68C8D6)
-        "midnight" -> Color(0xFF547DB4)
-        else -> Color(0xFFD18B9A)
-    }
-    val center = Offset(w * (0.78f + 0.04f * cos(motion)), h * 0.2f)
-    drawCircle(
-        Brush.radialGradient(listOf(glow.copy(alpha = 0.36f), glow.copy(alpha = 0f)), center = center, radius = w * 0.78f),
-        radius = w * 0.78f, center = center,
-    )
-    drawCircle(
-        Brush.radialGradient(listOf(c.blobB.copy(alpha = 0.26f), Color.Transparent), center = Offset(w * 0.1f, h * 0.84f), radius = w * 0.72f),
-        radius = w * 0.72f, center = Offset(w * 0.1f, h * 0.84f),
-    )
+    drawLook(wallpaper.look(c.isDark), phase, w, h, c.accent)
 }
 
-private fun DrawScope.drawWallpaperImage(image: ImageBitmap, w: Float, h: Float, fit: WallpaperFit, fallback: Color) {
-    drawRect(fallback, size = androidx.compose.ui.geometry.Size(w, h))
+private fun DrawScope.drawWallpaperImage(image: ImageBitmap, w: Float, h: Float, fit: WallpaperFit, fallback: Color, alpha: Float = 1f) {
+    if (alpha >= 1f) drawRect(fallback, size = androidx.compose.ui.geometry.Size(w, h))
     val scale = if (fit == WallpaperFit.CROP) maxOf(w / image.width, h / image.height) else minOf(w / image.width, h / image.height)
     val dstWidth = (image.width * scale).toInt().coerceAtLeast(1)
     val dstHeight = (image.height * scale).toInt().coerceAtLeast(1)
@@ -146,6 +160,7 @@ private fun DrawScope.drawWallpaperImage(image: ImageBitmap, w: Float, h: Float,
         image = image,
         dstOffset = IntOffset((w.toInt() - dstWidth) / 2, (h.toInt() - dstHeight) / 2),
         dstSize = IntSize(dstWidth, dstHeight),
+        alpha = alpha,
         filterQuality = FilterQuality.Medium,
     )
 }
@@ -157,15 +172,22 @@ private fun DrawScope.drawBackdrop(
     h: Float,
     image: ImageBitmap?,
     settings: Settings,
+    plan: WallpaperPlan,
+    previous: ImageBitmap? = null,
+    fade: Float = 1f,
 ) {
-    if (settings.wallpaperId == "custom" && image != null) {
-        drawWallpaperImage(image, w, h, settings.wallpaperFit, c.bgBottom)
+    val art = BuiltinWallpapers.find(settings.wallpaperId)?.art == true
+    if ((settings.wallpaperId == "custom" || art) && image != null) {
+        drawWallpaperImage(image, w, h, if (art) WallpaperFit.CROP else settings.wallpaperFit, c.bgBottom)
     } else {
         drawBuiltinWallpaper(c, phase, w, h, settings.wallpaperId)
     }
-    if (settings.wallpaperId != "gradient" && settings.wallpaperDim > 0f) {
-        drawRect(Color.Black.copy(alpha = settings.wallpaperDim.coerceIn(0f, 0.65f)))
+    // تعویض تم/تصویر: تصویر قبلی با محو شدن روی تصویر جدید می‌ماند (کراس‌فید).
+    if (previous != null && fade < 1f) {
+        drawWallpaperImage(previous, w, h, if (art) WallpaperFit.CROP else settings.wallpaperFit, c.bgBottom, alpha = 1f - fade)
     }
+    // پرده‌ی تطبیقی موتور والپیپر: تیره در تم تاریک، روشن در تم روشن؛ فقط به اندازه‌ی لازم برای خوانایی.
+    if (plan.scrimAlpha > 0.002f) drawRect(plan.scrimColor.copy(alpha = plan.scrimAlpha.coerceIn(0f, 0.8f)))
 }
 
 /** Samples a compact grid once per wallpaper change to give glass a subtle matching tint. */
@@ -193,7 +215,46 @@ private fun Bitmap.sampledAverageColor(): Color {
     )
 }
 
-private fun decodeStoredWallpaper(context: Context, path: String): Bitmap? {
+private fun Bitmap.sampledPalette(): List<Color> {
+    val samples = ArrayList<Pair<Float, Color>>(64)
+    val stepX = (width / 10).coerceAtLeast(1)
+    val stepY = (height / 10).coerceAtLeast(1)
+    val hsv = FloatArray(3)
+    for (y in stepY until height step stepY) {
+        for (x in stepX until width step stepX) {
+            val pixel = getPixel(x, y)
+            android.graphics.Color.colorToHSV(pixel, hsv)
+            if (hsv[1] > 0.22f && hsv[2] in 0.18f..0.94f) {
+                val score = hsv[1] * (0.55f + (1f - kotlin.math.abs(hsv[2] - 0.62f)))
+                samples += score to Color(pixel)
+            }
+        }
+    }
+    val selected = ArrayList<Color>(3)
+    for ((_, color) in samples.sortedByDescending { it.first }) {
+        val distinct = selected.all { old ->
+            val dr = color.red - old.red
+            val dg = color.green - old.green
+            val db = color.blue - old.blue
+            dr * dr + dg * dg + db * db > 0.075f
+        }
+        if (distinct) selected += color
+        if (selected.size == 3) break
+    }
+    listOf(Color(0xFF7896B6), Color(0xFF8FAEAA), Color(0xFF9A8EAE)).forEach {
+        if (selected.size < 3 && it !in selected) selected += it
+    }
+    return selected
+}
+
+private fun builtinWallpaperPalette(id: String): List<Color> = when (id) {
+    "aurora" -> listOf(Color(0xFF68C8D6), Color(0xFF6B7DD1), Color(0xFF254B72))
+    "midnight" -> listOf(Color(0xFF547DB4), Color(0xFF7D8FA8), Color(0xFF26364B))
+    "dusk" -> listOf(Color(0xFFD18B9A), Color(0xFF9C739A), Color(0xFF344E70))
+    else -> listOf(Color(0xFF77899D), Color(0xFF789D9A), Color(0xFF8C80A8))
+}
+
+internal fun decodeStoredWallpaper(context: Context, path: String, maxDimension: Int = MAX_WALLPAPER_DIMENSION): Bitmap? {
     val candidate = File(path).canonicalFile
     val allowedDirectory = File(context.filesDir, "wallpapers").canonicalFile
     if (
@@ -208,7 +269,7 @@ private fun decodeStoredWallpaper(context: Context, path: String): Bitmap? {
     if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
 
     var sampleSize = 1
-    while (maxOf(bounds.outWidth / sampleSize, bounds.outHeight / sampleSize) > MAX_WALLPAPER_DIMENSION) {
+    while (maxOf(bounds.outWidth / sampleSize, bounds.outHeight / sampleSize) > maxDimension) {
         sampleSize *= 2
     }
     return BitmapFactory.decodeFile(
@@ -231,55 +292,145 @@ private fun builtinWallpaperTone(id: String): Color? = when (id) {
     else -> null
 }
 
-/** Shared wallpaper renderer. The decoded image is loaded once and reused by glass sampling. */
+/**
+ * ریشه‌ی Liquid Glass. [source] (پس‌زمینه + صفحه‌ها) در یک GraphicsLayer ضبط می‌شود و [chrome]
+ * (Dock و مینی‌پلیر) روی آن قرار می‌گیرد و از همان لایه‌ی زنده برای تاری استفاده می‌کند.
+ */
 @Composable
-fun GlassBackdropHost(settings: Settings, content: @Composable BoxScope.() -> Unit) {
+fun GlassBackdropHost(
+    settings: Settings,
+    source: @Composable BoxScope.() -> Unit,
+    chrome: @Composable BoxScope.() -> Unit,
+) {
     val c = Flow.colors
     val g = LocalGlass.current
     val context = LocalContext.current.applicationContext
     val size = remember { mutableStateOf(IntSize.Zero) }
+    val rootOrigin = remember { mutableStateOf(Offset.Zero) }
     val image = remember { mutableStateOf<ImageBitmap?>(null) }
     val tone = remember { mutableStateOf<Color?>(null) }
+    val palette = remember { mutableStateOf(builtinWallpaperPalette(settings.wallpaperId)) }
+    val layer = rememberGraphicsLayer()
+    val blurredState = remember { mutableStateOf<ImageBitmap?>(null) }
+    val blurredLightState = remember { mutableStateOf<ImageBitmap?>(null) }
+    val glassForStatic = LocalGlass.current
+    val wallpaperPlan = LocalWallpaperPlan.current
 
-    LaunchedEffect(settings.wallpaperId, settings.wallpaperPath) {
+    LaunchedEffect(settings.wallpaperId, settings.wallpaperPath, c.isDark) {
         val path = settings.wallpaperPath
-        val (decoded, sampledTone) = if (settings.wallpaperId == "custom" && !path.isNullOrBlank()) {
-            // Decode and sample on IO: scanning a user-selected bitmap on the UI thread can hitch transitions.
+        val artBitmap = withContext(Dispatchers.IO) { loadWallpaperArt(context, settings.wallpaperId, c.isDark) }
+        val (decoded, sampledTone, sampledColors) = if (settings.wallpaperId == "custom" && !path.isNullOrBlank()) {
             withContext(Dispatchers.IO) {
                 runCatching {
                     val bitmap = decodeStoredWallpaper(context, path)
-                    bitmap to bitmap?.sampledAverageColor()
-                }.getOrDefault(null to null)
+                    Triple(bitmap, bitmap?.sampledAverageColor(), bitmap?.sampledPalette().orEmpty())
+                }.getOrDefault(Triple(null, null, emptyList()))
             }
+        } else if (artBitmap != null) {
+            Triple(artBitmap, artBitmap.sampledAverageColor(), artBitmap.sampledPalette())
         } else {
-            null to builtinWallpaperTone(settings.wallpaperId)
+            Triple(null, builtinWallpaperTone(settings.wallpaperId), builtinWallpaperPalette(settings.wallpaperId))
         }
         image.value = decoded?.asImageBitmap()
         tone.value = sampledTone ?: builtinWallpaperTone(settings.wallpaperId)
+        palette.value = sampledColors.ifEmpty { builtinWallpaperPalette(settings.wallpaperId) }
     }
 
     // The phase is read by drawing, not by the composition on every frame.
-    val phase: State<Float> = if (g.animations && g.quality != GlassQuality.LOW) {
+    // فقط «کیفیت زیاد» پس‌زمینه‌ی متحرک دارد؛ «متعادل» ثابت و بدون ترسیم دائمی است.
+    val phase: State<Float> = if (g.animations && g.quality == GlassQuality.HIGH) {
         rememberInfiniteTransition(label = "bg")
             .animateFloat(0f, 1f, infiniteRepeatable(tween(60_000, easing = LinearEasing), RepeatMode.Restart), label = "bgPhase")
     } else remember { mutableStateOf(0f) }
 
-    val frame = RootBackdropFrame(image, phase, tone, settings)
-    Box(Modifier.fillMaxSize().onSizeChanged { size.value = it }) {
-        Canvas(
-            Modifier.fillMaxSize().graphicsLayer {
-                renderEffect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && settings.wallpaperBlurDp > 0) {
-                    val radius = settings.wallpaperBlurDp.dp.toPx()
-                    BlurEffect(radius, radius)
-                } else null
-            },
-        ) {
-            drawBackdrop(c, phase.value, this.size.width, this.size.height, image.value, settings)
-        }
+    val surfacePhase = remember(phase) { derivedStateOf { (phase.value * 90f).toInt() / 90f } }
+    // کراس‌فید تعویض تم/تصویر: تصویر و تار قبلی تا پایان انتقال نگه داشته می‌شوند.
+    val imageNow = image.value
+    val lastImage = remember { arrayOfNulls<ImageBitmap>(1) }
+    val prevImage = remember(imageNow) { lastImage[0] }
+    val prevBlurred = remember(imageNow) { androidx.compose.runtime.snapshots.Snapshot.withoutReadObservation { blurredState.value } }
+    SideEffect { lastImage[0] = imageNow }
+    val fade = remember(imageNow) {
+        androidx.compose.animation.core.Animatable(if (g.animations && prevImage != null) 0f else 1f)
+    }
+    LaunchedEffect(imageNow) {
+        if (fade.value < 1f) fade.animateTo(1f, tween(560, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+    }
+    val frame = RootBackdropFrame(image, phase, surfacePhase, tone, palette, rootOrigin, settings, blurredState, if (prevImage != null) prevBlurred else null, fade.asState(), blurredLightState)
+    Box(
+        Modifier.fillMaxSize()
+            .onSizeChanged { size.value = it }
+            .onGloballyPositioned { rootOrigin.value = it.positionOnScreen() },
+    ) {
         CompositionLocalProvider(
             LocalRootSize provides size,
             LocalRootBackdrop provides frame,
-        ) { content() }
+        ) {
+            Box(
+                Modifier.fillMaxSize().drawWithContent {
+                    // The live layer is recorded only when floating chrome can actually sample it.
+                    if (g.quality == GlassQuality.HIGH) {
+                        layer.record { this@drawWithContent.drawContent() }
+                        drawLayer(layer)
+                    } else {
+                        drawContent()
+                    }
+                },
+            ) {
+                // یک‌بار (و فقط با تغییر تصویر/پرده/تم) ضبط می‌شود؛ سطح‌های شیشه‌ای هر فریم گرادیان و براش نمی‌سازند.
+                Box(
+                    Modifier.fillMaxSize().drawBehind {
+                        val strength = when (glassForStatic.quality) {
+                            GlassQuality.LOW -> 0f
+                            GlassQuality.MEDIUM -> 0.42f
+                            GlassQuality.HIGH -> 0.9f
+                        }
+                        val extra = settings.wallpaperBlurDp.dp.toPx() * 0.35f
+                        val maxR = if (glassForStatic.quality == GlassQuality.MEDIUM) 16.dp.toPx() else 36.dp.toPx()
+                        val r = ((glassForStatic.blurDp.dp.toPx() * strength * 0.82f + extra * strength) * wallpaperPlan.value.blurScale).coerceAtMost(maxR)
+                        // بلور = رسم در مقیاس کوچک و بزرگ‌نمایی با فیلتر نرم؛ فقط وقتی پس‌زمینه عوض شود دوباره ساخته می‌شود.
+                        val sw = this.size.width
+                        val sh = this.size.height
+                        // مقیاس ثابت ۱/۵ + بلور واقعی (جعبه‌ای سه‌مرحله‌ای ≈ گاوسی) روی بیت‌مپ کوچک؛ بزرگ‌نمایی مستقیم از مقیاس خیلی کوچک بلوک‌بلوک می‌شد.
+                        val factor = 5f
+                        fun bake(radius: Int): ImageBitmap {
+                            val bw = (sw / factor).toInt().coerceAtLeast(16)
+                            val bh = (sh / factor).toInt().coerceAtLeast(16)
+                            val raw = ImageBitmap(bw, bh)
+                            androidx.compose.ui.graphics.drawscope.CanvasDrawScope().draw(
+                                this, layoutDirection, androidx.compose.ui.graphics.Canvas(raw),
+                                androidx.compose.ui.geometry.Size(bw.toFloat(), bh.toFloat()),
+                            ) {
+                                scale(bw / sw, bh / sh, pivot = Offset.Zero) {
+                                    drawBackdrop(c, 0f, sw, sh, image.value, settings, wallpaperPlan.value)
+                                }
+                            }
+                            val px = IntArray(bw * bh)
+                            raw.readPixels(px)
+                            val out = boxBlurArgb(px, bw, bh, radius)
+                            return Bitmap.createBitmap(out, bw, bh, Bitmap.Config.ARGB_8888).asImageBitmap()
+                        }
+                        val heavy = (r / factor).toInt().coerceIn(1, 14)
+                        blurredState.value = bake(heavy)
+                        blurredLightState.value = if (glassForStatic.quality == GlassQuality.HIGH) bake((heavy / 2).coerceAtLeast(1)) else null
+                    },
+                )
+                Canvas(
+                    Modifier.fillMaxSize().graphicsLayer {
+                        renderEffect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && settings.wallpaperBlurDp > 0) {
+                            val radius = settings.wallpaperBlurDp.dp.toPx()
+                            BlurEffect(radius, radius)
+                        } else null
+                    },
+                ) {
+                    drawBackdrop(c, phase.value, this.size.width, this.size.height, image.value, settings, wallpaperPlan.value, prevImage, fade.value)
+                }
+                source()
+            }
+            CompositionLocalProvider(LocalBackdropLayer provides if (g.quality == GlassQuality.HIGH) layer else null) {
+                chrome()
+            }
+        }
     }
 }
 
@@ -296,83 +447,143 @@ fun GlassSurface(
     val g = LocalGlass.current
     val rootSize = LocalRootSize.current
     val rootBackdrop = LocalRootBackdrop.current
-    // LOW avoids RenderEffect, MEDIUM uses a restrained blur, HIGH uses the full requested blur.
-    // The exact same root backdrop is sampled by every surface to keep glass coherent while scrolling.
+    val liveLayer = LocalBackdropLayer.current
+    // Every surface samples the same root backdrop. LOW remains intentionally blur-free;
+    // MEDIUM uses a restrained shared blur and HIGH adds deeper sampling/highlights.
     val blurStrength = when (g.quality) {
         GlassQuality.LOW -> 0f
-        GlassQuality.MEDIUM -> 0.48f
-        GlassQuality.HIGH -> 1f
+        GlassQuality.MEDIUM -> 0.42f
+        GlassQuality.HIGH -> 0.78f
     }
     val blurOn = blurStrength > 0f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
         rootSize != null && rootBackdrop != null && g.blurDp > 0
     val levelBlur = when (level) {
-        GlassLevel.Subtle -> 0.55f
-        GlassLevel.Regular -> 1f
-        GlassLevel.Strong -> 1.15f
+        GlassLevel.Subtle -> 0.52f
+        GlassLevel.Regular -> 0.88f
+        GlassLevel.Strong -> 1f
     }
     var origin by remember { mutableStateOf(Offset.Zero) }
+    val refraction = remember(g.quality) { if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU && g.quality != GlassQuality.LOW) RefractionPainter() else null }
 
-    val wallpaperTone = rootBackdrop?.tone?.value
-    val wallpaperLuminance = wallpaperTone?.let { tone ->
-        0.2126f * tone.red + 0.7152f * tone.green + 0.0722f * tone.blue
-    }
-    // Bright wallpaper needs a slightly stronger dark surface, while dark wallpaper
-    // needs a little more light glass. Only the difficult extremes receive this boost.
-    val contrastBoost = when {
-        c.isDark && wallpaperLuminance != null && wallpaperLuminance > 0.58f -> 0.14f
-        !c.isDark && wallpaperLuminance != null && wallpaperLuminance < 0.32f -> 0.12f
-        else -> 0f
-    }
     val baseFill = when {
         g.quality == GlassQuality.LOW -> c.glassFillStrong
         level == GlassLevel.Strong -> c.glassFillStrong
-        level == GlassLevel.Subtle -> c.glassFill.copy(alpha = c.glassFill.alpha * 0.6f)
+        level == GlassLevel.Subtle -> c.glassFill.copy(alpha = c.glassFill.alpha * 0.82f)
         else -> c.glassFill
-    }.let { surface -> surface.copy(alpha = (surface.alpha + contrastBoost).coerceAtMost(0.76f)) }
-    val fill = baseFill.copy(alpha = (baseFill.alpha * g.opacity).coerceIn(0f, 1f))
+    }
+    val fill = baseFill.copy(alpha = (baseFill.alpha * g.opacity.coerceIn(0.65f, 1.18f)).coerceIn(0f, 0.88f))
     val shine = if (g.quality == GlassQuality.LOW) 0.15f else g.shine
+    val animationSpec = if (g.animations) tween<Color>(220) else snap()
+    val targetTint = tint?.copy(alpha = 0.16f) ?: Color.Transparent
+    // Fill, wallpaper tint and surface tint are alpha-composited into ONE color (compositing is associative),
+    // so every surface runs a single color animator and a single drawRect instead of three of each.
+    val layerColor = targetTint.compositeOver(fill)
+    val animatedFill by animateColorAsState(layerColor, animationSpec, label = "glass-layer")
+    val animatedShine by animateFloatAsState(
+        targetValue = shine,
+        animationSpec = if (g.animations) tween(240) else snap(),
+        label = "glass-shine",
+    )
 
+    val depth = when {
+        g.quality == GlassQuality.LOW -> if (elevated) 8.dp else 0.dp
+        g.quality == GlassQuality.MEDIUM -> if (elevated) 10.dp else if (level == GlassLevel.Strong) 4.dp else 0.dp
+        elevated -> 18.dp
+        level == GlassLevel.Strong -> 8.dp
+        level == GlassLevel.Regular -> 4.dp
+        else -> 2.dp
+    }
     val outer = modifier
-        .then(if (elevated && g.quality != GlassQuality.LOW) Modifier.shadow(18.dp, shape, ambientColor = c.shadow, spotColor = c.shadow) else Modifier)
+        .then(if (depth > 0.dp) Modifier.shadow(depth, shape, ambientColor = c.shadow, spotColor = c.shadow) else Modifier)
         .clip(shape)
-        .then(if (blurOn) Modifier.onGloballyPositioned { origin = it.positionOnScreen() } else Modifier)
+        .then(
+            if (blurOn) {
+                Modifier.onGloballyPositioned { coords ->
+                    val root = rootBackdrop?.rootOrigin?.value ?: Offset.Zero
+                    val raw = coords.positionOnScreen() - root
+                    if (raw != origin) origin = raw
+                }
+            } else Modifier,
+        )
 
     Box(outer) {
         if (blurOn) {
-            Box(
-                Modifier
-                    .matchParentSize()
-                    .graphicsLayer {
-                        val extra = rootBackdrop!!.settings.wallpaperBlurDp.dp.toPx() * 0.35f
-                        // Prevent extreme settings from turning each surface into an expensive full-screen blur pass.
-                        val requested = g.blurDp.dp.toPx() * blurStrength * levelBlur + extra * blurStrength
-                        val maxRadius = if (g.quality == GlassQuality.MEDIUM) 20.dp.toPx() else 36.dp.toPx()
-                        val radius = requested.coerceAtMost(maxRadius)
-                        renderEffect = BlurEffect(radius, radius)
-                    }
-                    .drawBehind {
-                        val s = rootSize!!.value
+            if (liveLayer != null) {
+                // سطح‌های شناور (داک، مینی‌پلیر) محتوای زنده را تار می‌کنند؛ تعدادشان کم است.
+                Box(
+                    Modifier
+                        .matchParentSize()
+                        .graphicsLayer {
+                            val extra = rootBackdrop!!.settings.wallpaperBlurDp.dp.toPx() * 0.35f
+                            val requested = g.blurDp.dp.toPx() * blurStrength * levelBlur + extra * blurStrength
+                            val maxRadius = if (g.quality == GlassQuality.MEDIUM) 16.dp.toPx() else 30.dp.toPx()
+                            val radius = requested.coerceAtMost(maxRadius)
+                            renderEffect = BlurEffect(radius, radius)
+                        }
+                        .drawBehind {
+                            translate(-origin.x, -origin.y) { drawLayer(liveLayer) }
+                        },
+                )
+            } else {
+                // سطح‌های داخل صفحه از یک لایه‌ی پس‌زمینه‌ی از-پیش-تار‌شده نمونه می‌گیرند:
+                // هر سطح فقط یک drawLayer ارزان است و بلور در اسکرول تکرار نمی‌شود.
+                Box(
+                    Modifier.matchParentSize().drawBehind {
                         val frame = rootBackdrop!!
-                        translate(-origin.x, -origin.y) {
-                            drawBackdrop(c, frame.phase.value, s.width.toFloat(), s.height.toFloat(), frame.image.value, frame.settings)
+                        val bmp = if (level == GlassLevel.Subtle && g.quality == GlassQuality.HIGH) frame.blurredLight.value ?: frame.blurred.value else frame.blurred.value
+                        val full = rootSize!!.value
+                        if (bmp != null) {
+                            if (refraction != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                // شکست نور واقعی؛ «کیفیت» پراکندگی رنگ و نور لبه‌ی بیشتر، «متعادل» شکست ملایم‌تر.
+                                val dp = density
+                                val hi = g.quality == GlassQuality.HIGH
+                                val lv = when (level) { GlassLevel.Subtle -> 0.6f; GlassLevel.Regular -> 0.85f; GlassLevel.Strong -> 1f }
+                                val radiusPx = (shape as? androidx.compose.foundation.shape.CornerBasedShape)
+                                    ?.topStart?.toPx(size, androidx.compose.ui.unit.Density(dp)) ?: 0f
+                                refraction.draw(
+                                    this, bmp, frame.prevBlurred, frame.fade.value, origin, full.width, radiusPx,
+                                    bevelPx = minOf(size.minDimension * 0.5f, (if (hi) 26f else 20f) * dp),
+                                    pullPx = (if (hi) 16f else 9f) * dp * lv,
+                                    dispersion = if (hi) 0.07f else 0f,
+                                    rim = (if (c.isDark) 0.5f else 0.42f) * (if (hi) 1f else 0.7f) * lv.coerceAtLeast(0.8f),
+                                )
+                            } else translate(-origin.x, -origin.y) {
+                                val dst = androidx.compose.ui.unit.IntSize(full.width, full.height)
+                                val prevB = frame.prevBlurred
+                                val t = frame.fade.value
+                                if (prevB != null && t < 1f) drawImage(prevB, dstSize = dst, filterQuality = androidx.compose.ui.graphics.FilterQuality.Low)
+                                drawImage(bmp, dstSize = dst, alpha = if (prevB != null) t else 1f, filterQuality = androidx.compose.ui.graphics.FilterQuality.Low)
+                            }
                         }
                     },
-            )
+                )
+            }
         }
         Box(
             Modifier.matchParentSize().drawBehind {
-                drawRect(fill)
-                // A restrained average-wallpaper tint makes glass feel connected to the image beneath it.
-                rootBackdrop?.tone?.value?.let { wallpaperTone ->
-                    drawRect(wallpaperTone.copy(alpha = if (c.isDark) 0.075f else 0.105f))
-                }
-                if (tint != null) drawRect(tint.copy(alpha = 0.16f))
+                drawRect(animatedFill)
                 if (g.quality != GlassQuality.LOW) {
                     drawRect(
                         Brush.verticalGradient(
-                            0f to c.glassTintTop.copy(alpha = c.glassTintTop.alpha * shine),
+                            0f to c.glassTintTop.copy(alpha = c.glassTintTop.alpha * animatedShine),
                             0.55f to Color.Transparent,
                             1f to Color.Transparent,
+                        ),
+                    )
+                }
+                if (g.quality == GlassQuality.HIGH) {
+                    // Specular glint from the top corner and a soft inner shade at the bottom give real depth.
+                    drawRect(
+                        Brush.radialGradient(
+                            listOf(Color.White.copy(alpha = (if (c.isDark) 0.10f else 0.08f) * animatedShine), Color.Transparent),
+                            center = Offset(size.width * 0.18f, 0f),
+                            radius = size.maxDimension * 0.85f,
+                        ),
+                    )
+                    drawRect(
+                        Brush.verticalGradient(
+                            0.6f to Color.Transparent,
+                            1f to c.shadow.copy(alpha = c.shadow.alpha * 0.22f),
                         ),
                     )
                 }
@@ -388,10 +599,10 @@ fun GlassSurface(
                 1.dp,
                 Brush.linearGradient(
                     listOf(
-                        c.glassEdge.copy(alpha = 0.62f * shine * edgeStrength),
+                        c.glassEdge.copy(alpha = 0.62f * animatedShine * edgeStrength),
                         c.glassEdge.copy(alpha = 0.06f * edgeStrength),
                         c.glassEdge.copy(alpha = 0.025f * edgeStrength),
-                        c.glassEdge.copy(alpha = 0.32f * shine * edgeStrength),
+                        c.glassEdge.copy(alpha = 0.32f * animatedShine * edgeStrength),
                     ),
                     start = Offset.Zero, end = Offset.Infinite,
                 ),
@@ -417,8 +628,29 @@ fun Modifier.springClick(
         animationSpec = if (anim) spring(dampingRatio = 0.5f, stiffness = 600f) else snap(),
         label = "press",
     )
+    // لمس نقطه‌ی مشخصی از کارت را کمی «فرو می‌برد»: چرخش سه‌بعدی بسیار ملایم (حداکثر ۶ درجه) با پرسپکتیو.
+    var touch by remember { mutableStateOf(Offset.Zero) }
+    val tiltX by animateFloatAsState(if (pressed && enabled) touch.x else 0f, if (anim) spring(0.55f, 420f) else snap(), label = "tiltX")
+    val tiltY by animateFloatAsState(if (pressed && enabled) touch.y else 0f, if (anim) spring(0.55f, 420f) else snap(), label = "tiltY")
     this
-        .graphicsLayer { scaleX = scale; scaleY = scale }
+        .pointerInput(enabled, anim) {
+            if (!enabled || !anim) return@pointerInput
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                val w = size.width.coerceAtLeast(1)
+                val h = size.height.coerceAtLeast(1)
+                touch = Offset((down.position.x / w - 0.5f) * 2f, (down.position.y / h - 0.5f) * 2f)
+                waitForUpOrCancellation()
+            }
+        }
+        .graphicsLayer {
+            scaleX = scale; scaleY = scale
+            if (tiltX != 0f || tiltY != 0f) {
+                rotationY = tiltX * 6f
+                rotationX = -tiltY * 6f
+                cameraDistance = 18f * density
+            }
+        }
         .clickable(interactionSource = src, indication = null, enabled = enabled, role = role, onClick = onClick)
 }
 
@@ -430,3 +662,42 @@ fun floatSpring(damping: Float = 0.7f, stiffness: Float = 380f): androidx.compos
 @Composable
 fun dpSpring(): androidx.compose.animation.core.AnimationSpec<Dp> =
     if (LocalGlass.current.animations) spring(0.75f, 420f) else snap()
+
+/** بلور جعبه‌ای سه‌مرحله‌ای (تقریب گاوسی) با لبه‌ی clamp؛ روی بیت‌مپ کوچک و فقط هنگام تغییر پس‌زمینه اجرا می‌شود. */
+private fun boxBlurArgb(src: IntArray, w: Int, h: Int, radius: Int): IntArray {
+    if (radius < 1) return src
+    var a = src
+    var b = IntArray(src.size)
+    repeat(3) {
+        blurPass(a, b, w, h, radius, horizontal = true)
+        blurPass(b, a, w, h, radius, horizontal = false)
+    }
+    return a
+}
+
+private fun blurPass(src: IntArray, dst: IntArray, w: Int, h: Int, r: Int, horizontal: Boolean) {
+    val lines = if (horizontal) h else w
+    val len = if (horizontal) w else h
+    val n = 2 * r + 1
+    for (line in 0 until lines) {
+        fun idx(i: Int): Int {
+            val c = if (i < 0) 0 else if (i >= len) len - 1 else i
+            return if (horizontal) line * w + c else c * w + line
+        }
+        var sa = 0; var sr = 0; var sg = 0; var sb = 0
+        for (k in -r..r) {
+            val p = src[idx(k)]
+            sa += p ushr 24; sr += (p shr 16) and 255; sg += (p shr 8) and 255; sb += p and 255
+        }
+        for (i in 0 until len) {
+            val out = if (horizontal) line * w + i else i * w + line
+            dst[out] = ((sa / n) shl 24) or ((sr / n) shl 16) or ((sg / n) shl 8) or (sb / n)
+            val add = src[idx(i + r + 1)]
+            val rem = src[idx(i - r)]
+            sa += (add ushr 24) - (rem ushr 24)
+            sr += ((add shr 16) and 255) - ((rem shr 16) and 255)
+            sg += ((add shr 8) and 255) - ((rem shr 8) and 255)
+            sb += (add and 255) - (rem and 255)
+        }
+    }
+}

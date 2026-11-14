@@ -1,9 +1,39 @@
 package com.flow.focus.ui.screens
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp as lerpColor
+import androidx.compose.ui.util.lerp
+import com.flow.focus.data.TimerStatus
+import com.flow.focus.ui.motion.Motion
+import kotlin.math.abs
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -17,6 +47,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -24,13 +55,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,23 +75,28 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.flow.focus.core.DateFormats
-import com.flow.focus.core.formatClock
 import com.flow.focus.data.AppData
 import com.flow.focus.data.GlassQuality
 import com.flow.focus.data.PhaseType
 import com.flow.focus.data.Task
 import com.flow.focus.data.ThemeMode
 import com.flow.focus.data.TimerState
-import com.flow.focus.data.TimerStatus
 import com.flow.focus.domain.PomodoroEngine
 import com.flow.focus.domain.Planner
 import com.flow.focus.domain.Stats
 import com.flow.focus.ui.AppViewModel
+import com.flow.focus.ui.rememberTabScrollState
 import com.flow.focus.ui.relativeDay
 import com.flow.focus.ui.rememberNowMs
 import com.flow.focus.ui.components.CheckCircle
@@ -77,6 +114,7 @@ import com.flow.focus.ui.components.num
 import com.flow.focus.ui.glass.GlassLevel
 import com.flow.focus.ui.glass.GlassSurface
 import com.flow.focus.ui.glass.springClick
+import com.flow.focus.ui.theme.LocalDockContentPadding
 import com.flow.focus.ui.theme.Flow
 import com.flow.focus.ui.theme.LocalGlass
 import java.time.Instant
@@ -89,7 +127,7 @@ import kotlin.math.sin
 private enum class HomeDialog { PICK_TASK, DURATION, AMBIENT, REMINDER, NEW_TASK }
 
 @Composable
-fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modifier: Modifier = Modifier) {
+fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, onOpenMusic: () -> Unit = {}, modifier: Modifier = Modifier) {
     val c = Flow.colors
     val timer = data.timer
     val settings = data.settings
@@ -98,10 +136,9 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
     val clock by rememberNowMs(active = true, periodMs = 30_000L)
     val dateTime = remember(clock) { LocalDateTime.ofInstant(Instant.ofEpochMilli(clock), ZoneId.systemDefault()) }
     val today = dateTime.toLocalDate()
-    var dialog by remember { mutableStateOf<HomeDialog?>(null) }
-    var menu by remember { mutableStateOf(false) }
-    var notificationsOpen by remember { mutableStateOf(false) }
-    var musicOpen by remember { mutableStateOf(false) }
+    var dialog by rememberSaveable { mutableStateOf<HomeDialog?>(null) }
+    var menu by rememberSaveable { mutableStateOf(false) }
+    var notificationsOpen by rememberSaveable { mutableStateOf(false) }
     val playing by vm.ambientPlaying.collectAsStateWithLifecycle()
     val newsItems by vm.newsItems.collectAsStateWithLifecycle()
     val newsReadIds by vm.newsReadIds.collectAsStateWithLifecycle()
@@ -128,8 +165,8 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
     val next = remember(data.tasks, data.routines, data.routineChecks, clock) { Planner.next(data, dateTime) }
 
     Column(
-        modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding()
-            .padding(horizontal = 18.dp).padding(top = 8.dp, bottom = 120.dp),
+        modifier.fillMaxSize().verticalScroll(rememberTabScrollState()).statusBarsPadding()
+            .padding(horizontal = 18.dp).padding(top = 8.dp, bottom = LocalDockContentPadding.current),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // ---- سربرگ ----
@@ -141,7 +178,7 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
             ) {
                 GlassSurface(Modifier.size(42.dp), shape = CircleShape, level = GlassLevel.Subtle) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        FlowIcon(FlowIcons.Leaf, tint = c.accent, size = 23.dp)
+                        FlowIcon(FlowIcons.MatFocus, tint = c.accent, size = 23.dp)
                     }
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
@@ -154,20 +191,7 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
                     notificationsOpen = true
                     vm.refreshRemoteContent()
                 }, contentDescription = "اعلان‌ها")
-                if (unreadNotices > 0) {
-                    Box(
-                        Modifier.align(Alignment.TopEnd).padding(top = 1.dp, end = 1.dp)
-                            .size(16.dp).clip(CircleShape).background(c.accent),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            num(unreadNotices.coerceAtMost(9)),
-                            style = Flow.type.caption.copy(fontSize = 9.sp),
-                            color = c.textOnAccent,
-                            maxLines = 1,
-                        )
-                    }
-                }
+                UnreadNoticeBadge(unreadNotices)
             }
             GlassIconButton(
                 if (c.isDark) FlowIcons.Sun else FlowIcons.Moon,
@@ -181,8 +205,8 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
                     listOf(
                         MenuAction("تغییر وظیفه", FlowIcons.Edit) { dialog = HomeDialog.PICK_TASK },
                         MenuAction("مدت تمرکز", FlowIcons.Clock) { dialog = HomeDialog.DURATION },
+                        MenuAction("موسیقی مطالعه", FlowIcons.Music) { onOpenMusic() },
                         MenuAction("صدای محیط", FlowIcons.Music) { dialog = HomeDialog.AMBIENT },
-                        MenuAction("موزیک پلیر", FlowIcons.Music) { musicOpen = true },
                         MenuAction("افزودن یادآور", FlowIcons.Bell) { dialog = HomeDialog.REMINDER },
                         MenuAction("آمار جلسه", FlowIcons.Stats) { onNavigate(3) },
                         MenuAction("تنظیمات تایمر", FlowIcons.Settings) { onNavigate(4) },
@@ -192,8 +216,13 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
         }
 
         // ---- حلقه‌ی تایمر ----
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            TimerRing(timer, now, settings.rounds, Modifier.size(260.dp))
+        Column(
+            Modifier.fillMaxWidth().padding(top = 7.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            TimerRing(timer, now, settings.rounds, Modifier.size(276.dp))
+            TimerStatusPill(timer, settings.rounds)
         }
 
         // ---- کنترل‌ها ----
@@ -227,7 +256,12 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
         ) {
             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (task != null) {
-                    CheckCircle(task.done, { vm.setTaskDone(task.id, !task.done) }, size = 30.dp)
+                    CheckCircle(
+                        task.done,
+                        { vm.setTaskDone(task.id, !task.done) },
+                        size = 30.dp,
+                        contentDescription = "تغییر وضعیت ${task.title}",
+                    )
                 } else {
                     FlowIcon(FlowIcons.Target, tint = c.textSecondary, size = 28.dp)
                 }
@@ -268,7 +302,14 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
                 if (next != null) {
                     val (entry, day) = next
                     val whenText = relativeDay(day.toEpochDay(), today) + (entry.minute?.let { " · " + DateFormats.clock(it) } ?: "")
-                    Text(num(whenText), style = Flow.type.label, color = c.textSecondary)
+                    Text(
+                        num(whenText),
+                        style = Flow.type.label,
+                        color = c.textSecondary,
+                        modifier = Modifier.widthIn(max = 92.dp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
                 FlowIcon(FlowIcons.ChevronNext, tint = c.textSecondary, size = 20.dp)
             }
@@ -317,7 +358,30 @@ fun HomeScreen(vm: AppViewModel, data: AppData, onNavigate: (Int) -> Unit, modif
     }
 
     if (notificationsOpen) MatFocusNotificationsDialog(vm) { notificationsOpen = false }
-    if (musicOpen) MusicPlayerDialog(vm) { musicOpen = false }
+}
+
+@Composable
+private fun UnreadNoticeBadge(count: Int) {
+    Box {
+        AnimatedVisibility(
+            visible = count > 0,
+            enter = if (LocalGlass.current.animations) fadeIn(tween(140)) + scaleIn(initialScale = 0.55f, animationSpec = tween(190)) else EnterTransition.None,
+            exit = if (LocalGlass.current.animations) fadeOut(tween(90)) + scaleOut(targetScale = 0.65f, animationSpec = tween(110)) else ExitTransition.None,
+        ) {
+            Box(
+                Modifier.align(Alignment.TopEnd).padding(top = 1.dp, end = 1.dp)
+                    .size(17.dp).clip(CircleShape).background(Flow.colors.danger),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    num(count.coerceAtMost(9)),
+                    style = Flow.type.caption.copy(fontSize = 9.sp),
+                    color = Color.White,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -362,92 +426,285 @@ private fun MainControl(running: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
+private fun TimerStatusPill(timer: TimerState, rounds: Int) {
+    val animations = LocalGlass.current.animations
+    val c = Flow.colors
+    val totalRounds = rounds.coerceAtLeast(1)
+    val currentRound = timer.round.coerceIn(1, totalRounds)
+    val statusLabel = when (timer.status) {
+        TimerStatus.IDLE -> "آماده‌ی شروع"
+        TimerStatus.PAUSED -> "متوقف شده"
+        TimerStatus.RUNNING -> "در حال اجرا"
+    }
+    val targetStatusColor = when (timer.status) {
+        TimerStatus.IDLE -> c.textSecondary
+        TimerStatus.PAUSED -> c.accentAlt
+        TimerStatus.RUNNING -> c.success
+    }
+    val statusColor by animateColorAsState(
+        targetValue = targetStatusColor,
+        animationSpec = if (animations) tween(180) else snap(),
+        label = "timer-status-color",
+    )
+
+    GlassSurface(
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+        shape = RoundedCornerShape(18.dp),
+        level = GlassLevel.Subtle,
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                repeat(totalRounds) { index ->
+                    val round = index + 1
+                    val targetColor = when {
+                        round < currentRound -> c.success
+                        round == currentRound -> c.accent
+                        else -> c.track
+                    }
+                    val dotColor by animateColorAsState(
+                        targetValue = targetColor,
+                        animationSpec = if (animations) tween(180) else snap(),
+                        label = "timer-round-marker-$index",
+                    )
+                    Box(
+                        Modifier.size(if (round == currentRound) 8.dp else 6.dp)
+                            .clip(CircleShape)
+                            .background(dotColor),
+                    )
+                }
+                Text(
+                    num("دور $currentRound از $totalRounds"),
+                    style = Flow.type.label,
+                    color = c.textPrimary,
+                    maxLines = 1,
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            if (animations) {
+                AnimatedContent(
+                    targetState = num(statusLabel),
+                    transitionSpec = {
+                        (fadeIn(tween(130)) + slideInVertically(tween(150)) { it / 4 }) togetherWith
+                            (fadeOut(tween(100)) + slideOutVertically(tween(120)) { -it / 4 })
+                    },
+                    label = "timer-status",
+                ) { label ->
+                    Text(label, style = Flow.type.caption, color = statusColor, maxLines = 1)
+                }
+            } else {
+                Text(num(statusLabel), style = Flow.type.caption, color = statusColor, maxLines = 1)
+            }
+        }
+    }
+}
+
+/** رقم تکی با حرکت «کیلومترشمار»: رقم جدید از بالا نرم فرود می‌آید و رقم قبلی به پایین می‌رود (فنر ملایم، بریده در کادر رقم). */
+@Composable
+private fun RollingDigit(ch: Char, animate: Boolean, style: TextStyle, color: Color) {
+    if (!animate) {
+        Text(num(ch.toString()), style = style, color = color, maxLines = 1)
+        return
+    }
+    AnimatedContent(
+        targetState = ch,
+        transitionSpec = {
+            ContentTransform(
+                targetContentEnter = fadeIn(tween(200, delayMillis = 30)) +
+                    slideInVertically(animationSpec = spring(dampingRatio = 0.86f, stiffness = 360f)) { -it * 3 / 5 },
+                initialContentExit = fadeOut(tween(130)) +
+                    slideOutVertically(animationSpec = spring(dampingRatio = 0.9f, stiffness = 420f)) { it * 3 / 5 },
+                sizeTransform = SizeTransform(clip = true) { _, _ -> snap() },
+            )
+        },
+        label = "timer-digit",
+    ) { digit ->
+        Text(num(digit.toString()), style = style, color = color, maxLines = 1)
+    }
+}
+
+/**
+ * حلقه‌ی تایمر: ۶۰ نقطه‌ی شعاعی که با گذر زمان واقعی «خاموش» می‌شوند (نقاط روشن = زمان باقی‌مانده)،
+ * یک نقطه‌ی سرِ بزرگ‌تر لحظه‌ی حال را نشان می‌دهد. حرکت پیوسته‌ی تند وجود ندارد؛ فقط
+ *  - پیشرفت با ساعت دیواری هم‌گام است (tween خطی کوتاه، و فنر نرم هنگام پرش مثل ریست)،
+ *  - هنگام شروع/توقف/ادامه/اتمام یک موج ملایم از مرکز پخش می‌شود،
+ *  - در حال اجرا، دیسک مرکزی با تنفس بسیار کند (۶ ثانیه) جان می‌گیرد؛ در حالت توقف همه‌چیز آرام و کم‌نور می‌شود.
+ * همه‌ی مقدارهای متحرک فقط در مرحله‌ی رسم خوانده می‌شوند، پس Recomposition اضافه ندارد.
+ */
+@Composable
 private fun TimerRing(timer: TimerState, now: State<Long>, rounds: Int, modifier: Modifier) {
     val c = Flow.colors
     val glass = LocalGlass.current
     val breakPhase = timer.phase != PhaseType.FOCUS
-    val c1 by animateColorAsState(if (breakPhase) c.success else c.accent, tween(500), label = "ringA")
-    val c2 by animateColorAsState(if (breakPhase) c.accent else c.accentAlt, tween(500), label = "ringB")
+    val running = timer.status == TimerStatus.RUNNING
+    val c1 by animateColorAsState(
+        if (breakPhase) c.success else c.accent,
+        animationSpec = if (glass.animations) tween(Motion.Long) else snap(),
+        label = "ringA",
+    )
+    val c2 by animateColorAsState(
+        if (breakPhase) c.accent else c.accentAlt,
+        animationSpec = if (glass.animations) tween(Motion.Long) else snap(),
+        label = "ringB",
+    )
     // فقط وقتی «ثانیه» عوض می‌شود Recomposition رخ می‌دهد، نه با هر تیک
     val seconds by remember(timer) { derivedStateOf { (PomodoroEngine.remaining(timer, now.value) + 999L) / 1000L } }
-    val progress by animateFloatAsState(
-        targetValue = PomodoroEngine.progress(timer, now.value),
-        animationSpec = if (glass.animations) tween(900, easing = LinearEasing) else snap(),
-        label = "timer-ring-progress",
+
+    // هدف حلقه فقط یک‌بار در ثانیه عوض می‌شود (نه با هر تیک ۲۰۰ms)؛ یک tween خطی یک‌ثانیه‌ای تا هدفِ
+    // ثانیه‌ی بعد حرکت را پیوسته نگه می‌دارد و Recomposition ریشه‌ی تایمر ۵ برابر کم می‌شود.
+    val tickSecond by remember { derivedStateOf { now.value / 1000L } }
+    val target = PomodoroEngine.progress(timer, (tickSecond + 1L) * 1000L)
+    var lastTarget by remember { mutableFloatStateOf(target) }
+    val jumpThreshold = if (timer.durationMs > 0) maxOf(0.03f, 2500f / timer.durationMs) else 1f
+    val jumped = abs(target - lastTarget) > jumpThreshold
+    SideEffect { lastTarget = target }
+    val progress = animateFloatAsState(
+        targetValue = target,
+        animationSpec = when {
+            !glass.animations -> snap()
+            jumped -> Motion.soft()
+            running -> tween(1000, easing = LinearEasing)
+            else -> tween(260, easing = LinearEasing)
+        },
+        label = "timer-progress",
     )
+    val live = animateFloatAsState(
+        targetValue = if (running) 1f else 0f,
+        animationSpec = if (glass.animations) tween(Motion.Long) else snap(),
+        label = "timer-live",
+    )
+    val breath: State<Float> = if (running && glass.animations && glass.quality != GlassQuality.LOW) {
+        rememberInfiniteTransition(label = "timer-breath").animateFloat(
+            0f, 1f, infiniteRepeatable(tween(6000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "breath",
+        )
+    } else remember { mutableFloatStateOf(0f) }
+    val pulse = remember { Animatable(1f) }
+    LaunchedEffect(timer.status, timer.phase) {
+        if (glass.animations) {
+            pulse.snapTo(0f)
+            pulse.animateTo(1f, tween(1100, easing = Motion.Decelerate))
+        }
+    }
 
     Box(modifier, contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
-            val stroke = 12.dp.toPx()
-            val inset = stroke / 2f + 4.dp.toPx()
-            val arc = Size(size.width - 2 * inset, size.height - 2 * inset)
-            val tl = Offset(inset, inset)
-            drawArc(c.track, 0f, 360f, false, tl, arc, style = Stroke(stroke))
-            val p = progress
-            if (p > 0f) {
-                val sweep = 360f * p
+            val strokeW = 9.dp.toPx()
+            val radius = size.minDimension / 2f - 12.dp.toPx()
+            val p = progress.value.coerceIn(0f, 1f)
+            val liveness = 0.55f + 0.45f * live.value
+            val topLeft = Offset(center.x - radius, center.y - radius)
+            val arcSize = Size(radius * 2f, radius * 2f)
+            // نشانه‌های ساعت: ۱۲ نقطه‌ی ظریف دور حلقه
+            val tickR = radius + strokeW / 2f + 5.dp.toPx()
+            for (i in 0 until 12) {
+                val ang = (-90f + 30f * i) * (PI.toFloat() / 180f)
+                drawCircle(
+                    c.track.copy(alpha = if (i % 3 == 0) 0.9f else 0.55f),
+                    if (i % 3 == 0) 1.5.dp.toPx() else 1.1.dp.toPx(),
+                    Offset(center.x + tickR * cos(ang), center.y + tickR * sin(ang)),
+                )
+            }
+            // مسیر خاموش
+            drawCircle(c.track, radius, style = Stroke(strokeW))
+            val remaining = 1f - p
+            if (remaining > 0.003f) {
+                val sweep = Brush.sweepGradient(listOf(c1, c2, c1), center)
                 rotate(-90f, center) {
-                    if (glass.quality != GlassQuality.LOW) {
-                        drawArc(c1.copy(alpha = 0.22f), 0f, sweep, false, tl, arc, style = Stroke(stroke * 2.1f, cap = StrokeCap.Round))
-                    }
-                    drawArc(Brush.sweepGradient(listOf(c1, c2, c1), center), 0f, sweep, false, tl, arc, style = Stroke(stroke, cap = StrokeCap.Round))
+                    // هاله‌ی نرم پشت قوس
+                    drawArc(
+                        brush = sweep, startAngle = 360f * p, sweepAngle = 360f * remaining, useCenter = false,
+                        topLeft = topLeft, size = arcSize, alpha = 0.16f * live.value,
+                        style = Stroke(strokeW * 2.1f, cap = StrokeCap.Round),
+                    )
+                    drawArc(
+                        brush = sweep, startAngle = 360f * p, sweepAngle = 360f * remaining, useCenter = false,
+                        topLeft = topLeft, size = arcSize, alpha = liveness,
+                        style = Stroke(strokeW, cap = StrokeCap.Round),
+                    )
                 }
-                val ang = (-90f + sweep) * (PI.toFloat() / 180f)
-                val r = arc.width / 2f
-                drawCircle(Color.White, stroke * 0.28f, Offset(center.x + r * cos(ang), center.y + r * sin(ang)))
+                // نقطه‌ی سر: لحظه‌ی حال
+                val headAng = (-90f + 360f * p) * (PI.toFloat() / 180f)
+                drawCircle(
+                    Color.White.copy(alpha = 0.55f + 0.4f * live.value),
+                    strokeW * 0.26f,
+                    Offset(center.x + radius * cos(headAng), center.y + radius * sin(headAng)),
+                )
+            }
+            val t = pulse.value
+            if (t < 1f) {
+                drawCircle(
+                    c1.copy(alpha = (1f - t) * 0.28f),
+                    radius = lerp(radius * 0.66f, radius + 14.dp.toPx(), t),
+                    style = Stroke(2.dp.toPx()),
+                )
             }
         }
-        GlassSurface(Modifier.size(204.dp), shape = CircleShape, level = GlassLevel.Subtle) {
+        GlassSurface(
+            Modifier.size(206.dp).graphicsLayer {
+                val scale = 1f + 0.012f * breath.value
+                scaleX = scale
+                scaleY = scale
+            },
+            shape = CircleShape,
+            level = GlassLevel.Subtle,
+        ) {
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                FlowIcon(
-                    when (timer.phase) {
-                        PhaseType.FOCUS -> FlowIcons.Leaf
-                        PhaseType.SHORT_BREAK -> FlowIcons.Wind
-                        PhaseType.LONG_BREAK -> FlowIcons.Moon
+                AnimatedContent(
+                    targetState = timer.phase,
+                    transitionSpec = {
+                        if (glass.animations) fadeIn(Motion.enter(Motion.Medium)) togetherWith fadeOut(Motion.exit(Motion.Short))
+                        else ContentTransform(EnterTransition.None, ExitTransition.None)
                     },
-                    tint = c1, size = 26.dp,
-                )
-                Text(
-                    when (timer.phase) {
-                        PhaseType.FOCUS -> "تمرکز"
-                        PhaseType.SHORT_BREAK -> "استراحت کوتاه"
-                        PhaseType.LONG_BREAK -> "استراحت بلند"
-                    },
-                    style = Flow.type.label,
-                    color = c1,
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(num(formatClock(seconds)), style = Flow.type.display, color = c.textPrimary, maxLines = 1)
-                Text(
-                    when (timer.status) {
-                        TimerStatus.IDLE -> "آماده‌ی شروع"
-                        TimerStatus.PAUSED -> "متوقف شده"
-                        TimerStatus.RUNNING -> "زمان باقی‌مانده"
-                    },
-                    Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(c.track.copy(alpha = if (c.isDark) 0.72f else 0.9f))
-                        .padding(horizontal = 10.dp, vertical = 3.dp),
-                    style = Flow.type.caption,
-                    color = c.textSecondary,
-                    maxLines = 1,
-                )
-                Spacer(Modifier.height(7.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    val total = rounds.coerceAtLeast(1)
-                    for (i in 1..total) {
-                        val state = when {
-                            i < timer.round -> 2
-                            i == timer.round -> 1
-                            else -> 0
-                        }
-                        Box(
-                            Modifier.size(if (state == 1) 10.dp else 7.dp).clip(CircleShape)
-                                .background(if (state == 0) c.track else if (state == 1) c1 else c.textSecondary),
+                    label = "timer-phase",
+                ) { phase ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        FlowIcon(
+                            when (phase) {
+                                PhaseType.FOCUS -> FlowIcons.Leaf
+                                PhaseType.SHORT_BREAK -> FlowIcons.Wind
+                                PhaseType.LONG_BREAK -> FlowIcons.Moon
+                            },
+                            tint = c1, size = 24.dp,
+                        )
+                        Text(
+                            when (phase) {
+                                PhaseType.FOCUS -> "تمرکز"
+                                PhaseType.SHORT_BREAK -> "استراحت کوتاه"
+                                PhaseType.LONG_BREAK -> "استراحت بلند"
+                            },
+                            style = Flow.type.label,
+                            color = c1,
                         )
                     }
                 }
-                Text(num("دور ${timer.round} از $rounds"), style = Flow.type.caption, color = c.textSecondary, modifier = Modifier.padding(top = 4.dp))
+                Spacer(Modifier.height(2.dp))
+                // دقیقه ثابت می‌ماند؛ فقط دو رقم ثانیه با هر تیک انیمیت می‌شوند.
+                val safeSeconds = seconds.coerceAtLeast(0)
+                val displayMinutes = safeSeconds / 60L
+                val displaySeconds = (safeSeconds % 60L).toInt()
+                val digitStyle = Flow.type.display.copy(
+                    fontFeatureSettings = "tnum", textDirection = TextDirection.Ltr, fontWeight = FontWeight.SemiBold,
+                )
+                val minutesText = "%02d".format(java.util.Locale.ROOT, displayMinutes)
+                val secondsText = "%02d".format(java.util.Locale.ROOT, displaySeconds)
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                    Row(
+                        Modifier.graphicsLayer { alpha = 0.78f + 0.22f * live.value },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
+                        // هر رقم جداگانه می‌چرخد: با تیک ثانیه فقط رقم یکان ثانیه حرکت می‌کند و دقیقه ثابت می‌ماند.
+                        minutesText.forEachIndexed { i, ch -> key("m$i") { RollingDigit(ch, glass.animations, digitStyle, c.textPrimary) } }
+                        Text(":", style = digitStyle, color = c.textPrimary.copy(alpha = 0.5f), maxLines = 1)
+                        secondsText.forEachIndexed { i, ch -> key("s$i") { RollingDigit(ch, glass.animations, digitStyle, c.textPrimary) } }
+                    }
+                }
             }
         }
     }

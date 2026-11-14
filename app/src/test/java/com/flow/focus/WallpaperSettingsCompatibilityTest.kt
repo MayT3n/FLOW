@@ -14,7 +14,7 @@ class WallpaperSettingsCompatibilityTest {
             """{"version":1,"settings":{"focusMin":25}}"""
         )
 
-        assertEquals("gradient", data.settings.wallpaperId)
+        assertEquals("study_room", data.settings.wallpaperId)
         assertEquals(null, data.settings.wallpaperPath)
         assertEquals(WallpaperFit.CROP, data.settings.wallpaperFit)
         assertEquals(0.18f, data.settings.wallpaperDim)

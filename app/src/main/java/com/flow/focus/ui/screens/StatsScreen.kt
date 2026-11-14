@@ -1,5 +1,11 @@
 package com.flow.focus.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -54,6 +60,8 @@ import com.flow.focus.domain.StatsRange
 import com.flow.focus.ui.components.EmptyState
 import com.flow.focus.ui.components.FlowIcon
 import com.flow.focus.ui.components.FlowIcons
+import com.flow.focus.ui.components.TileTone
+import com.flow.focus.ui.components.IconTile
 import com.flow.focus.ui.components.FlowProgressBar
 import com.flow.focus.ui.components.ScreenHeader
 import com.flow.focus.ui.components.SectionTitle
@@ -62,8 +70,14 @@ import com.flow.focus.ui.components.num
 import com.flow.focus.ui.glass.GlassLevel
 import com.flow.focus.ui.glass.GlassSurface
 import com.flow.focus.ui.rememberToday
+import com.flow.focus.ui.theme.LocalDockContentPadding
+import com.flow.focus.ui.rememberTabScrollState
 import com.flow.focus.ui.theme.Flow
+import com.flow.focus.ui.motion.Motion
 import com.flow.focus.ui.theme.LocalGlass
+
+private val StatsCardShape = RoundedCornerShape(24.dp)
+private val StatsSmallShape = RoundedCornerShape(20.dp)
 
 @Composable
 fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
@@ -75,33 +89,48 @@ fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
         Stats.summarize(data, range, today)
     }
     val hasFocus = summary.focusMinutes > 0L
+    val dailySummary = remember(data.sessions, data.tasks, today) {
+        Stats.summarize(data, StatsRange.DAY, today)
+    }
 
     Column(
         modifier.fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberTabScrollState())
             .statusBarsPadding()
             .padding(horizontal = 18.dp)
-            .padding(top = 8.dp, bottom = 126.dp),
+            .padding(top = 8.dp, bottom = LocalDockContentPadding.current),
         verticalArrangement = Arrangement.spacedBy(17.dp),
     ) {
         ScreenHeader("آمار و تحلیل")
         SegmentedControl(listOf("روزانه", "هفتگی", "ماهانه"), rangeIdx, { rangeIdx = it })
-        Text(
-            when (range) {
-                StatsRange.DAY -> "نمای امروز"
-                StatsRange.WEEK -> "۷ روز اخیر"
-                StatsRange.MONTH -> "۳۰ روز اخیر"
-            },
-            style = Flow.type.caption,
-            color = c.textSecondary,
-            modifier = Modifier.padding(horizontal = 4.dp),
-        )
+        val swapAnim1 = LocalGlass.current.animations
+        AnimatedContent(
+            targetState = range,
+            transitionSpec = { Motion.valueSwap(swapAnim1, 150, 110) },
+            label = "stats-range-label",
+        ) { activeRange ->
+            Text(
+                when (activeRange) {
+                    StatsRange.DAY -> "نمای امروز"
+                    StatsRange.WEEK -> "۷ روز اخیر"
+                    StatsRange.MONTH -> "۳۰ روز اخیر"
+                },
+                style = Flow.type.caption,
+                color = c.textSecondary,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
+        }
 
         OverviewCard(
             focusMinutes = summary.focusMinutes,
             completedSessions = summary.completedSessions,
             activeDays = summary.activeDays,
             range = range,
+        )
+
+        DailyGoalCard(
+            focusMinutes = dailySummary.focusMinutes,
+            goalMinutes = data.settings.dailyGoalMin,
         )
 
         SectionTitle("خلاصه عملکرد")
@@ -147,12 +176,13 @@ fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
                 StatsRange.MONTH -> "فعالیت روزانه در ماه"
             },
         )
-        GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(25.dp)) {
+        GlassSurface(Modifier.fillMaxWidth(), shape = StatsCardShape, level = GlassLevel.Regular) {
             Column(
                 Modifier.padding(horizontal = 16.dp, vertical = 17.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    IconTile(FlowIcons.Clock, TileTone.Red, size = 30.dp)
                     Text("زمان تمرکز", Modifier.weight(1f), style = Flow.type.bodyStrong, color = c.textPrimary)
                     Text(
                         num(formatMinutes(summary.focusMinutes)),
@@ -174,7 +204,7 @@ fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
         }
 
         SectionTitle("روند هشت هفته‌ی اخیر")
-        GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(25.dp)) {
+        GlassSurface(Modifier.fillMaxWidth(), shape = StatsCardShape, level = GlassLevel.Regular) {
             Column(
                 Modifier.padding(17.dp),
                 verticalArrangement = Arrangement.spacedBy(9.dp),
@@ -204,7 +234,7 @@ fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
         }
 
         SectionTitle("ترکیب دسته‌بندی‌ها")
-        GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(25.dp)) {
+        GlassSurface(Modifier.fillMaxWidth(), shape = StatsCardShape, level = GlassLevel.Regular) {
             if (summary.categories.isEmpty()) {
                 EmptyState(
                     FlowIcons.PieChart,
@@ -220,7 +250,7 @@ fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
         if (!hasFocus) {
             GlassSurface(
                 Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(22.dp),
+                shape = StatsSmallShape,
                 level = GlassLevel.Subtle,
             ) {
                 EmptyState(
@@ -228,6 +258,70 @@ fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
                     "شروع آمار از اولین جلسه",
                     "با ثبت اولین جلسه‌ی تمرکز، نمودارها و روند پیشرفتت شکل می‌گیرند.",
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DailyGoalCard(focusMinutes: Long, goalMinutes: Int) {
+    val colors = Flow.colors
+    val goal = goalMinutes.coerceAtLeast(1).toLong()
+    val progress = (focusMinutes.toFloat() / goal.toFloat()).coerceIn(0f, 1f)
+    val percent = (progress * 100f).toInt()
+    GlassSurface(
+        Modifier.fillMaxWidth(),
+        shape = StatsSmallShape,
+        level = GlassLevel.Subtle,
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(13.dp),
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    FlowIcon(FlowIcons.Target, tint = Flow.colors.accent, size = 18.dp)
+                    Text("هدف تمرکز امروز", style = Flow.type.bodyStrong, color = Flow.colors.textPrimary)
+                }
+                Text(
+                    num("${formatMinutes(focusMinutes)} از ${goalMinutes} دقیقه"),
+                    style = Flow.type.caption,
+                    color = Flow.colors.textSecondary,
+                )
+                FlowProgressBar(progress, Modifier.fillMaxWidth(), height = 5.dp)
+                Text(
+                    if (progress >= 1f) "هدف روزانه کامل شده" else num("${formatMinutes((goal - focusMinutes).coerceAtLeast(0L))} تا رسیدن به هدف"),
+                    style = Flow.type.caption,
+                    color = if (progress >= 1f) Flow.colors.success else Flow.colors.textSecondary,
+                )
+            }
+            Box(Modifier.size(62.dp), contentAlignment = Alignment.Center) {
+                Canvas(Modifier.fillMaxSize()) {
+                    val stroke = 5.dp.toPx()
+                    val inset = stroke / 2f
+                    val arcSize = Size(size.width - stroke, size.height - stroke)
+                    val origin = Offset(inset, inset)
+                    drawArc(
+                        color = colors.track,
+                        startAngle = -90f,
+                        sweepAngle = 360f,
+                        useCenter = false,
+                        topLeft = origin,
+                        size = arcSize,
+                        style = Stroke(stroke, cap = StrokeCap.Round),
+                    )
+                    drawArc(
+                        color = colors.accent,
+                        startAngle = -90f,
+                        sweepAngle = 360f * progress,
+                        useCenter = false,
+                        topLeft = origin,
+                        size = arcSize,
+                        style = Stroke(stroke, cap = StrokeCap.Round),
+                    )
+                }
+                Text(num("${percent}%"), style = Flow.type.label, color = Flow.colors.textPrimary, maxLines = 1)
             }
         }
     }
@@ -243,21 +337,15 @@ private fun OverviewCard(
     val c = Flow.colors
     GlassSurface(
         Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(27.dp),
-        level = GlassLevel.Strong,
-        elevated = true,
+        shape = StatsCardShape,
+        level = GlassLevel.Regular,
     ) {
         Column(
             Modifier.padding(horizontal = 19.dp, vertical = 18.dp),
             verticalArrangement = Arrangement.spacedBy(11.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(c.accentSoft),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    FlowIcon(FlowIcons.ChartLine, tint = c.accent, size = 23.dp)
-                }
+                IconTile(FlowIcons.ChartLine, TileTone.Blue, size = 40.dp)
                 Column(
                     Modifier.weight(1f).padding(start = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(1.dp),
@@ -275,12 +363,19 @@ private fun OverviewCard(
                 }
                 FlowIcon(FlowIcons.Clock, tint = c.textSecondary, size = 19.dp)
             }
-            Text(
-                num(formatMinutes(focusMinutes)),
-                style = Flow.type.display.copy(fontSize = 38.sp, lineHeight = 46.sp),
-                color = c.textPrimary,
-                maxLines = 1,
-            )
+            val swapAnim2 = LocalGlass.current.animations
+            AnimatedContent(
+                targetState = num(formatMinutes(focusMinutes)),
+                transitionSpec = { Motion.valueSwap(swapAnim2, 150, 110) },
+                label = "stats-focus-total",
+            ) { value ->
+                Text(
+                    value,
+                    style = Flow.type.display.copy(fontSize = 38.sp, lineHeight = 46.sp),
+                    color = c.textPrimary,
+                    maxLines = 1,
+                )
+            }
             Box(Modifier.fillMaxWidth().height(1.dp).background(c.track))
             Row(
                 Modifier.fillMaxWidth(),
@@ -333,7 +428,7 @@ private fun MetricCard(
 ) {
     GlassSurface(
         modifier,
-        shape = RoundedCornerShape(22.dp),
+        shape = StatsSmallShape,
         level = GlassLevel.Subtle,
     ) {
         Row(
@@ -348,7 +443,14 @@ private fun MetricCard(
                 FlowIcon(icon, tint = tint, size = 18.dp)
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                Text(value, style = Flow.type.heading, color = Flow.colors.textPrimary, maxLines = 1)
+                val swapAnim3 = LocalGlass.current.animations
+                AnimatedContent(
+                    targetState = value,
+                    transitionSpec = { Motion.valueSwap(swapAnim3, 145, 100) },
+                    label = "stats-metric-value",
+                ) { displayedValue ->
+                    Text(displayedValue, style = Flow.type.heading, color = Flow.colors.textPrimary, maxLines = 1)
+                }
                 Text(
                     label,
                     style = Flow.type.caption,

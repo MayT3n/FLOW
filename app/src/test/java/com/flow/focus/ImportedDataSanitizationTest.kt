@@ -65,7 +65,6 @@ class ImportedDataSanitizationTest {
                     glassBlurDp = Int.MAX_VALUE,
                     glassShine = -2f,
                     ambientVolume = 3f,
-                    musicVolume = -1f,
                     wallpaperDim = 2f,
                     wallpaperBlurDp = Int.MAX_VALUE,
                     ambientSound = "unknown-sound",
@@ -99,7 +98,6 @@ class ImportedDataSanitizationTest {
             assertEquals(48, s.glassBlurDp)
             assertEquals(0f, s.glassShine, 0f)
             assertEquals(1f, s.ambientVolume, 0f)
-            assertEquals(0f, s.musicVolume, 0f)
             assertEquals(0.5f, s.wallpaperDim, 0f)
             assertEquals(24, s.wallpaperBlurDp)
             assertEquals("none", s.ambientSound)

@@ -1,47 +1,44 @@
 package com.flow.focus.ui.screens
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.flow.focus.core.CalendarOccasion
 import com.flow.focus.core.DateFormats
 import com.flow.focus.core.JalaliDate
 import com.flow.focus.data.AppData
@@ -52,156 +49,233 @@ import com.flow.focus.data.Task
 import com.flow.focus.domain.PlanEntry
 import com.flow.focus.domain.Planner
 import com.flow.focus.domain.RoutineEntry
+import com.flow.focus.domain.Stats
 import com.flow.focus.domain.TaskEntry
+import com.flow.focus.domain.TaskQuery
 import com.flow.focus.ui.AppViewModel
+import com.flow.focus.ui.rememberTabScrollState
 import com.flow.focus.ui.components.CheckCircle
+import com.flow.focus.ui.components.Chip
 import com.flow.focus.ui.components.EmptyState
 import com.flow.focus.ui.components.Fab
 import com.flow.focus.ui.components.FlowIcon
 import com.flow.focus.ui.components.FlowIcons
-import com.flow.focus.ui.components.GlassButton
+import com.flow.focus.ui.components.FlowProgressBar
+import com.flow.focus.ui.components.FlowTextField
 import com.flow.focus.ui.components.GlassIconButton
+import com.flow.focus.ui.components.GlassMenu
 import com.flow.focus.ui.components.JalaliDatePickerDialog
-import com.flow.focus.ui.components.JalaliMonthView
+import com.flow.focus.ui.components.MenuAction
+import com.flow.focus.ui.components.PlannerCalendar
 import com.flow.focus.ui.components.ScreenHeader
 import com.flow.focus.ui.components.SectionTitle
-import com.flow.focus.ui.components.SegmentedControl
 import com.flow.focus.ui.components.num
+import com.flow.focus.ui.durationLabel
 import com.flow.focus.ui.glass.GlassLevel
 import com.flow.focus.ui.glass.GlassSurface
 import com.flow.focus.ui.glass.springClick
+import com.flow.focus.ui.motion.Appear
+import com.flow.focus.ui.motion.Motion
+import com.flow.focus.ui.motion.rememberEnterState
 import com.flow.focus.ui.relativeDay
 import com.flow.focus.ui.rememberToday
 import com.flow.focus.ui.theme.Flow
+import com.flow.focus.ui.theme.LocalDockContentPadding
 import java.time.LocalDate
 
+/**
+ * برنامه‌ریزی یکپارچه: تقویم (ماهانه/هفتگی قابل جمع‌شدن)، جدول زمانی روز، کارهای بدون زمان، عقب‌افتاده‌ها،
+ * کارهای بدون تاریخ، اهداف و روتین‌های همان روز در یک صفحه. وظایف یکی از انواع فعالیت‌اند.
+ */
 @Composable
-fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifier) {
+fun PlanningScreen(vm: AppViewModel, data: AppData, onStartFocus: () -> Unit, modifier: Modifier = Modifier) {
     val today = rememberToday()
     val offlineOccasions by vm.offlineCalendarOccasions.collectAsStateWithLifecycle()
+    val c = Flow.colors
     val animations = Flow.glass.animations
-    val calendarColors = Flow.colors
-    val holidayColor = calendarColors.danger
-    val occasionColor = calendarColors.accent
-    var mode by rememberSaveable { mutableStateOf(0) } // ۰ روزانه، ۱ هفتگی، ۲ ماهانه
+
+    var calendarExpanded by rememberSaveable { mutableStateOf(true) }
     var selected by rememberSaveable { mutableStateOf(today.toEpochDay()) }
     var monthAnchor by rememberSaveable { mutableStateOf(firstOfMonth(today).toEpochDay()) }
+    var category by rememberSaveable { mutableStateOf<String?>(null) }
+    var query by rememberSaveable { mutableStateOf("") }
+    var searchOpen by rememberSaveable { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Task?>(null) }
     var creating by remember { mutableStateOf(false) }
-    var routineEditing by remember { mutableStateOf<Routine?>(null) }
-    var routineCreating by remember { mutableStateOf(false) }
     var datePicker by remember { mutableStateOf(false) }
     var moveTask by remember { mutableStateOf<Task?>(null) }
+    var runningRoutine by remember { mutableStateOf<Routine?>(null) }
 
     val selDate = LocalDate.ofEpochDay(selected)
-    val selectedYear = JalaliDate.of(selDate).year
-    val selectedOccasions = remember(offlineOccasions, selected) {
-        offlineOccasions.filter { it.epochDay == selected }
+
+    // تقویم همیشه ماهِ روز انتخابی را نشان می‌دهد، مگر کاربر ماه را جابه‌جا کند.
+    LaunchedEffect(selected) { monthAnchor = firstOfMonth(selDate).toEpochDay() }
+
+    val occasionsByDay = remember(offlineOccasions) { offlineOccasions.groupBy { it.epochDay } }
+    val dots = remember(data.tasks, data.routines, occasionsByDay, monthAnchor, selected, c.isDark) {
+        buildMap<Long, List<Color>> {
+            fun add(date: LocalDate) {
+                val key = date.toEpochDay()
+                if (key in this) return
+                val entryColors = Planner.entriesFor(data, date).map { Color(Categories.byId(it.categoryId).color) }
+                val occasionColors = occasionsByDay[key].orEmpty().map { if (it.isHoliday) c.danger else c.accent }
+                val colors = (entryColors + occasionColors).distinct().take(3)
+                if (colors.isNotEmpty()) put(key, colors)
+            }
+            val anchor = JalaliDate.of(LocalDate.ofEpochDay(monthAnchor))
+            for (day in 1..anchor.lengthOfMonth()) add(JalaliDate(anchor.year, anchor.month, day).toLocalDate())
+            val weekStart = JalaliDate.startOfWeek(selDate)
+            for (i in 0..6) add(weekStart.plusDays(i.toLong()))
+        }
     }
-    val hasOfflineYearData = remember(offlineOccasions, selectedYear) {
-        offlineOccasions.any { JalaliDate.of(LocalDate.ofEpochDay(it.epochDay)).year == selectedYear }
+
+    val q = remember(query) { TaskQuery.normalize(query) }
+    fun matches(title: String, categoryId: String): Boolean =
+        (category == null || categoryId == category) && (q.isEmpty() || TaskQuery.normalize(title).contains(q))
+
+    val allEntries = remember(data.tasks, data.routines, data.routineChecks, selected) { Planner.entriesFor(data, selDate) }
+    val entries = allEntries.filter { matches(it.title, it.categoryId) }
+    val timed = entries.filter { it.minute != null }
+    val untimed = entries.filter { it.minute == null }
+    val overdueAll = remember(data.tasks, today) { Planner.overdue(data, today) }
+    val overdue = if (selDate == today) overdueAll.filter { matches(it.title, it.categoryId) } else emptyList()
+    val undated = remember(data.tasks) { Planner.undated(data) }.filter { matches(it.title, it.categoryId) }
+    val (doneCount, totalCount) = Planner.summary(allEntries)
+    val plannedMinutes = Planner.plannedMinutes(allEntries)
+
+    val selectedOccasions = remember(occasionsByDay, selected) { occasionsByDay[selected].orEmpty() }
+    val weekStart = JalaliDate.startOfWeek(selDate)
+
+    fun goToday() {
+        selected = today.toEpochDay()
+        monthAnchor = firstOfMonth(today).toEpochDay()
     }
 
     Box(modifier.fillMaxSize()) {
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding()
-                .padding(horizontal = 18.dp).padding(top = 8.dp, bottom = 130.dp),
+            Modifier.fillMaxSize().verticalScroll(rememberTabScrollState()).statusBarsPadding()
+                .padding(horizontal = 18.dp).padding(top = 8.dp, bottom = LocalDockContentPadding.current + 72.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            ScreenHeader("برنامه‌ریزی")
-            Text(
-                if (hasOfflineYearData) "مناسبت‌ها و تعطیلات آفلاین سال $selectedYear"
-                else "داده‌ی مناسبت آفلاین برای سال $selectedYear در این نسخه موجود نیست",
-                style = Flow.type.caption,
-                color = Flow.colors.textSecondary,
-            )
-            SegmentedControl(listOf("روزانه", "هفتگی", "ماهانه"), mode, { mode = it })
-
-            AnimatedContent(
-                targetState = mode,
-                transitionSpec = {
-                    if (animations) {
-                        val direction = if (targetState > initialState) 1 else -1
-                        (fadeIn(tween(180)) + slideInVertically(tween(220)) { it / 18 * direction }) togetherWith
-                            (fadeOut(tween(140)) + slideOutVertically(tween(180)) { -it / 18 * direction })
-                    } else {
-                        ContentTransform(EnterTransition.None, ExitTransition.None)
-                    }
-                },
-                label = "planning-mode",
-            ) { activeMode ->
-                when (activeMode) {
-                0 -> DailyView(
-                    vm, data, selDate, today,
-                    onDay = { selected = it.toEpochDay() },
-                    onPickDate = { datePicker = true },
-                    onEdit = { editing = it },
-                    onMove = { moveTask = it },
-                    onEditRoutine = { routineEditing = it },
-                    onAddRoutine = { routineCreating = true },
-                )
-                1 -> WeeklyView(
-                    vm, data, selDate, today,
-                    onSelectDay = { selected = it.toEpochDay() },
-                    onShiftWeek = { selected = selDate.plusDays(7L * it).toEpochDay() },
-                    onEdit = { editing = it },
-                    onMove = { moveTask = it },
-                )
-                else -> {
-                    val a = JalaliDate.of(LocalDate.ofEpochDay(monthAnchor))
-                    val first = LocalDate.ofEpochDay(monthAnchor)
-                    val last = first.plusDays((a.lengthOfMonth() - 1).toLong())
-                    val monthOccasions = remember(offlineOccasions, a.year, a.month) {
-                        offlineOccasions.filter { occasion ->
-                            val date = LocalDate.ofEpochDay(occasion.epochDay)
-                            val jalali = JalaliDate.of(date)
-                            jalali.year == a.year && jalali.month == a.month
-                        }
-                    }
-                    val marked = remember(data.tasks, data.routines, monthAnchor, monthOccasions) {
-                        Planner.markedDays(data, first, last) + monthOccasions.map { it.epochDay }
-                    }
-                    val eventColors = remember(data.tasks, data.routines, data.routineChecks, monthAnchor, monthOccasions) {
-                        buildMap<Long, List<Color>> {
-                            for (dayOfMonth in 1..a.lengthOfMonth()) {
-                                val date = JalaliDate(a.year, a.month, dayOfMonth).toLocalDate()
-                                val day = date.toEpochDay()
-                                val taskColors = Planner.entriesFor(data, date)
-                                    .map { Color(Categories.byId(it.categoryId).color) }
-                                val occasionColors = monthOccasions.filter { it.epochDay == day }.map {
-                                    if (it.isHoliday) holidayColor else occasionColor
-                                }
-                                val colors = (taskColors + occasionColors).distinct().take(3)
-                                if (colors.isNotEmpty()) put(day, colors)
-                            }
-                        }
-                    }
-                    GlassSurface(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(14.dp)) {
-                            JalaliMonthView(
-                                a.year, a.month, selected, today.toEpochDay(), marked,
-                                onSelect = { selected = it.toEpochDay() },
-                                onPrev = { monthAnchor = JalaliDate(a.year, a.month, 1).plusMonths(-1).toLocalDate().toEpochDay() },
-                                onNext = { monthAnchor = JalaliDate(a.year, a.month, 1).plusMonths(1).toLocalDate().toEpochDay() },
-                                eventColors = eventColors,
-                            )
-                        }
-                    }
-                    if (selDate != today) GlassButton("رفتن به امروز", {
-                        selected = today.toEpochDay()
-                        monthAnchor = firstOfMonth(today).toEpochDay()
-                    }, Modifier.fillMaxWidth())
-                    SectionTitle(num(DateFormats.full(selDate)))
-                    EntryList(vm, data, selDate, onEdit = { editing = it }, onMove = { moveTask = it })
+            ScreenHeader("برنامه‌ریزی", trailing = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    TodayPill(enabled = selDate != today, onClick = ::goToday)
+                    GlassIconButton(
+                        if (calendarExpanded) FlowIcons.ChevronUp else FlowIcons.ChevronDown,
+                        { calendarExpanded = !calendarExpanded },
+                        size = 38.dp, iconSize = 18.dp,
+                        contentDescription = if (calendarExpanded) "جمع کردن تقویم" else "باز کردن تقویم",
+                    )
                 }
+            })
+
+            PlannerCalendar(
+                expanded = calendarExpanded,
+                selected = selDate,
+                today = today,
+                monthAnchor = monthAnchor,
+                dotsByDay = dots,
+                onSelect = { selected = it.toEpochDay() },
+                onMonthAnchor = { monthAnchor = it },
+            )
+
+            DayHeader(selDate, today, doneCount, totalCount, plannedMinutes, onPickDate = { datePicker = true })
+
+            FilterBar(
+                category = category,
+                onCategory = { category = it },
+                searchOpen = searchOpen,
+                onToggleSearch = { searchOpen = !searchOpen; if (!searchOpen) query = "" },
+                query = query,
+                onQuery = { query = it },
+            )
+
+            if (overdue.isNotEmpty()) {
+                SectionTitle("عقب‌افتاده")
+                PlanGroup {
+                    overdue.forEachIndexed { index, task ->
+                        PlanRow(
+                            TaskEntry(task), selDate, index, showTime = false, dateHint = relativeDay(task.dueDay!!, today),
+                            pomodoros = Stats.pomodorosDone(data.sessions, task.id),
+                            vm = vm, onEdit = { editing = it }, onMove = { moveTask = it },
+                            onFocus = { vm.selectTask(it.id); onStartFocus() }, onRunRoutine = { runningRoutine = it },
+                            isLast = index == overdue.lastIndex,
+                        )
+                    }
+                }
+            }
+
+            if (timed.isNotEmpty()) {
+                SectionTitle("جدول روز")
+                PlanGroup {
+                    timed.forEachIndexed { index, entry ->
+                        PlanRow(
+                            entry, selDate, index, showTime = true, dateHint = null,
+                            pomodoros = (entry as? TaskEntry)?.let { Stats.pomodorosDone(data.sessions, it.task.id) },
+                            vm = vm, onEdit = { editing = it }, onMove = { moveTask = it },
+                            onFocus = { vm.selectTask(it.id); onStartFocus() }, onRunRoutine = { runningRoutine = it },
+                            isLast = index == timed.lastIndex,
+                        )
+                    }
+                }
+            }
+
+            if (untimed.isNotEmpty()) {
+                SectionTitle("بدون ساعت مشخص")
+                PlanGroup {
+                    untimed.forEachIndexed { index, entry ->
+                        PlanRow(
+                            entry, selDate, index, showTime = false, dateHint = null,
+                            pomodoros = (entry as? TaskEntry)?.let { Stats.pomodorosDone(data.sessions, it.task.id) },
+                            vm = vm, onEdit = { editing = it }, onMove = { moveTask = it },
+                            onFocus = { vm.selectTask(it.id); onStartFocus() }, onRunRoutine = { runningRoutine = it },
+                            isLast = index == untimed.lastIndex,
+                        )
+                    }
+                }
+            }
+
+            if (entries.isEmpty() && overdue.isEmpty()) {
+                EmptyState(
+                    FlowIcons.Calendar,
+                    if (q.isNotEmpty() || category != null) "موردی پیدا نشد" else "برنامه‌ای برای این روز نیست",
+                    if (q.isNotEmpty() || category != null) "فیلتر یا عبارت جست‌وجو را تغییر بده." else "با دکمه‌ی + برنامه، رویداد یا وظیفه اضافه کن.",
+                )
+            }
+
+            if (undated.isNotEmpty()) {
+                SectionTitle("بدون تاریخ")
+                PlanGroup {
+                    undated.forEachIndexed { index, task ->
+                        PlanRow(
+                            TaskEntry(task), selDate, index, showTime = false, dateHint = null,
+                            pomodoros = Stats.pomodorosDone(data.sessions, task.id),
+                            vm = vm, onEdit = { editing = it }, onMove = { moveTask = it },
+                            onFocus = { vm.selectTask(it.id); onStartFocus() }, onRunRoutine = { runningRoutine = it },
+                            isLast = index == undated.lastIndex,
+                        )
+                    }
                 }
             }
 
             if (selectedOccasions.isNotEmpty()) {
-                OfflineCalendarOccasions(selectedOccasions)
+                OccasionsCard(selectedOccasions.map { it.titleFa to it.isHoliday })
             }
+
+            GoalsCard(
+                "اهداف روز",
+                data.goals.filter { it.period == GoalPeriod.DAILY && it.periodStartDay == selected },
+                onAdd = { vm.addGoal(it, GoalPeriod.DAILY, selected) }, onToggle = vm::toggleGoal, onDelete = vm::deleteGoal,
+            )
+            GoalsCard(
+                "اهداف هفته",
+                data.goals.filter { it.period == GoalPeriod.WEEKLY && it.periodStartDay == weekStart.toEpochDay() },
+                onAdd = { vm.addGoal(it, GoalPeriod.WEEKLY, weekStart.toEpochDay()) }, onToggle = vm::toggleGoal, onDelete = vm::deleteGoal,
+            )
         }
-        Fab({ creating = true }, Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 108.dp).navigationBarsPadding())
+
+        // دکمه‌ی افزودن در لایه‌ی جدا از ستون اسکرول‌شونده است؛ جایگاهش هیچ اثری روی اندازه‌ی تقویم ندارد.
+        Fab({ creating = true }, Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = LocalDockContentPadding.current - 8.dp))
     }
 
     if (creating) {
@@ -218,17 +292,19 @@ fun PlanningScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             onDismiss = { editing = null },
         )
     }
-    if (routineCreating) {
-        RoutineEditorDialog(null, { vm.saveRoutine(it); routineCreating = false }, null, { routineCreating = false })
-    }
-    routineEditing?.let { r ->
-        RoutineEditorDialog(r, { vm.saveRoutine(it); routineEditing = null }, { vm.deleteRoutine(it.id); routineEditing = null }, { routineEditing = null })
-    }
     if (datePicker) {
         JalaliDatePickerDialog(selected, onPick = { selected = it; datePicker = false }, onDismiss = { datePicker = false })
     }
     moveTask?.let { t ->
         JalaliDatePickerDialog(t.dueDay, onPick = { vm.moveTask(t.id, it); moveTask = null }, onDismiss = { moveTask = null })
+    }
+    runningRoutine?.let { r ->
+        RoutineRunnerDialog(
+            routine = r,
+            focusMin = data.settings.focusMin,
+            onFinished = { vm.markRoutineDone(r.id, today.toEpochDay()) },
+            onDismiss = { runningRoutine = null },
+        )
     }
 }
 
@@ -238,254 +314,202 @@ private fun firstOfMonth(d: LocalDate): LocalDate {
 }
 
 @Composable
-private fun OfflineCalendarOccasions(items: List<CalendarOccasion>) {
-    GlassSurface(
-        Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        level = GlassLevel.Subtle,
-    ) {
-        Column(
-            Modifier.fillMaxWidth().padding(13.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp),
-        ) {
-            SectionTitle("مناسبت‌های این روز")
-            items.forEach { occasion ->
-                Row(
-                    Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(9.dp),
-                ) {
-                    FlowIcon(
-                        if (occasion.isHoliday) FlowIcons.CalendarCheck else FlowIcons.Info,
-                        tint = if (occasion.isHoliday) Flow.colors.danger else Flow.colors.accent,
-                        size = 20.dp,
-                    )
-                    Text(
-                        occasion.titleFa,
-                        Modifier.weight(1f),
-                        style = Flow.type.body,
-                        color = Flow.colors.textPrimary,
-                    )
-                    if (occasion.isHoliday) {
-                        Text("تعطیل رسمی", style = Flow.type.caption, color = Flow.colors.danger)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DailyView(
-    vm: AppViewModel,
-    data: AppData,
-    day: LocalDate,
-    today: LocalDate,
-    onDay: (LocalDate) -> Unit,
-    onPickDate: () -> Unit,
-    onEdit: (Task) -> Unit,
-    onMove: (Task) -> Unit,
-    onEditRoutine: (Routine) -> Unit,
-    onAddRoutine: () -> Unit,
-) {
-    val c = Flow.colors
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        GlassIconButton(FlowIcons.ChevronPrev, { onDay(day.minusDays(1)) }, size = 40.dp, iconSize = 18.dp, contentDescription = "روز قبل")
-        GlassSurface(
-            Modifier.weight(1f).springClick(scaleDown = 0.98f, onClick = onPickDate),
-            shape = RoundedCornerShape(20.dp), level = GlassLevel.Subtle,
-        ) {
-            Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(num(DateFormats.full(day)), style = Flow.type.bodyStrong, color = c.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (day != today) Text(num(relativeDay(day.toEpochDay(), today)), style = Flow.type.caption, color = c.textSecondary)
-                else Text("امروز", style = Flow.type.caption, color = c.accent)
-            }
-        }
-        GlassIconButton(FlowIcons.ChevronNext, { onDay(day.plusDays(1)) }, size = 40.dp, iconSize = 18.dp, contentDescription = "روز بعد")
-    }
-    if (day != today) GlassButton("برو به امروز", { onDay(today) }, Modifier.fillMaxWidth())
-
-    GoalsCard(
-        "اهداف روز", data.goals.filter { it.period == GoalPeriod.DAILY && it.periodStartDay == day.toEpochDay() },
-        onAdd = { vm.addGoal(it, GoalPeriod.DAILY, day.toEpochDay()) }, onToggle = vm::toggleGoal, onDelete = vm::deleteGoal,
-    )
-
-    SectionTitle("برنامه‌ی روز")
-    EntryList(vm, data, day, onEdit, onMove)
-
-    SectionTitle("روتین‌های تکرارشونده", trailing = {
-        GlassIconButton(FlowIcons.Plus, onAddRoutine, size = 36.dp, iconSize = 18.dp, contentDescription = "روتین جدید")
-    })
-    if (data.routines.isEmpty()) {
-        EmptyState(FlowIcons.Repeat, "هنوز روتینی نداری", "کارهایی مثل ورزش یا مطالعه را یک بار تعریف کن تا هر هفته تکرار شوند.")
-    } else {
-        data.routines.forEach { r ->
-            GlassSurface(Modifier.fillMaxWidth().springClick(scaleDown = 0.985f, onClick = { onEditRoutine(r) }), shape = RoundedCornerShape(20.dp), level = GlassLevel.Subtle) {
-                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    FlowIcon(FlowIcons.Repeat, tint = c.accent, size = 20.dp)
-                    Column(Modifier.weight(1f)) {
-                        Text(r.title, style = Flow.type.bodyStrong, color = c.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        val days = if (r.weekdays.size == 7) "هر روز" else r.weekdays.joinToString("، ") { JalaliDate.weekdayNames[it] }
-                        Text(num(days + (r.minute?.let { " · " + DateFormats.clock(it) } ?: "")), style = Flow.type.caption, color = c.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EntryList(vm: AppViewModel, data: AppData, day: LocalDate, onEdit: (Task) -> Unit, onMove: (Task) -> Unit) {
-    val entries = remember(data.tasks, data.routines, data.routineChecks, day) { Planner.entriesFor(data, day) }
-    if (entries.isEmpty()) {
-        EmptyState(FlowIcons.Calendar, "برنامه‌ای برای این روز نیست", "با دکمه‌ی + یک وظیفه اضافه کن.")
-        return
-    }
+private fun TodayPill(enabled: Boolean, onClick: () -> Unit) {
     val c = Flow.colors
     GlassSurface(
-        Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        Modifier.height(44.dp).springClick(enabled = enabled, onClick = onClick),
+        shape = RoundedCornerShape(22.dp),
         level = GlassLevel.Subtle,
+        tint = if (enabled) c.accent else null,
     ) {
-        Column(Modifier.padding(horizontal = 9.dp, vertical = 4.dp)) {
-            entries.forEachIndexed { index, entry ->
-                EntryRow(vm, entry, day, onEdit, onMove)
-                if (index < entries.lastIndex) {
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(c.track))
-                }
-            }
+        Box(Modifier.padding(horizontal = 16.dp).height(44.dp), contentAlignment = Alignment.Center) {
+            Text("امروز", style = Flow.type.label, color = if (enabled) c.accent else c.textSecondary, maxLines = 1)
         }
     }
 }
 
 @Composable
-private fun EntryRow(vm: AppViewModel, e: PlanEntry, day: LocalDate, onEdit: (Task) -> Unit, onMove: (Task) -> Unit) {
+private fun DayHeader(day: LocalDate, today: LocalDate, done: Int, total: Int, plannedMinutes: Int, onPickDate: () -> Unit) {
     val c = Flow.colors
-    val cat = Categories.byId(e.categoryId)
-    Row(
-        Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(13.dp))
-            .springClick(scaleDown = 0.99f, onClick = { if (e is TaskEntry) onEdit(e.task) })
-            .padding(horizontal = 7.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    GlassSurface(
+        Modifier.fillMaxWidth().springClick(scaleDown = 0.99f, onClick = onPickDate),
+        shape = RoundedCornerShape(22.dp),
+        level = GlassLevel.Subtle,
     ) {
-            CheckCircle(
-                e.done,
-                { if (e is TaskEntry) vm.setTaskDone(e.task.id, !e.task.done) else if (e is RoutineEntry) vm.toggleRoutine(e.routine.id, day.toEpochDay()) },
-                size = 28.dp, color = Color(cat.color),
-            )
-            Column(Modifier.weight(1f)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    e.title, style = Flow.type.bodyStrong,
-                    color = if (e.done) c.textSecondary else c.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    num(DateFormats.full(day)),
+                    Modifier.weight(1f),
+                    style = Flow.type.heading, color = c.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (e is RoutineEntry) FlowIcon(FlowIcons.Repeat, tint = c.textSecondary, size = 14.dp)
-                    Box(Modifier.size(7.dp).clip(CircleShape).background(Color(cat.color)))
-                    Text(
-                        num(cat.name + (e.minute?.let { " · " + DateFormats.clock(it) } ?: "")),
-                        style = Flow.type.caption, color = c.textSecondary,
-                    )
+                Text(
+                    if (day == today) "امروز" else num(relativeDay(day.toEpochDay(), today)),
+                    style = Flow.type.caption,
+                    color = if (day == today) c.accent else c.textSecondary,
+                    maxLines = 1,
+                )
+            }
+            FlowProgressBar(if (total == 0) 0f else done.toFloat() / total, color = c.success, height = 5.dp)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(
+                    if (total == 0) "برنامه‌ای ثبت نشده" else num("$done از $total انجام شد"),
+                    style = Flow.type.caption, color = c.textSecondary, maxLines = 1,
+                )
+                if (plannedMinutes > 0) {
+                    Text(num("زمان‌بندی‌شده: " + durationLabel(plannedMinutes)), style = Flow.type.caption, color = c.textSecondary, maxLines = 1)
                 }
             }
-            if (e is TaskEntry && !e.task.done) {
-                GlassIconButton(FlowIcons.Move, { onMove(e.task) }, size = 34.dp, iconSize = 16.dp, contentDescription = "جابه‌جایی به تاریخ دیگر")
-            }
+        }
     }
 }
 
 @Composable
-private fun WeeklyView(
+private fun FilterBar(
+    category: String?,
+    onCategory: (String?) -> Unit,
+    searchOpen: Boolean,
+    onToggleSearch: () -> Unit,
+    query: String,
+    onQuery: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            GlassIconButton(
+                if (searchOpen) FlowIcons.Close else FlowIcons.Search, onToggleSearch,
+                size = 36.dp, iconSize = 17.dp, active = searchOpen,
+                contentDescription = if (searchOpen) "بستن جست‌وجو" else "جست‌وجو در برنامه",
+            )
+            Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Chip("همه", category == null, { onCategory(null) })
+                Categories.all.forEach { cat -> Chip(cat.name, category == cat.id, { onCategory(cat.id) }, dot = Color(cat.color)) }
+            }
+        }
+        AnimatedVisibility(
+            visibleState = rememberEnterState(searchOpen),
+            enter = fadeIn(Motion.enter(Motion.Medium)) + expandVertically(Motion.soft()),
+            exit = fadeOut(Motion.exit(Motion.Fast)) + shrinkVertically(Motion.exit(Motion.Short)),
+        ) {
+            FlowTextField(query, onQuery, "جست‌وجو در برنامه و وظایف", leading = FlowIcons.Search)
+        }
+    }
+}
+
+@Composable
+private fun PlanGroup(content: @Composable () -> Unit) {
+    GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp), level = GlassLevel.Subtle) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 4.dp)) { content() }
+    }
+}
+
+@Composable
+private fun PlanRow(
+    entry: PlanEntry,
+    day: LocalDate,
+    index: Int,
+    showTime: Boolean,
+    dateHint: String?,
+    pomodoros: Int?,
     vm: AppViewModel,
-    data: AppData,
-    selectedDay: LocalDate,
-    today: LocalDate,
-    onSelectDay: (LocalDate) -> Unit,
-    onShiftWeek: (Int) -> Unit,
     onEdit: (Task) -> Unit,
     onMove: (Task) -> Unit,
+    onFocus: (Task) -> Unit,
+    onRunRoutine: (Routine) -> Unit,
+    isLast: Boolean,
 ) {
     val c = Flow.colors
-    val start = JalaliDate.startOfWeek(selectedDay)
-    val end = start.plusDays(6)
-    val selectedEpoch = selectedDay.toEpochDay()
+    val cat = Categories.byId(entry.categoryId)
+    var menu by remember { mutableStateOf(false) }
+    val task = (entry as? TaskEntry)?.task
+    val routine = (entry as? RoutineEntry)?.routine
+    val start = entry.minute
+    val duration = entry.durationMin
 
-    Row(
-        Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        GlassIconButton(FlowIcons.ChevronPrev, { onShiftWeek(-1) }, size = 40.dp, iconSize = 18.dp, contentDescription = "هفته‌ی قبل")
-        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(num(DateFormats.short(start) + " تا " + DateFormats.short(end)), style = Flow.type.heading, color = c.textPrimary)
-            Text("نمای هفتگی", style = Flow.type.caption, color = c.textSecondary)
-        }
-        GlassIconButton(FlowIcons.ChevronNext, { onShiftWeek(1) }, size = 40.dp, iconSize = 18.dp, contentDescription = "هفته‌ی بعد")
-    }
-
-    GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), level = GlassLevel.Subtle) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
-        ) {
-            for (i in 0..6) {
-                val day = start.plusDays(i.toLong())
-                val epoch = day.toEpochDay()
-                val entries = remember(data.tasks, data.routines, data.routineChecks, epoch) {
-                    Planner.entriesFor(data, day)
-                }
-                val selected = epoch == selectedEpoch
-                val isToday = day == today
-                Column(
-                    Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(17.dp))
-                        .background(if (selected) c.accent else Color.Transparent)
-                        .springClick(scaleDown = 0.94f, onClick = { onSelectDay(day) })
-                        .padding(vertical = 9.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(5.dp),
-                ) {
-                    Text(
-                        JalaliDate.weekdayInitials[i],
-                        style = Flow.type.caption,
-                        color = if (selected) c.textOnAccent.copy(alpha = 0.82f) else c.textSecondary,
-                    )
-                    Text(
-                        num(JalaliDate.of(day).day),
-                        style = Flow.type.bodyStrong,
-                        color = if (selected) c.textOnAccent else c.textPrimary,
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                        if (entries.isEmpty()) {
-                            Box(Modifier.size(4.dp).clip(CircleShape).background(if (isToday && !selected) c.accent else Color.Transparent))
-                        } else {
-                            repeat(minOf(entries.size, 3)) {
-                                Box(
-                                    Modifier.size(4.dp).clip(CircleShape)
-                                        .background(if (selected) c.textOnAccent else c.accent),
-                                )
-                            }
+    Appear(delayMs = index.coerceAtMost(8) * 22) {
+        Column {
+            Row(
+                Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(13.dp))
+                    .springClick(enabled = task != null, scaleDown = 0.99f, onClick = { if (task != null) onEdit(task) })
+                    .padding(horizontal = 4.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (showTime && start != null) {
+                    Column(Modifier.width(48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(num(DateFormats.clock(start)), style = Flow.type.label, color = c.textPrimary, maxLines = 1)
+                        if (duration != null) {
+                            Text(num(DateFormats.clock((start + duration) % (24 * 60))), style = Flow.type.caption, color = c.textSecondary, maxLines = 1)
                         }
                     }
+                    Box(Modifier.width(3.dp).height(34.dp).clip(CircleShape).background(Color(cat.color).copy(alpha = 0.85f)))
+                }
+                CheckCircle(
+                    entry.done,
+                    { if (task != null) vm.setTaskDone(task.id, !task.done) else if (routine != null) vm.toggleRoutine(routine.id, day.toEpochDay()) },
+                    size = 26.dp, color = Color(cat.color), contentDescription = "تغییر وضعیت ${entry.title}",
+                )
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        entry.title,
+                        style = Flow.type.bodyStrong.copy(textDecoration = if (entry.done) TextDecoration.LineThrough else null),
+                        color = if (entry.done) c.textSecondary else c.textPrimary,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    )
+                    val kindLabel = task?.kind?.label ?: "روتین"
+                    val pomodoroLabel = if (task != null && pomodoros != null && task.estimatedPomodoros > 0) " · $pomodoros/${task.estimatedPomodoros} جلسه" else ""
+                    val timeLabel = if (!showTime && start != null) " · " + DateFormats.clock(start) else ""
+                    val dateLabel = if (dateHint != null) " · $dateHint" else ""
+                    val durationLabelText = if (duration != null && !showTime) " · " + durationLabel(duration) else ""
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (routine != null) FlowIcon(FlowIcons.Repeat, tint = c.textSecondary, size = 13.dp)
+                        Box(Modifier.size(7.dp).clip(CircleShape).background(Color(cat.color)))
+                        Text(
+                            num("$kindLabel · ${cat.name}$timeLabel$durationLabelText$pomodoroLabel$dateLabel"),
+                            style = Flow.type.caption,
+                            color = if (dateHint != null) c.danger else c.textSecondary,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                if (task != null && !task.done) {
+                    GlassIconButton(FlowIcons.Play, { onFocus(task) }, size = 34.dp, iconSize = 16.dp, contentDescription = "شروع تمرکز روی این مورد")
+                }
+                if (routine != null) {
+                    GlassIconButton(FlowIcons.Play, { onRunRoutine(routine) }, size = 34.dp, iconSize = 16.dp, contentDescription = "اجرای روتین")
+                }
+                if (task != null) {
+                    Box {
+                        GlassIconButton(FlowIcons.More, { menu = true }, size = 34.dp, iconSize = 16.dp, contentDescription = "گزینه‌ها")
+                        GlassMenu(
+                            menu, { menu = false },
+                            listOf(
+                                MenuAction("ویرایش", FlowIcons.Edit) { onEdit(task) },
+                                MenuAction("انتقال به تاریخ دیگر", FlowIcons.Move) { onMove(task) },
+                                MenuAction("حذف", FlowIcons.Trash, destructive = true) { vm.deleteTask(task.id) },
+                            ),
+                        )
+                    }
+                }
+            }
+            if (!isLast) Box(Modifier.fillMaxWidth().padding(horizontal = 6.dp).height(1.dp).background(c.track))
+        }
+    }
+}
+
+@Composable
+private fun OccasionsCard(items: List<Pair<String, Boolean>>) {
+    val c = Flow.colors
+    GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), level = GlassLevel.Subtle) {
+        Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            SectionTitle("مناسبت‌های این روز")
+            items.forEach { (title, holiday) ->
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    FlowIcon(if (holiday) FlowIcons.CalendarCheck else FlowIcons.Info, tint = if (holiday) c.danger else c.accent, size = 20.dp)
+                    Text(title, Modifier.weight(1f), style = Flow.type.body, color = c.textPrimary)
+                    if (holiday) Text("تعطیل رسمی", style = Flow.type.caption, color = c.danger)
                 }
             }
         }
     }
-
-    if (selectedDay != today) {
-        GlassButton("رفتن به امروز", { onSelectDay(today) }, Modifier.fillMaxWidth())
-    }
-
-    GoalsCard(
-        "اهداف هفته",
-        data.goals.filter { it.period == GoalPeriod.WEEKLY && it.periodStartDay == start.toEpochDay() },
-        onAdd = { vm.addGoal(it, GoalPeriod.WEEKLY, start.toEpochDay()) },
-        onToggle = vm::toggleGoal,
-        onDelete = vm::deleteGoal,
-    )
-
-    SectionTitle(num(DateFormats.full(selectedDay)))
-    EntryList(vm, data, selectedDay, onEdit = onEdit, onMove = onMove)
 }

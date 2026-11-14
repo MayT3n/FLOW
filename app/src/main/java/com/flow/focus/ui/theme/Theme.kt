@@ -1,6 +1,25 @@
 package com.flow.focus.ui.theme
 
 import android.content.Context
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import com.flow.focus.ui.glass.BuiltinWallpapers
+import com.flow.focus.ui.glass.decodeStoredWallpaper
+import com.flow.focus.ui.glass.loadWallpaperArt
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import com.flow.focus.ui.glass.GlassGovernor
+import com.flow.focus.ui.motion.Motion
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
@@ -17,7 +36,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalLayoutDirection
 import com.flow.focus.data.GlassQuality
@@ -55,7 +76,7 @@ val DarkColors = FlowColors(
     isDark = true,
     bgTop = Color(0xFF101318), bgMid = Color(0xFF171C24), bgBottom = Color(0xFF202833),
     blobA = Color(0xFF526B86), blobB = Color(0xFF625A78), blobC = Color(0xFF477A7B),
-    glassFill = Color(0xFFB8C8DC).copy(alpha = 0.065f),
+    glassFill = Color(0xFFB8C8DC).copy(alpha = 0.10f),
     glassFillStrong = Color(0xFF252E39).copy(alpha = 0.46f),
     glassTintTop = Color.White.copy(alpha = 0.14f),
     glassEdge = Color.White,
@@ -67,17 +88,17 @@ val DarkColors = FlowColors(
 
 val LightColors = FlowColors(
     isDark = false,
-    bgTop = Color(0xFFF4F5F7), bgMid = Color(0xFFF0F2F5), bgBottom = Color(0xFFE7ECF2),
-    blobA = Color(0xFFB8C9DC), blobB = Color(0xFFC9C6D4), blobC = Color(0xFFB8D0CE),
-    // Light glass stays translucent so custom and built-in wallpapers remain visible.
-    glassFill = Color(0xFFF7FAFF).copy(alpha = 0.28f),
-    glassFillStrong = Color(0xFFF7FAFF).copy(alpha = 0.54f),
-    glassTintTop = Color.White.copy(alpha = 0.36f),
+    bgTop = Color(0xFFF3F6FA), bgMid = Color(0xFFECF1F7), bgBottom = Color(0xFFE3EAF2),
+    blobA = Color(0xFFAFC7E1), blobB = Color(0xFFC9BEDB), blobC = Color(0xFFAED4D0),
+    // A cool, airy glass palette: translucent highlights, visible edges and readable ink.
+    glassFill = Color(0xFFFCFDFF).copy(alpha = 0.22f),
+    glassFillStrong = Color(0xFFFCFDFF).copy(alpha = 0.38f),
+    glassTintTop = Color.White.copy(alpha = 0.18f),
     glassEdge = Color.White,
-    textPrimary = Color(0xFF202833), textSecondary = Color(0xFF687586), textOnAccent = Color.White,
-    accent = Color(0xFF477DC5), accentAlt = Color(0xFF6B8FC8), accentSoft = Color(0xFF477DC5).copy(alpha = 0.13f),
+    textPrimary = Color(0xFF1F2A38), textSecondary = Color(0xFF4B5A6D), textOnAccent = Color.White,
+    accent = Color(0xFF477FC5), accentAlt = Color(0xFF7798C7), accentSoft = Color(0xFF477FC5).copy(alpha = 0.14f),
     success = Color(0xFF238C66), warning = Color(0xFFB87928), danger = Color(0xFFD64D5D),
-    track = Color(0xFF202833).copy(alpha = 0.09f), shadow = Color(0xFF42566F).copy(alpha = 0.16f),
+    track = Color(0xFF26384D).copy(alpha = 0.10f), shadow = Color(0xFF405B78).copy(alpha = 0.20f),
 )
 
 @Immutable
@@ -93,6 +114,9 @@ val LocalFlowColors = compositionLocalOf { DarkColors }
 val LocalGlass = compositionLocalOf { GlassConfig() }
 val LocalPersianDigits = compositionLocalOf { true }
 
+/** Measured safe space reserved for the floating dock and optional mini-player. */
+val LocalDockContentPadding = compositionLocalOf<Dp> { 140.dp }
+
 /** فونت: اگر Vazirmatn در assets/fonts باشد (CI دانلودش می‌کند) استفاده می‌شود، وگرنه فونت سیستم. */
 fun loadFontFamily(ctx: Context): FontFamily {
     return try {
@@ -101,9 +125,13 @@ fun loadFontFamily(ctx: Context): FontFamily {
         if (has("Vazirmatn-Regular.ttf")) {
             val list = mutableListOf(Font(assetManager = am, path = "fonts/Vazirmatn-Regular.ttf", weight = FontWeight.Normal))
             if (has("Vazirmatn-Medium.ttf")) list += Font(assetManager = am, path = "fonts/Vazirmatn-Medium.ttf", weight = FontWeight.Medium)
+            if (has("Vazirmatn-SemiBold.ttf")) {
+                list += Font(assetManager = am, path = "fonts/Vazirmatn-SemiBold.ttf", weight = FontWeight.SemiBold)
+            } else if (has("Vazirmatn-Bold.ttf")) {
+                list += Font(assetManager = am, path = "fonts/Vazirmatn-Bold.ttf", weight = FontWeight.SemiBold)
+            }
             if (has("Vazirmatn-Bold.ttf")) {
                 list += Font(assetManager = am, path = "fonts/Vazirmatn-Bold.ttf", weight = FontWeight.Bold)
-                list += Font(assetManager = am, path = "fonts/Vazirmatn-Bold.ttf", weight = FontWeight.SemiBold)
             }
             FontFamily(list)
         } else FontFamily.Default
@@ -139,23 +167,78 @@ private fun scheme(c: FlowColors): ColorScheme =
     )
 
 @Composable
+private fun animColor(target: Color, spec: AnimationSpec<Color>): Color =
+    animateColorAsState(target, spec, label = "flow-color").value
+
+/** انتقال رنگی هماهنگ تمام فیلدهای پالت؛ تغییر تم بدون پرش و بدون فریم سیاه. */
+@Composable
+private fun animateFlowColors(t: FlowColors, animate: Boolean): FlowColors {
+    val spec: AnimationSpec<Color> = if (animate) tween(Motion.ThemeSwitch) else snap()
+    return FlowColors(
+        isDark = t.isDark,
+        bgTop = animColor(t.bgTop, spec), bgMid = animColor(t.bgMid, spec), bgBottom = animColor(t.bgBottom, spec),
+        blobA = animColor(t.blobA, spec), blobB = animColor(t.blobB, spec), blobC = animColor(t.blobC, spec),
+        glassFill = animColor(t.glassFill, spec), glassFillStrong = animColor(t.glassFillStrong, spec),
+        glassTintTop = animColor(t.glassTintTop, spec), glassEdge = animColor(t.glassEdge, spec),
+        textPrimary = animColor(t.textPrimary, spec), textSecondary = animColor(t.textSecondary, spec),
+        textOnAccent = animColor(t.textOnAccent, spec),
+        accent = animColor(t.accent, spec), accentAlt = animColor(t.accentAlt, spec), accentSoft = animColor(t.accentSoft, spec),
+        success = animColor(t.success, spec), warning = animColor(t.warning, spec), danger = animColor(t.danger, spec),
+        track = animColor(t.track, spec), shadow = animColor(t.shadow, spec),
+    )
+}
+
+/** مقیاس انیمیشن سیستم (Developer options) صفر باشد یعنی کاربر Reduced Motion می‌خواهد. */
+private fun systemAnimationsEnabled(ctx: Context): Boolean = runCatching {
+    android.provider.Settings.Global.getFloat(ctx.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
+}.getOrDefault(true)
+
+@Composable
 fun FlowTheme(settings: Settings, content: @Composable () -> Unit) {
     val dark = when (settings.theme) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
         ThemeMode.DARK -> true
         ThemeMode.LIGHT -> false
     }
-    val colors = if (dark) DarkColors else LightColors
     val ctx = LocalContext.current
+    var systemAnimations by remember { mutableStateOf(systemAnimationsEnabled(ctx)) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { systemAnimations = systemAnimationsEnabled(ctx) }
+    val animations = settings.animations && systemAnimations
+    val base = if (dark) DarkColors else LightColors
+    // پروفایل تصویر شخصی از نمونه‌ی کوچک (۲۵۶px) خارج از رشته‌ی UI ساخته می‌شود.
+    var customProfile by remember { mutableStateOf<WallpaperProfile?>(null) }
+    val isArt = BuiltinWallpapers.find(settings.wallpaperId)?.art == true
+    LaunchedEffect(settings.wallpaperId, settings.wallpaperPath, dark) {
+        val path = settings.wallpaperPath
+        customProfile = if (settings.wallpaperId == "custom" && !path.isNullOrBlank()) {
+            withContext(Dispatchers.IO) {
+                runCatching { decodeStoredWallpaper(ctx.applicationContext, path, 256)?.let { sampleProfile(it) } }.getOrNull()
+            }
+        } else if (isArt) {
+            withContext(Dispatchers.IO) {
+                runCatching { loadWallpaperArt(ctx.applicationContext, settings.wallpaperId, dark)?.let { sampleProfile(it) } }.getOrNull()
+            }
+        } else null
+    }
+    val profile = customProfile?.takeIf { settings.wallpaperId == "custom" || isArt } ?: builtinProfile(settings.wallpaperId, base)
+    val baseDim = if (settings.wallpaperId == "gradient") 0f else settings.wallpaperDim
+    val plan = remember(profile, dark, baseDim) { planFor(profile, base, baseDim) }
+    val adapted = remember(profile, plan, dark) { adaptColors(base, profile, plan) }
+    val colors = animateFlowColors(adapted, animations)
+    val scrimAlpha = animateFloatAsState(plan.scrimAlpha, if (animations) tween(Motion.ThemeSwitch) else snap(), label = "scrim")
+    val planState = remember(plan) { derivedStateOf { plan.copy(scrimAlpha = scrimAlpha.value) } }
     val family = remember { loadFontFamily(ctx) }
     val type = remember(family) { FlowTypography(family) }
-    val glass = GlassConfig(settings.glassQuality, settings.glassOpacity, settings.glassBlurDp, settings.glassShine, settings.animations)
+    val cap = remember { GlassGovernor.deviceCap(ctx) }
+    val quality = GlassGovernor.effective(settings.glassQuality, cap)
+    val glass = GlassConfig(quality, settings.glassOpacity, settings.glassBlurDp, settings.glassShine, animations)
     MaterialTheme(colorScheme = scheme(colors)) {
         // رابط کاربری همیشه راست‌چین است، مستقل از زبان دستگاه.
         CompositionLocalProvider(
             LocalFlowColors provides colors,
             LocalFlowType provides type,
             LocalGlass provides glass,
+            LocalWallpaperPlan provides planState,
             LocalPersianDigits provides settings.persianDigits,
             LocalLayoutDirection provides LayoutDirection.Rtl,
             content = content,

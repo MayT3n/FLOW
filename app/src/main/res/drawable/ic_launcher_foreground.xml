@@ -1,43 +1,91 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- MatFocus: نشان اختصاصی زمان و تمرکز، کاملاً برداری و سازگار با Adaptive Icon. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-
-    <!-- حلقه‌ی زمان -->
+    <!-- سایه‌ی نرم زیر دیسک شیشه‌ای -->
+    <path
+        android:fillColor="#38000000"
+        android:pathData="M54,60 m-30,0 a30,30 0 1,0 60,0 a30,30 0 1,0 -60,0" />
+    <!-- دیسک شیشه‌ای -->
+    <path android:pathData="M54,54 m-30,0 a30,30 0 1,0 60,0 a30,30 0 1,0 -60,0">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="54" android:startY="24" android:endX="54" android:endY="84">
+                <item android:offset="0" android:color="#4DFFFFFF" />
+                <item android:offset="1" android:color="#0FFFFFFF" />
+            </gradient>
+        </aapt:attr>
+    </path>
     <path
         android:fillColor="#00000000"
-        android:pathData="M54,19 C73.3,19 89,34.7 89,54 C89,73.3 73.3,89 54,89 C34.7,89 19,73.3 19,54 C19,34.7 34.7,19 54,19 Z"
-        android:strokeColor="#F2FFFFFF"
+        android:pathData="M54,54 m-30,0 a30,30 0 1,0 60,0 a30,30 0 1,0 -60,0"
+        android:strokeWidth="1.1">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear" android:startX="30" android:startY="26" android:endX="80" android:endY="84">
+                <item android:offset="0" android:color="#B3FFFFFF" />
+                <item android:offset="0.5" android:color="#1FFFFFFF" />
+                <item android:offset="1" android:color="#66FFFFFF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- مسیر خاموش حلقه -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M54,54 m-22,0 a22,22 0 1,0 44,0 a22,22 0 1,0 -44,0"
+        android:strokeColor="#2EFFFFFF"
+        android:strokeWidth="6" />
+    <!-- هاله‌ی قوس -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M54,32 A22,22 0 1 1 32,54"
+        android:strokeAlpha="0.28"
+        android:strokeColor="#7CF2E0"
         android:strokeLineCap="round"
-        android:strokeWidth="4.2" />
-
-    <!-- نشانه‌ی موقعیت روی حلقه -->
+        android:strokeWidth="11" />
+    <!-- قوس پیشرفت -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M54,32 A22,22 0 1 1 32,54"
+        android:strokeLineCap="round"
+        android:strokeWidth="6">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear" android:startX="32" android:startY="54" android:endX="76" android:endY="32">
+                <item android:offset="0" android:color="#FF5AA8FF" />
+                <item android:offset="1" android:color="#FF7CF2E0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- نقطه‌ی سر -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M54,13.5 A4.5,4.5 0,1 0,54 22.5 A4.5,4.5 0,1 0,54 13.5 Z" />
-
-    <!-- موج تمرکز در مرکز -->
+        android:pathData="M32,54 m-3.2,0 a3.2,3.2 0 1,0 6.4,0 a3.2,3.2 0 1,0 -6.4,0" />
+    <!-- عقربه‌ها -->
     <path
         android:fillColor="#00000000"
-        android:pathData="M29,55 L40,55 L46,44 L55,66 L62,49 L68,57 L80,57"
+        android:pathData="M54,54 L54,41.5"
         android:strokeColor="#FFFFFFFF"
         android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="4.1" />
-
-    <!-- نقطه‌ی مرکزی -->
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M54,50 A4,4 0,1 0,54 58 A4,4 0,1 0,54 50 Z" />
-
-    <!-- انعکاس ظریف -->
+        android:strokeWidth="3.6" />
     <path
         android:fillColor="#00000000"
-        android:pathData="M34,31 C40,25 47,22 55,22"
-        android:strokeColor="#A6FFFFFF"
+        android:pathData="M54,54 L62.5,59"
+        android:strokeColor="#E6FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeWidth="3.6" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M54,54 m-4.2,0 a4.2,4.2 0 1,0 8.4,0 a4.2,4.2 0 1,0 -8.4,0" />
+    <path
+        android:fillColor="#FF2A8C9A"
+        android:pathData="M54,54 m-1.7,0 a1.7,1.7 0 1,0 3.4,0 a1.7,1.7 0 1,0 -3.4,0" />
+    <!-- بازتاب نور روی شیشه -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M30.5,43 A25.5,25.5 0 0 1 48,28.7"
+        android:strokeAlpha="0.6"
+        android:strokeColor="#FFFFFF"
         android:strokeLineCap="round"
         android:strokeWidth="2" />
 </vector>

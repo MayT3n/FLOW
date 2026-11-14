@@ -33,7 +33,7 @@ Without a release keystore Gradle can create a debug-signed test APK. A debug-si
 
 ### Music
 
-The instrumental catalogue is sourced from [AERIS MUSIC's CC0 repository](https://github.com/farmmer938-lgtm/aeris-cc0-music). Its README and LICENSE declare the 13 original tracks to be dedicated to the public domain under CC0 1.0. Tracks are streamed over HTTPS and can be downloaded individually into app-private storage for offline playback. Media3 provides playback, MediaSession, background controls, focus handling and headset/noisy-route behaviour.
+The catalogue is 16 longer (3-5 min) lo-fi tracks from [OpenLo-Fi](https://github.com/btahir/open-lofi), dedicated to the public domain under CC0 1.0, hosted on this repository's `music-assets` branch. Tracks are streamed over HTTPS and can be downloaded individually into app-private storage for offline playback. Media3 provides playback, MediaSession, background controls, focus handling and headset/noisy-route behaviour.
 
 The third-party catalogue's licence statement is retained as the source-of-record; the app does not extract audio from Spotify, Apple Music or YouTube.
 

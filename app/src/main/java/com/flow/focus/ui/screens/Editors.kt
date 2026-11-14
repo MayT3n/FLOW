@@ -28,10 +28,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalUriHandler
 import com.flow.focus.core.DateFormats
 import com.flow.focus.core.JalaliDate
+import com.flow.focus.data.ActivityKind
 import com.flow.focus.data.Categories
 import com.flow.focus.data.Goal
 import com.flow.focus.data.Priority
 import com.flow.focus.data.Routine
+import com.flow.focus.data.RoutineStep
 import com.flow.focus.data.Settings
 import com.flow.focus.data.Task
 import com.flow.focus.data.FlowRepository
@@ -43,6 +45,7 @@ import com.flow.focus.ui.components.EmptyState
 import com.flow.focus.ui.components.FlowDialog
 import com.flow.focus.ui.components.FlowIcon
 import com.flow.focus.ui.components.FlowIcons
+import com.flow.focus.ui.components.FlowSheet
 import com.flow.focus.ui.components.FlowSlider
 import com.flow.focus.ui.components.FlowTextField
 import com.flow.focus.ui.components.GlassButton
@@ -86,11 +89,14 @@ fun TaskEditorDialog(
     var category by remember { mutableStateOf(base?.categoryId ?: "study") }
     var pomodoros by remember { mutableStateOf(base?.estimatedPomodoros ?: 1) }
     var done by remember { mutableStateOf(base?.done ?: false) }
+    var kind by remember { mutableStateOf(base?.kind ?: ActivityKind.TASK) }
+    var duration by remember { mutableStateOf(base?.durationMin) }
     var pickDate by remember { mutableStateOf(false) }
     val today = LocalDate.now()
 
-    FlowDialog(onDismiss, if (initial == null) "وظیفه‌ی جدید" else "ویرایش وظیفه") {
-        FlowTextField(title, { title = it }, "عنوان وظیفه")
+    FlowSheet(onDismiss, if (initial == null) "افزودن به برنامه" else "ویرایش") {
+        FlowTextField(title, { title = it }, "عنوان")
+        SegmentedControl(ActivityKind.entries.map { it.label }, kind.ordinal, { kind = ActivityKind.entries[it] })
         FlowTextField(notes, { notes = it }, "توضیحات (اختیاری)", singleLine = false, minLines = 2)
 
         Label("تاریخ")
@@ -104,6 +110,10 @@ fun TaskEditorDialog(
         if (dueDay != null) {
             SwitchRow("ساعت مشخص", minute != null, { minute = if (it) (minute ?: 9 * 60) else null }, subtitle = "برای یادآوری در همان ساعت")
             minute?.let { m -> TimeEditor(m, { minute = it }) }
+            if (minute != null) {
+                SwitchRow("مدت‌زمان", duration != null, { duration = if (it) (duration ?: 30) else null }, subtitle = "برای نمایش بازه‌ی زمانی در جدول روز")
+                duration?.let { d -> Stepper(d, { duration = it }, 5..720, step = 5, suffix = "دقیقه") }
+            }
         }
         if (initial != null) {
             SwitchRow(
@@ -139,6 +149,8 @@ fun TaskEditorDialog(
                         title = title.trim(), notes = notes.trim(), dueDay = dueDay,
                         dueMinute = if (dueDay != null) minute else null,
                         priority = priority, categoryId = category, estimatedPomodoros = pomodoros,
+                        kind = kind,
+                        durationMin = if (dueDay != null && minute != null) duration else null,
                         done = done,
                         doneAt = if (done) initial?.doneAt ?: System.currentTimeMillis() else null,
                     )
@@ -149,7 +161,7 @@ fun TaskEditorDialog(
             GlassButton("انصراف", onDismiss, Modifier.weight(1f))
         }
         if (initial != null && onDelete != null) {
-            GlassButton("حذف وظیفه", { onDelete(initial) }, Modifier.fillMaxWidth(), icon = FlowIcons.Trash, danger = true)
+            GlassButton("حذف", { onDelete(initial) }, Modifier.fillMaxWidth(), icon = FlowIcons.Trash, danger = true)
         }
     }
     if (pickDate) {
@@ -193,47 +205,6 @@ fun TaskPickerDialog(
     }
 }
 
-@Composable
-fun RoutineEditorDialog(initial: Routine?, onSave: (Routine) -> Unit, onDelete: ((Routine) -> Unit)?, onDismiss: () -> Unit) {
-    var title by remember { mutableStateOf(initial?.title ?: "") }
-    var days by remember { mutableStateOf(initial?.weekdays?.toSet() ?: setOf(0, 1, 2, 3, 4, 5, 6)) }
-    var minute by remember { mutableStateOf(initial?.minute?.takeIf { it in 0 until 24 * 60 }) }
-    var category by remember { mutableStateOf(initial?.categoryId ?: "personal") }
-    FlowDialog(onDismiss, if (initial == null) "روتین جدید" else "ویرایش روتین") {
-        FlowTextField(title, { title = it }, "نام روتین (مثلاً ورزش صبحگاهی)")
-        Label("روزهای تکرار")
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            JalaliDate.weekdayNames.forEachIndexed { i, name ->
-                Chip(name.take(2), i in days, { days = if (i in days) days - i else days + i }, Modifier.weight(1f))
-            }
-        }
-        SwitchRow("ساعت مشخص", minute != null, { minute = if (it) (minute ?: 7 * 60) else null })
-        minute?.let { m -> TimeEditor(m, { minute = it }) }
-        Label("دسته‌بندی")
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Categories.all.forEach { cat -> Chip(cat.name, category == cat.id, { category = cat.id }, dot = Color(cat.color)) }
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            PrimaryButton(
-                "ذخیره",
-                {
-                    onSave(
-                        Routine(
-                            id = initial?.id ?: FlowRepository.newId(), title = title.trim(),
-                            weekdays = days.sorted(), minute = minute, categoryId = category,
-                        ),
-                    )
-                },
-                Modifier.weight(1f), enabled = title.isNotBlank() && days.isNotEmpty(),
-            )
-            GlassButton("انصراف", onDismiss, Modifier.weight(1f))
-        }
-        if (initial != null && onDelete != null) {
-            GlassButton("حذف روتین", { onDelete(initial) }, Modifier.fillMaxWidth(), icon = FlowIcons.Trash, danger = true)
-        }
-    }
-}
-
 /** کارت اهداف روزانه/هفتگی */
 @Composable
 fun GoalsCard(
@@ -245,26 +216,65 @@ fun GoalsCard(
 ) {
     var text by remember { mutableStateOf("") }
     GlassSurface(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FlowIcon(FlowIcons.Flag, tint = Flow.colors.accent, size = 20.dp)
-                Text(title, Modifier.weight(1f).padding(horizontal = 8.dp), style = Flow.type.heading, color = Flow.colors.textPrimary)
-                if (goals.isNotEmpty()) Text(num("${goals.count { it.done }}/${goals.size}"), style = Flow.type.caption, color = Flow.colors.textSecondary)
+                Text(
+                    title,
+                    Modifier.weight(1f),
+                    style = Flow.type.heading,
+                    color = Flow.colors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (goals.isNotEmpty()) {
+                    Text(
+                        num("${goals.count { it.done }}/${goals.size}"),
+                        style = Flow.type.caption,
+                        color = Flow.colors.textSecondary,
+                        maxLines = 1,
+                    )
+                }
             }
             goals.forEach { g ->
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    CheckCircle(g.done, { onToggle(g.id) }, size = 26.dp, color = Flow.colors.success)
-                    Text(
-                        g.title, Modifier.weight(1f), style = Flow.type.body,
-                        color = if (g.done) Flow.colors.textSecondary else Flow.colors.textPrimary,
-                        maxLines = 2, overflow = TextOverflow.Ellipsis,
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CheckCircle(
+                        g.done,
+                        { onToggle(g.id) },
+                        size = 26.dp,
+                        color = Flow.colors.success,
                     )
-                    GlassIconButton(FlowIcons.Close, { onDelete(g.id) }, size = 32.dp, iconSize = 16.dp, contentDescription = "حذف هدف")
+                    Text(
+                        g.title,
+                        Modifier.weight(1f),
+                        style = Flow.type.body,
+                        color = if (g.done) Flow.colors.textSecondary else Flow.colors.textPrimary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    GlassIconButton(
+                        FlowIcons.Close,
+                        { onDelete(g.id) },
+                        size = 30.dp,
+                        iconSize = 16.dp,
+                        contentDescription = "حذف هدف",
+                    )
                 }
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FlowTextField(text, { text = it }, "هدف جدید…", Modifier.weight(1f))
-                GlassIconButton(FlowIcons.Plus, { if (text.isNotBlank()) { onAdd(text); text = "" } }, size = 44.dp, enabled = text.isNotBlank(), contentDescription = "افزودن هدف")
+                FlowTextField(
+                    text,
+                    { text = it },
+                    "هدف جدید…",
+                    modifier = Modifier.weight(1f),
+                )
+                GlassIconButton(
+                    FlowIcons.Plus,
+                    { if (text.isNotBlank()) { onAdd(text); text = "" } },
+                    size = 38.dp,
+                    enabled = text.isNotBlank(),
+                    contentDescription = "افزودن هدف",
+                )
             }
         }
     }
@@ -290,75 +300,67 @@ fun AmbientPicker(
     (none + AmbientSynth.sounds).forEach { sound ->
         val selected = settings.ambientSound == sound.id
         val recording = AmbientLibrary.byId(sound.id)
+        val downloaded = isDownloaded(sound.id)
+        val progress = downloadProgress[sound.id]
+        val isNone = sound.id == AmbientSynth.NONE
         GlassSurface(
-            Modifier.fillMaxWidth().springClick(scaleDown = 0.98f, onClick = { onSelect(sound.id) }),
-            shape = RoundedCornerShape(18.dp),
+            Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
             level = GlassLevel.Subtle,
             tint = if (selected) Flow.colors.accent else null,
         ) {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 11.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
-                    Modifier.fillMaxWidth(),
+                    Modifier.fillMaxWidth().springClick(scaleDown = 0.985f, onClick = { onSelect(sound.id) }),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(11.dp),
                 ) {
-                    FlowIcon(ambientIcon(sound.id), tint = if (selected) Flow.colors.accent else Flow.colors.textSecondary, size = 22.dp)
-                    Column(Modifier.weight(1f)) {
-                        Text(sound.label, style = Flow.type.bodyStrong, color = Flow.colors.textPrimary)
-                        Text(sound.hint, style = Flow.type.caption, color = Flow.colors.textSecondary)
+                    if (isNone) {
+                        Box(Modifier.size(54.dp).clip(RoundedCornerShape(16.dp)).background(Flow.colors.track.copy(alpha = 0.6f)), contentAlignment = Alignment.Center) {
+                            FlowIcon(FlowIcons.Volume, tint = Flow.colors.textSecondary, size = 24.dp)
+                        }
+                    } else {
+                        CoverArt("ambient-" + sound.id, Modifier.size(54.dp), corner = 16.dp)
                     }
-                    if (sound.id != AmbientSynth.NONE) {
-                        GlassIconButton(
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(sound.label, style = Flow.type.bodyStrong, color = if (selected) Flow.colors.accent else Flow.colors.textPrimary, maxLines = 2)
+                        Text(
+                            if (recording != null) "${recording.duration} · ${sound.hint}" else sound.hint,
+                            style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 2,
+                        )
+                        Text(
+                            when {
+                                selected -> "انتخاب‌شده برای جلسه‌های تمرکز"
+                                recording != null && progress != null -> "در حال دانلود…"
+                                recording != null && downloaded -> "دانلودشده · آماده‌ی پخش آفلاین"
+                                recording != null -> "برای پخش اولیه به اینترنت نیاز دارد"
+                                else -> ""
+                            },
+                            style = Flow.type.caption,
+                            color = if (selected || downloaded) Flow.colors.success else Flow.colors.textSecondary,
+                            maxLines = 2,
+                        )
+                    }
+                    when {
+                        progress != null -> Text(num("${(progress * 100).toInt()}٪"), style = Flow.type.label, color = Flow.colors.accent)
+                        !isNone -> GlassIconButton(
                             if (playingId == sound.id) FlowIcons.Pause else FlowIcons.Play,
                             { onPreview(sound.id) },
-                            size = 36.dp,
-                            iconSize = 16.dp,
+                            size = 42.dp, iconSize = 19.dp, active = playingId == sound.id,
                             contentDescription = "پیش‌شنوایی",
                         )
                     }
                 }
-                if (recording != null) {
-                    Text(
-                        "${recording.duration} · ${recording.license} · ${recording.creator}",
-                        style = Flow.type.caption,
-                        color = Flow.colors.textSecondary,
-                    )
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            "منبع و مجوز",
-                            Modifier.springClick(onClick = { runCatching { uriHandler.openUri(recording.sourcePage) } }).padding(vertical = 4.dp),
-                            style = Flow.type.caption,
-                            color = Flow.colors.accent,
-                        )
-                        Spacer(Modifier.weight(1f))
-                        val progress = downloadProgress[sound.id]
-                        when {
-                            progress != null -> Text(
-                                num("${(progress * 100).toInt()}٪"),
-                                style = Flow.type.caption,
-                                color = Flow.colors.accent,
-                            )
-                            isDownloaded(sound.id) -> Text(
-                                "ذخیره‌شده",
-                                Modifier.springClick(onClick = { onDeleteDownload(sound.id) }).padding(vertical = 4.dp),
-                                style = Flow.type.caption,
-                                color = Flow.colors.success,
-                            )
-                            else -> Text(
-                                "دانلود آفلاین",
-                                Modifier.springClick(onClick = { onDownload(sound.id) }).padding(vertical = 4.dp),
-                                style = Flow.type.caption,
-                                color = Flow.colors.accent,
-                            )
+                if (!isNone) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        TrackChip(FlowIcons.Check, if (selected) "انتخاب‌شده" else "انتخاب", selected, Modifier.weight(1f)) { onSelect(sound.id) }
+                        if (recording != null) {
+                            if (downloaded) TrackChip(FlowIcons.Trash, "حذف فایل", false, Modifier.weight(1f)) { onDeleteDownload(sound.id) }
+                            else TrackChip(FlowIcons.Download, "دانلود", false, Modifier.weight(1f), enabled = progress == null) { onDownload(sound.id) }
+                            TrackChip(FlowIcons.Info, "منبع و مجوز", false, Modifier.weight(1f)) { runCatching { uriHandler.openUri(recording.sourcePage) } }
                         }
                     }
-                    recording.attribution?.let {
-                        Text(it, style = Flow.type.caption, color = Flow.colors.textSecondary)
-                    }
+                    recording?.attribution?.let { Text(it, style = Flow.type.caption, color = Flow.colors.textSecondary) }
                 }
             }
         }
