@@ -282,6 +282,9 @@ private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Wind
                                 Crossfade(
                                     targetState = selected,
                                     modifier = Modifier.weight(1f).fillMaxWidth(),
+                                    animationSpec = if (data.settings.animations)
+                                        androidx.compose.animation.core.tween(durationMillis = 180)
+                                    else androidx.compose.animation.core.snap(),
                                     label = "desktop-page-transition"
                                 ) { page ->
                                     when (page) {
@@ -689,7 +692,9 @@ private fun FocusCard(data: AppData, now: Long, runtime: DesktopRuntime, modifie
     val progress = PomodoroEngine.progress(timer, now)
     val animatedProgress by androidx.compose.animation.animateFloatAsState(
         targetValue = progress.coerceIn(0f, 1f),
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 220),
+        animationSpec = if (LocalDesktopSettings.current.animations)
+            androidx.compose.animation.core.tween(durationMillis = 220)
+        else androidx.compose.animation.core.snap(),
         label = "focus-progress"
     )
     val phaseName = when (timer.phase) {
@@ -1174,6 +1179,21 @@ private fun SettingsPage(data: AppData, runtime: DesktopRuntime, dark: Boolean, 
         Panel("ظاهر و داده‌ها", Modifier.fillMaxWidth()) {
         Text("پوسته‌ی برنامه", fontWeight = FontWeight.SemiBold)
         OutlinedButton(onClick = onThemeChange) { Text(if (dark) "تغییر به روشن" else "تغییر به تیره") }
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = data.settings.animations,
+                onCheckedChange = { enabled ->
+                    runtime.updateSettings { it.copy(animations = enabled) }
+                }
+            )
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("انیمیشن‌های رابط کاربری")
+                Text("برای کاهش حرکت، ترنزیشن‌ها را خاموش کن", color = muted(), fontSize = 11.sp)
+            }
+        }
         HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .08f))
         Text("پس‌زمینه", fontWeight = FontWeight.SemiBold)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1330,7 +1350,7 @@ private fun Panel(title: String, modifier: Modifier = Modifier, content: @Compos
 
     Card(
         modifier = modifier
-            .animateContentSize()
+            .then(if (settings.animations) Modifier.animateContentSize() else Modifier)
             .shadow(depth, shape)
             .border(1.dp, edge, shape),
         shape = shape,
