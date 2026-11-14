@@ -69,7 +69,7 @@ private val MutedDark = Color(0xFFA5AEC0)
 private val MutedLight = Color(0xFF667085)
 private val LocalDesktopSettings = androidx.compose.runtime.staticCompositionLocalOf { com.flow.focus.data.Settings() }
 
-// Segoe UI is available on Windows 11 and provides a native-feeling Persian-capable UI fallback.
+// Vazirmatn is packaged with the desktop distribution for consistent Persian typography.
 @OptIn(ExperimentalTextApi::class)
 private val WindowsUiFont = FontFamily(
     androidx.compose.ui.text.platform.Font("fonts/Vazirmatn-Regular.ttf", FontWeight.Normal),
