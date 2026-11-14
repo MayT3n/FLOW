@@ -501,7 +501,8 @@ fun FlowDialog(onDismiss: () -> Unit, title: String? = null, onSwipeDown: (() ->
     val dragY = remember { androidx.compose.animation.core.Animatable(0f) }
     val dragScope = androidx.compose.runtime.rememberCoroutineScope()
     // ورود سه‌بعدی پنجره: از کمی خوابیده (چرخش حول محور افقی) به حالت ایستاده، با پرسپکتیو؛ فقط یک Animatable ساده.
-    val enter3d = remember { androidx.compose.animation.core.Animatable(if (animations0()) 0f else 1f) }
+    val startFlat = animations0()
+    val enter3d = remember { androidx.compose.animation.core.Animatable(if (startFlat) 0f else 1f) }
     LaunchedEffect(Unit) { enter3d.animateTo(1f, spring(0.72f, 260f)) }
     val animations = LocalGlass.current.animations
     var visible by remember { mutableStateOf(true) }

@@ -363,11 +363,11 @@ fun GlassBackdropHost(
                         val r = (glassForStatic.blurDp.dp.toPx() * strength * 0.82f + extra * strength).coerceAtMost(maxR)
                         // بلور = رسم در مقیاس کوچک و بزرگ‌نمایی با فیلتر نرم؛ فقط وقتی پس‌زمینه عوض شود دوباره ساخته می‌شود.
                         val factor = (r / 1.5f).coerceIn(3f, 20f)
-                        val bw = (size.width / factor).toInt().coerceAtLeast(8)
-                        val bh = (size.height / factor).toInt().coerceAtLeast(8)
+                        val bw = (this.size.width / factor).toInt().coerceAtLeast(8)
+                        val bh = (this.size.height / factor).toInt().coerceAtLeast(8)
                         val bmp = ImageBitmap(bw, bh)
-                        val sw = size.width
-                        val sh = size.height
+                        val sw = this.size.width
+                        val sh = this.size.height
                         val canvasScope = androidx.compose.ui.graphics.drawscope.CanvasDrawScope()
                         canvasScope.draw(this, layoutDirection, androidx.compose.ui.graphics.Canvas(bmp), androidx.compose.ui.geometry.Size(bw.toFloat(), bh.toFloat())) {
                             scale(bw / sw, bh / sh, pivot = Offset.Zero) {
