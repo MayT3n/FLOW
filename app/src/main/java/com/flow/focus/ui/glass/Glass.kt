@@ -368,23 +368,28 @@ fun GlassBackdropHost(
                         // بلور = رسم در مقیاس کوچک و بزرگ‌نمایی با فیلتر نرم؛ فقط وقتی پس‌زمینه عوض شود دوباره ساخته می‌شود.
                         val sw = this.size.width
                         val sh = this.size.height
-                        fun bake(factor: Float): ImageBitmap {
-                            val bw = (sw / factor).toInt().coerceAtLeast(8)
-                            val bh = (sh / factor).toInt().coerceAtLeast(8)
-                            val bmp = ImageBitmap(bw, bh)
+                        // مقیاس ثابت ۱/۵ + بلور واقعی (جعبه‌ای سه‌مرحله‌ای ≈ گاوسی) روی بیت‌مپ کوچک؛ بزرگ‌نمایی مستقیم از مقیاس خیلی کوچک بلوک‌بلوک می‌شد.
+                        val factor = 5f
+                        fun bake(radius: Int): ImageBitmap {
+                            val bw = (sw / factor).toInt().coerceAtLeast(16)
+                            val bh = (sh / factor).toInt().coerceAtLeast(16)
+                            val raw = ImageBitmap(bw, bh)
                             androidx.compose.ui.graphics.drawscope.CanvasDrawScope().draw(
-                                this, layoutDirection, androidx.compose.ui.graphics.Canvas(bmp),
+                                this, layoutDirection, androidx.compose.ui.graphics.Canvas(raw),
                                 androidx.compose.ui.geometry.Size(bw.toFloat(), bh.toFloat()),
                             ) {
                                 scale(bw / sw, bh / sh, pivot = Offset.Zero) {
                                     drawBackdrop(c, 0f, sw, sh, image.value, settings, wallpaperPlan.value)
                                 }
                             }
-                            return bmp
+                            val px = IntArray(bw * bh)
+                            raw.readPixels(px)
+                            val out = boxBlurArgb(px, bw, bh, radius)
+                            return Bitmap.createBitmap(out, bw, bh, Bitmap.Config.ARGB_8888).asImageBitmap()
                         }
-                        val factor = (r / 1.5f).coerceIn(3f, 20f)
-                        blurredState.value = bake(factor)
-                        blurredLightState.value = if (glassForStatic.quality == GlassQuality.HIGH) bake((factor * 0.5f).coerceAtLeast(3f)) else null
+                        val heavy = (r / factor).toInt().coerceIn(1, 14)
+                        blurredState.value = bake(heavy)
+                        blurredLightState.value = if (glassForStatic.quality == GlassQuality.HIGH) bake((heavy / 2).coerceAtLeast(1)) else null
                     },
                 )
                 Canvas(
@@ -505,7 +510,7 @@ fun GlassSurface(
                         val full = rootSize!!.value
                         if (bmp != null) {
                             translate(-origin.x, -origin.y) {
-                                drawImage(bmp, dstSize = androidx.compose.ui.unit.IntSize(full.width, full.height), filterQuality = androidx.compose.ui.graphics.FilterQuality.High)
+                                drawImage(bmp, dstSize = androidx.compose.ui.unit.IntSize(full.width, full.height), filterQuality = androidx.compose.ui.graphics.FilterQuality.Low)
                             }
                         }
                     },
@@ -615,3 +620,42 @@ fun floatSpring(damping: Float = 0.7f, stiffness: Float = 380f): androidx.compos
 @Composable
 fun dpSpring(): androidx.compose.animation.core.AnimationSpec<Dp> =
     if (LocalGlass.current.animations) spring(0.75f, 420f) else snap()
+
+/** بلور جعبه‌ای سه‌مرحله‌ای (تقریب گاوسی) با لبه‌ی clamp؛ روی بیت‌مپ کوچک و فقط هنگام تغییر پس‌زمینه اجرا می‌شود. */
+private fun boxBlurArgb(src: IntArray, w: Int, h: Int, radius: Int): IntArray {
+    if (radius < 1) return src
+    var a = src
+    var b = IntArray(src.size)
+    repeat(3) {
+        blurPass(a, b, w, h, radius, horizontal = true)
+        blurPass(b, a, w, h, radius, horizontal = false)
+    }
+    return a
+}
+
+private fun blurPass(src: IntArray, dst: IntArray, w: Int, h: Int, r: Int, horizontal: Boolean) {
+    val lines = if (horizontal) h else w
+    val len = if (horizontal) w else h
+    val n = 2 * r + 1
+    for (line in 0 until lines) {
+        fun idx(i: Int): Int {
+            val c = if (i < 0) 0 else if (i >= len) len - 1 else i
+            return if (horizontal) line * w + c else c * w + line
+        }
+        var sa = 0; var sr = 0; var sg = 0; var sb = 0
+        for (k in -r..r) {
+            val p = src[idx(k)]
+            sa += p ushr 24; sr += (p shr 16) and 255; sg += (p shr 8) and 255; sb += p and 255
+        }
+        for (i in 0 until len) {
+            val out = if (horizontal) line * w + i else i * w + line
+            dst[out] = ((sa / n) shl 24) or ((sr / n) shl 16) or ((sg / n) shl 8) or (sb / n)
+            val add = src[idx(i + r + 1)]
+            val rem = src[idx(i - r)]
+            sa += (add ushr 24) - (rem ushr 24)
+            sr += ((add shr 16) and 255) - ((rem shr 16) and 255)
+            sg += ((add shr 8) and 255) - ((rem shr 8) and 255)
+            sb += (add and 255) - (rem and 255)
+        }
+    }
+}
