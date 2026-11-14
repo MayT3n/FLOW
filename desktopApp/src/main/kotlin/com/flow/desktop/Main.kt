@@ -1052,16 +1052,19 @@ private fun FocusCard(data: AppData, now: Long, runtime: DesktopRuntime, modifie
                 }
             }
 
+            val ringTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = .075f)
+            val ringProgressColor = MaterialTheme.colorScheme.primary.copy(alpha = .95f)
+            val ringGlowColor = MaterialTheme.colorScheme.primary.copy(alpha = .08f)
             Box(Modifier.size(174.dp), contentAlignment = Alignment.Center) {
                 Canvas(Modifier.fillMaxSize()) {
                     val strokeWidth = 8.dp.toPx()
                     val inset = strokeWidth / 2f
                     drawCircle(
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = .075f),
+                        color = ringTrackColor,
                         style = Stroke(width = strokeWidth)
                     )
                     drawArc(
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = .95f),
+                        color = ringProgressColor,
                         startAngle = -90f,
                         sweepAngle = 360f * animatedProgress,
                         useCenter = false,
@@ -1070,7 +1073,7 @@ private fun FocusCard(data: AppData, now: Long, runtime: DesktopRuntime, modifie
                         style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
                     )
                     drawCircle(
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = .08f),
+                        color = ringGlowColor,
                         radius = size.minDimension * .34f
                     )
                 }
