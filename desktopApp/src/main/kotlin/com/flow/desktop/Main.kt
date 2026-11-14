@@ -341,7 +341,8 @@ private fun TasksPage(data: AppData, runtime: DesktopRuntime) {
         Panel("فهرست وظایف", Modifier.fillMaxWidth()) {
             OutlinedTextField(value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth(),
                 singleLine = true, label = { Text("جست‌وجوی عنوان و یادداشت") }, shape = RoundedCornerShape(14.dp))
-            val tasks = data.tasks.filter { search.isBlank() || it.title.contains(search, true) || it.notes.contains(search, true) }
+            val normalizedSearch = com.flow.focus.domain.TaskQuery.normalize(search)
+            val tasks = data.tasks.filter { normalizedSearch.isBlank() || com.flow.focus.domain.TaskQuery.normalize(it.title).contains(normalizedSearch) || com.flow.focus.domain.TaskQuery.normalize(it.notes).contains(normalizedSearch) }
                 .sortedWith(compareBy<Task> { it.done }.thenByDescending { it.createdAt })
             if (tasks.isEmpty()) EmptyText("وظیفه‌ای پیدا نشد.")
             tasks.forEach { task ->
