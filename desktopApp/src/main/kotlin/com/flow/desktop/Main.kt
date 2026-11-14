@@ -622,6 +622,9 @@ private fun MusicPage(runtime: DesktopRuntime) {
     val state by runtime.music.state.collectAsState()
     val downloads by runtime.music.downloads.collectAsState()
     val favorites by runtime.music.favorites.collectAsState()
+    val playlists by runtime.music.playlists.collectAsState()
+    var newPlaylistName by remember { mutableStateOf("") }
+    var selectedPlaylistId by remember { mutableStateOf<String?>(null) }
     var query by remember { mutableStateOf("") }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Panel("پخش‌کننده‌ی موسیقی", Modifier.fillMaxWidth()) {
@@ -642,6 +645,44 @@ private fun MusicPage(runtime: DesktopRuntime) {
             }
             if (!state.error.isNullOrBlank()) Text(state.error ?: "", color = Color(0xFFE07B7B), fontSize = 12.sp)
         }
+        Panel("پلی‌لیست‌های من", Modifier.fillMaxWidth()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(value = newPlaylistName, onValueChange = { newPlaylistName = it },
+                    modifier = Modifier.weight(1f), singleLine = true, label = { Text("نام پلی‌لیست") })
+                Button(onClick = {
+                    selectedPlaylistId = runtime.music.createPlaylist(newPlaylistName)
+                    newPlaylistName = ""
+                }, enabled = newPlaylistName.isNotBlank()) { Text("ساخت") }
+            }
+            if (playlists.isEmpty()) EmptyText("هنوز پلی‌لیستی نساخته‌ای.")
+            playlists.forEach { playlist ->
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(playlist.name, fontWeight = FontWeight.Medium)
+                        Text("${fa(playlist.trackIds.size)} آهنگ", color = muted(), fontSize = 11.sp)
+                    }
+                    if (selectedPlaylistId == playlist.id) Button(onClick = { selectedPlaylistId = null }) { Text("انتخاب‌شده") }
+                    else OutlinedButton(onClick = { selectedPlaylistId = playlist.id }) { Text("انتخاب") }
+                    TextButton(onClick = { runtime.music.playPlaylist(playlist.id) }, enabled = playlist.trackIds.isNotEmpty()) { Text("پخش") }
+                    TextButton(onClick = {
+                        runtime.music.deletePlaylist(playlist.id)
+                        if (selectedPlaylistId == playlist.id) selectedPlaylistId = null
+                    }) { Text("حذف", color = Color(0xFFE07B7B)) }
+                }
+            }
+            val selectedPlaylist = playlists.firstOrNull { it.id == selectedPlaylistId }
+            if (selectedPlaylist != null) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .08f))
+                Text("افزودن آهنگ به «${selectedPlaylist.name}»", color = muted(), fontSize = 12.sp)
+                selectedPlaylist.trackIds.forEach { id ->
+                    val track = DesktopMusicCatalog.tracks.firstOrNull { it.id == id } ?: return@forEach
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(track.title, Modifier.weight(1f))
+                        TextButton(onClick = { runtime.music.removeFromPlaylist(selectedPlaylist.id, id) }) { Text("حذف از فهرست") }
+                    }
+                }
+            }
+        }
         Panel("کتابخانه‌ی آهنگ‌ها", Modifier.fillMaxWidth()) {
             Text("فهرست سازگار با نسخه‌ی اندروید، با مجوز CC0 1.0. برای پخش، آهنگ ابتدا به‌صورت امن دانلود و سپس به‌صورت محلی اجرا می‌شود.", color = muted(), fontSize = 12.sp)
             OutlinedTextField(value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(),
@@ -660,6 +701,13 @@ private fun MusicPage(runtime: DesktopRuntime) {
                     }
                     TextButton(onClick = { runtime.music.toggleFavorite(track.id) }) {
                         Text(if (track.id in favorites) "★" else "☆", color = if (track.id in favorites) Accent else muted(), fontSize = 20.sp)
+                    }
+                    if (selectedPlaylistId != null) {
+                        val playlist = playlists.firstOrNull { it.id == selectedPlaylistId }
+                        if (playlist != null) {
+                            TextButton(onClick = { runtime.music.addToPlaylist(playlist.id, track.id) },
+                                enabled = track.id !in playlist.trackIds) { Text(if (track.id in playlist.trackIds) "افزوده شد" else "+ فهرست") }
+                        }
                     }
                     if (downloaded) {
                         Button(onClick = { runtime.music.play(track) }, enabled = state.trackId != track.id || !state.playing) { Text(if (state.trackId == track.id && state.playing) "در حال پخش" else "پخش") }
