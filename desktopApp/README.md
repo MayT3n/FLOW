@@ -31,12 +31,14 @@ The Windows desktop branch now includes:
 
 - Responsive Persian RTL workspace shell, expandable/collapsible right navigation and native Windows title bar.
 - Separate light and dark palettes with shared typography, spacing, shapes and surface tokens.
+- Bundled Vazirmatn Regular/Bold Persian typography and its OFL license; the installed app does not need a network connection to render Persian text.
+- A floating, layered glass navigation rail, refined line-icon set, calmer toolbar, and circular focus progress dial.
 - Four distinct material profiles. Performance and balanced use Mica; quality and ultra request the Windows DWM Acrylic backdrop and add stronger surface tint, edge reflection and elevation.
 - Responsive dashboard, focus timer with phase/status/progress feedback, persistent tasks, routines, goals, Jalali calendar, analytics, music library, playlists and settings.
 - A contextual mini-player while a track is selected.
 - Wallpaper selection/import, Windows startup integration, tray integration and JSON backup/restore.
 
-The material treatment intentionally combines translucent Compose surfaces with the native *window-level* DWM backdrop. It is not a physically refractive, per-panel blur renderer. Acrylic support depends on the Windows build and can fall back to Mica; no claim is made that every GPU produces identical results.
+The material treatment combines translucent, layered Compose surfaces with the native *window-level* DWM backdrop. This is a deliberate performance trade-off: it avoids capturing and blurring the desktop every frame. It is not a physically refractive, independently blurred panel renderer. Acrylic support depends on the Windows build and can fall back to Mica; no claim is made that every GPU produces identical results.
 
 ## Validation boundaries
 
@@ -47,4 +49,4 @@ Still requiring device-level validation or further work:
 - Visual comparison and performance profiling across integrated and discrete GPUs, high-DPI and multi-monitor setups.
 - MSI upgrade/uninstall behavior with an existing user-data directory.
 - A dedicated ambient-sound mixer and a physically refractive, per-surface glass renderer.
-- Bundled Persian font assets. The current UI uses the Windows Segoe UI font stack and OS glyph fallback; it does not download fonts at runtime.
+- Visual comparison and interaction review on real hardware after the refreshed UI is installed.

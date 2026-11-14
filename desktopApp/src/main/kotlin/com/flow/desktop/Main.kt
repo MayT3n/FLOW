@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.loadImageBitmap
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.input.key.Key
@@ -70,7 +71,10 @@ private val LocalDesktopSettings = androidx.compose.runtime.staticCompositionLoc
 
 // Segoe UI is available on Windows 11 and provides a native-feeling Persian-capable UI fallback.
 @OptIn(ExperimentalTextApi::class)
-private val WindowsUiFont = FontFamily("Segoe UI")
+private val WindowsUiFont = FontFamily(
+    androidx.compose.ui.text.platform.Font("fonts/Vazirmatn-Regular.ttf", FontWeight.Normal),
+    androidx.compose.ui.text.platform.Font("fonts/Vazirmatn-Bold.ttf", FontWeight.Bold)
+)
 private val BaseDesktopTypography = Typography()
 private val MedFlowTypography = Typography(
     displayLarge = BaseDesktopTypography.displayLarge.copy(fontFamily = WindowsUiFont),
@@ -215,7 +219,34 @@ private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Wind
                                 else
                                     listOf(MedFlowDesign.lightBackground, Color(0xFFE8EDF4), Color(0xFFF8FAFC))
                             }
-                            drawRect(Brush.linearGradient(colors))
+                            val backdropAlpha = if (WindowsBackdrop.isSupported()) {
+                                if (dark) .34f else .30f
+                            } else 1f
+                            drawRect(Brush.linearGradient(colors.map { it.copy(alpha = backdropAlpha) }))
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        Color(0xFF76A7FF).copy(alpha = if (dark) .16f else .10f),
+                                        Color.Transparent
+                                    ),
+                                    center = androidx.compose.ui.geometry.Offset(size.width * .86f, size.height * .08f),
+                                    radius = size.maxDimension * .62f
+                                ),
+                                radius = size.maxDimension * .62f,
+                                center = androidx.compose.ui.geometry.Offset(size.width * .86f, size.height * .08f)
+                            )
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        Color(0xFF9C8BFF).copy(alpha = if (dark) .10f else .07f),
+                                        Color.Transparent
+                                    ),
+                                    center = androidx.compose.ui.geometry.Offset(size.width * .08f, size.height * .88f),
+                                    radius = size.maxDimension * .48f
+                                ),
+                                radius = size.maxDimension * .48f,
+                                center = androidx.compose.ui.geometry.Offset(size.width * .08f, size.height * .88f)
+                            )
                         }
                         if (data.settings.wallpaperDim > 0f) {
                             drawRect(Color.Black.copy(alpha = data.settings.wallpaperDim.coerceIn(0f, .65f)))
@@ -260,16 +291,16 @@ private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Wind
                                     }
                                 } else selected
                                 Row(
-                                    Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 9.dp),
+                                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                         Text(
                                             headerTitle,
-                                            fontSize = 27.sp,
+                                            fontSize = 26.sp,
                                             fontWeight = FontWeight.Bold,
-                                            letterSpacing = (-0.35).sp
+                                            letterSpacing = (-.45).sp
                                         )
                                         Text(
                                             DateFormats.full(java.time.LocalDate.now()),
@@ -277,15 +308,48 @@ private fun MedFlowDesktop(runtime: DesktopRuntime, desktopWindow: java.awt.Wind
                                             fontSize = 12.sp
                                         )
                                     }
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        OutlinedButton(
-                                            onClick = { selected = "وظایف" },
-                                            contentPadding = PaddingValues(horizontal = 13.dp, vertical = 8.dp)
-                                        ) { Text("وظایف") }
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(9.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Surface(
+                                            onClick = {
+                                                commandQuery = ""
+                                                commandOpen = true
+                                            },
+                                            color = MaterialTheme.colorScheme.surface.copy(alpha = .55f),
+                                            shape = RoundedCornerShape(14.dp),
+                                            modifier = Modifier.height(42.dp)
+                                        ) {
+                                            Row(
+                                                Modifier.padding(horizontal = 12.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(9.dp)
+                                            ) {
+                                                SidebarGlyph("tasks", muted())
+                                                Text("جست‌وجو", color = muted(), fontSize = 12.sp)
+                                                Surface(
+                                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = .06f),
+                                                    shape = RoundedCornerShape(7.dp)
+                                                ) {
+                                                    Text(
+                                                        "Ctrl K",
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                                                        color = muted(),
+                                                        fontSize = 10.sp
+                                                    )
+                                                }
+                                            }
+                                        }
                                         Button(
                                             onClick = { selected = "تمرکز" },
-                                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
-                                        ) { Text("نمای تمرکز") }
+                                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                                            shape = RoundedCornerShape(14.dp)
+                                        ) {
+                                            SidebarGlyph("timer", MaterialTheme.colorScheme.onPrimary)
+                                            Spacer(Modifier.width(7.dp))
+                                            Text("شروع تمرکز", fontSize = 12.sp)
+                                        }
                                     }
                                 }
                                 Crossfade(
@@ -453,30 +517,32 @@ private fun Sidebar(
         "موسیقی" to "music",
         "تنظیمات" to "settings"
     )
-    val shape = RoundedCornerShape(MedFlowDesign.sidebarRadius)
+    val shape = RoundedCornerShape(27.dp)
     val width = if (compact) MedFlowDesign.sidebarCollapsed else MedFlowDesign.sidebarExpanded
-    val sidebarBrush = Brush.verticalGradient(
+    val base = if (dark) Color(0xFF111B2A) else Color(0xFFF9FBFE)
+    val sidebarBrush = Brush.linearGradient(
         listOf(
-            MaterialTheme.colorScheme.surface.copy(alpha = if (dark) .91f else .88f),
-            MaterialTheme.colorScheme.surface.copy(alpha = if (dark) .82f else .84f),
-            MaterialTheme.colorScheme.surface.copy(alpha = if (dark) .90f else .90f)
+            base.copy(alpha = if (dark) .78f else .74f),
+            base.copy(alpha = if (dark) .58f else .64f),
+            base.copy(alpha = if (dark) .70f else .72f)
         )
     )
     val sidebarEdge = Brush.linearGradient(
         listOf(
-            Color.White.copy(alpha = if (dark) .16f else .64f),
-            MaterialTheme.colorScheme.primary.copy(alpha = if (dark) .11f else .08f),
-            MaterialTheme.colorScheme.onSurface.copy(alpha = .07f)
+            Color.White.copy(alpha = if (dark) .28f else .82f),
+            MaterialTheme.colorScheme.primary.copy(alpha = if (dark) .20f else .14f),
+            Color.White.copy(alpha = if (dark) .06f else .38f)
         )
     )
 
     Column(
         Modifier.width(width)
             .fillMaxHeight()
-            .shadow(12.dp, shape)
-            .background(sidebarBrush, shape)
+            .shadow(18.dp, shape)
+            .clip(shape)
+            .background(sidebarBrush)
             .border(1.dp, sidebarEdge, shape)
-            .padding(horizontal = if (compact) 9.dp else 13.dp, vertical = 14.dp)
+            .padding(horizontal = if (compact) 9.dp else 13.dp, vertical = 15.dp)
     ) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = if (compact) 1.dp else 3.dp),
@@ -484,104 +550,137 @@ private fun Sidebar(
             horizontalArrangement = if (compact) Arrangement.Center else Arrangement.Start
         ) {
             Box(
-                Modifier.size(40.dp)
+                Modifier.size(42.dp)
                     .background(
                         Brush.linearGradient(
                             listOf(
-                                MaterialTheme.colorScheme.primary.copy(alpha = .22f),
-                                MaterialTheme.colorScheme.primary.copy(alpha = .07f)
+                                MaterialTheme.colorScheme.primary.copy(alpha = .34f),
+                                MaterialTheme.colorScheme.primary.copy(alpha = .12f),
+                                Color(0xFF9C8BFF).copy(alpha = .16f)
                             )
                         ),
-                        RoundedCornerShape(13.dp)
-                    ),
+                        RoundedCornerShape(15.dp)
+                    )
+                    .border(1.dp, Color.White.copy(alpha = if (dark) .22f else .60f), RoundedCornerShape(15.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Text("M", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 21.sp)
+                Text("M", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 22.sp)
             }
             if (!compact) {
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(11.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                    Text("MedFlow", fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                    Text("DESKTOP WORKSPACE", color = muted(), fontSize = 8.sp, letterSpacing = 1.35.sp)
+                    Text("MedFlow", fontWeight = FontWeight.Bold, fontSize = 17.sp, letterSpacing = (-.2).sp)
+                    Text("فضای کار و تمرکز", color = muted(), fontSize = 10.sp)
                 }
             }
         }
 
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(25.dp))
+        if (!compact) {
+            Text(
+                "فضای کار",
+                color = muted().copy(alpha = .76f),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(start = 12.dp, bottom = 8.dp)
+            )
+        }
         items.forEach { (item, glyph) ->
             val active = selected == item
             Surface(
                 onClick = { onSelect(item) },
-                color = if (active) MaterialTheme.colorScheme.primary.copy(alpha = if (dark) .16f else .10f)
+                color = if (active) MaterialTheme.colorScheme.primary.copy(alpha = if (dark) .20f else .13f)
                     else Color.Transparent,
-                shape = RoundedCornerShape(MedFlowDesign.controlRadius),
+                shape = RoundedCornerShape(15.dp),
                 modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
             ) {
                 Row(
-                    Modifier.fillMaxWidth().padding(horizontal = if (compact) 8.dp else 10.dp, vertical = 8.dp),
+                    Modifier.fillMaxWidth().height(45.dp)
+                        .padding(horizontal = if (compact) 8.dp else 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = if (compact) Arrangement.Center else Arrangement.Start
                 ) {
-                    if (!compact) {
-                        Box(
-                            Modifier.width(3.dp).height(19.dp)
-                                .background(
-                                    if (active) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                    RoundedCornerShape(3.dp)
-                                )
-                        )
-                        Spacer(Modifier.width(7.dp))
-                    }
                     Box(
-                        Modifier.size(35.dp)
+                        Modifier.size(34.dp)
                             .background(
-                                if (active) MaterialTheme.colorScheme.primary.copy(alpha = .13f)
+                                if (active) MaterialTheme.colorScheme.primary.copy(alpha = .14f)
                                 else MaterialTheme.colorScheme.onSurface.copy(alpha = .035f),
-                                RoundedCornerShape(10.dp)
+                                RoundedCornerShape(11.dp)
                             ),
                         contentAlignment = Alignment.Center
                     ) {
                         SidebarGlyph(
                             icon = glyph,
-                            tint = if (active) MaterialTheme.colorScheme.primary else muted()
+                            tint = if (active) MaterialTheme.colorScheme.primary else muted().copy(alpha = .92f)
                         )
                     }
                     if (!compact) {
-                        Spacer(Modifier.width(10.dp))
+                        Spacer(Modifier.width(11.dp))
                         Text(
                             item,
                             color = if (active) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurface.copy(alpha = .90f),
+                                else MaterialTheme.colorScheme.onSurface.copy(alpha = .88f),
                             fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
-                            fontSize = 13.sp
+                            fontSize = 13.sp,
+                            modifier = Modifier.weight(1f)
                         )
+                        if (active) {
+                            Box(
+                                Modifier.size(6.dp)
+                                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+                            )
+                        }
                     }
                 }
             }
         }
 
         Spacer(Modifier.weight(1f))
-        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .08f))
-        TextButton(onClick = onThemeChange, modifier = Modifier.fillMaxWidth()) {
-            Text(if (dark) "☼" else "☾", fontSize = 16.sp)
-            if (!compact) {
-                Spacer(Modifier.width(7.dp))
-                Text(if (dark) "حالت روشن" else "حالت تیره", color = muted())
+        HorizontalDivider(color = Color.White.copy(alpha = if (dark) .12f else .48f))
+        Spacer(Modifier.height(10.dp))
+        Surface(
+            onClick = onThemeChange,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = .045f),
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier.fillMaxWidth().height(43.dp)
+        ) {
+            Row(
+                Modifier.fillMaxSize().padding(horizontal = if (compact) 0.dp else 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = if (compact) Arrangement.Center else Arrangement.Start
+            ) {
+                Text(if (dark) "☼" else "☾", color = MaterialTheme.colorScheme.primary, fontSize = 18.sp)
+                if (!compact) {
+                    Spacer(Modifier.width(9.dp))
+                    Text(if (dark) "حالت روشن" else "حالت تیره", color = muted(), fontSize = 12.sp)
+                }
             }
         }
-        TextButton(onClick = onToggleCompact, modifier = Modifier.fillMaxWidth()) {
-            Text(if (compact) "›" else "‹", fontSize = 18.sp)
-            if (!compact) {
-                Spacer(Modifier.width(7.dp))
-                Text("جمع‌کردن منو", color = muted(), fontSize = 11.sp)
+        Spacer(Modifier.height(7.dp))
+        Surface(
+            onClick = onToggleCompact,
+            color = Color.Transparent,
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth().height(38.dp)
+        ) {
+            Row(
+                Modifier.fillMaxSize().padding(horizontal = if (compact) 0.dp else 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = if (compact) Arrangement.Center else Arrangement.Start
+            ) {
+                Text(if (compact) "›" else "‹", color = muted(), fontSize = 19.sp)
+                if (!compact) {
+                    Spacer(Modifier.width(9.dp))
+                    Text("جمع‌کردن نوار", color = muted(), fontSize = 11.sp)
+                }
             }
         }
         if (!compact) {
             Text(
-                "نسخه‌ی دسکتاپ",
-                color = muted().copy(alpha = .75f),
+                "نسخه دسکتاپ",
+                color = muted().copy(alpha = .68f),
                 fontSize = 10.sp,
-                modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 2.dp)
+                modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 5.dp)
             )
         }
     }
@@ -589,10 +688,10 @@ private fun Sidebar(
 
 @Composable
 private fun SidebarGlyph(icon: String, tint: Color) {
-    Canvas(Modifier.size(19.dp)) {
+    Canvas(Modifier.size(20.dp)) {
         val w = size.width
         val h = size.height
-        val sw = 1.65.dp.toPx()
+        val sw = 1.85.dp.toPx()
         val stroke = Stroke(width = sw, cap = StrokeCap.Round, join = StrokeJoin.Round)
         fun path(block: Path.() -> Unit) {
             drawPath(Path().apply(block), tint, style = stroke)
@@ -848,28 +947,28 @@ private fun FocusCard(data: AppData, now: Long, runtime: DesktopRuntime, modifie
     val animatedProgress by androidx.compose.animation.core.animateFloatAsState(
         targetValue = progress,
         animationSpec = if (LocalDesktopSettings.current.animations)
-            androidx.compose.animation.core.tween(durationMillis = 220)
+            androidx.compose.animation.core.tween(durationMillis = 260)
         else androidx.compose.animation.core.snap(),
         label = "focus-progress"
     )
     val phaseName = when (timer.phase) {
-        PhaseType.FOCUS -> "زمان تمرکز"
+        PhaseType.FOCUS -> "تمرکز عمیق"
         PhaseType.SHORT_BREAK -> "استراحت کوتاه"
         PhaseType.LONG_BREAK -> "استراحت بلند"
     }
     val statusLabel = when (timer.status) {
         TimerStatus.RUNNING -> "در حال اجرا"
-        TimerStatus.PAUSED -> "متوقف‌شده"
-        TimerStatus.IDLE -> "آماده"
+        TimerStatus.PAUSED -> "مکث شده"
+        TimerStatus.IDLE -> "آماده شروع"
     }
-    val statusTint = if (timer.status == TimerStatus.RUNNING) Color(0xFF4BAA83)
+    val statusTint = if (timer.status == TimerStatus.RUNNING) Color(0xFF54C49A)
         else MaterialTheme.colorScheme.onSurfaceVariant
 
     Panel(phaseName, modifier) {
         Column(
             Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
             Row(
                 Modifier.fillMaxWidth(),
@@ -877,26 +976,41 @@ private fun FocusCard(data: AppData, now: Long, runtime: DesktopRuntime, modifie
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Surface(
-                    color = statusTint.copy(alpha = .12f),
+                    color = statusTint.copy(alpha = .13f),
                     shape = RoundedCornerShape(999.dp)
                 ) {
-                    Text(
-                        statusLabel,
-                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
-                        color = statusTint,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium
-                    )
+                    Row(
+                        Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(Modifier.size(6.dp).background(statusTint, CircleShape))
+                        Text(statusLabel, color = statusTint, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                    }
                 }
                 Box {
-                    OutlinedButton(
+                    Surface(
                         onClick = { taskMenuExpanded = true },
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = .055f),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(selectedTask?.title ?: "بدون وظیفه‌ی مرتبط", maxLines = 1)
+                        Row(
+                            Modifier.widthIn(max = 172.dp).padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(7.dp)
+                        ) {
+                            SidebarGlyph("tasks", muted())
+                            Text(
+                                selectedTask?.title ?: "بدون وظیفه",
+                                maxLines = 1,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 11.sp
+                            )
+                            Text("⌄", color = muted(), fontSize = 11.sp)
+                        }
                     }
                     DropdownMenu(expanded = taskMenuExpanded, onDismissRequest = { taskMenuExpanded = false }) {
-                        DropdownMenuItem(text = { Text("بدون وظیفه‌ی مرتبط") }, onClick = {
+                        DropdownMenuItem(text = { Text("بدون وظیفه مرتبط") }, onClick = {
                             runtime.selectTask(null)
                             taskMenuExpanded = false
                         })
@@ -910,8 +1024,10 @@ private fun FocusCard(data: AppData, now: Long, runtime: DesktopRuntime, modifie
                 }
             }
 
-            Spacer(Modifier.height(14.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 PhaseType.entries.forEach { phase ->
                     val label = when (phase) {
                         PhaseType.FOCUS -> "تمرکز"
@@ -921,55 +1037,81 @@ private fun FocusCard(data: AppData, now: Long, runtime: DesktopRuntime, modifie
                     val active = timer.phase == phase
                     Surface(
                         onClick = { runtime.selectPhase(phase) },
-                        color = if (active) MaterialTheme.colorScheme.primary.copy(alpha = .15f)
-                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .42f),
-                        shape = RoundedCornerShape(10.dp)
+                        color = if (active) MaterialTheme.colorScheme.primary.copy(alpha = .17f)
+                            else MaterialTheme.colorScheme.onSurface.copy(alpha = .045f),
+                        shape = RoundedCornerShape(11.dp)
                     ) {
                         Text(
                             label,
-                            modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
                             color = if (active) MaterialTheme.colorScheme.primary else muted(),
-                            fontSize = 11.sp,
+                            fontSize = 10.sp,
                             fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal
                         )
                     }
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
-            Text(
-                timerText(remaining),
-                fontSize = 61.sp,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Light,
-                letterSpacing = (-1.4).sp,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(Modifier.height(6.dp))
-            Row(Modifier.fillMaxWidth(.82f), verticalAlignment = Alignment.CenterVertically) {
-                Text("پیشرفت جلسه", color = muted(), fontSize = 10.sp)
-                Spacer(Modifier.weight(1f))
-                Text(fa((progress * 100).toInt()) + "٪", color = muted(), fontSize = 10.sp)
+            Box(Modifier.size(174.dp), contentAlignment = Alignment.Center) {
+                Canvas(Modifier.fillMaxSize()) {
+                    val strokeWidth = 8.dp.toPx()
+                    val inset = strokeWidth / 2f
+                    drawCircle(
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = .075f),
+                        style = Stroke(width = strokeWidth)
+                    )
+                    drawArc(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = .95f),
+                        startAngle = -90f,
+                        sweepAngle = 360f * animatedProgress,
+                        useCenter = false,
+                        topLeft = androidx.compose.ui.geometry.Offset(inset, inset),
+                        size = androidx.compose.ui.geometry.Size(size.width - strokeWidth, size.height - strokeWidth),
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                    )
+                    drawCircle(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = .08f),
+                        radius = size.minDimension * .34f
+                    )
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Text(
+                        timerText(remaining),
+                        fontSize = 43.sp,
+                        fontWeight = FontWeight.Light,
+                        letterSpacing = (-1.1).sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text("باقی‌مانده", color = muted(), fontSize = 10.sp)
+                }
             }
-            Spacer(Modifier.height(5.dp))
-            LinearProgressIndicator(
-                progress = animatedProgress,
-                modifier = Modifier.fillMaxWidth(.82f).height(6.dp),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-            Spacer(Modifier.height(8.dp))
-            Text("دور " + fa(timer.round) + " از " + fa(data.settings.rounds), color = muted(), fontSize = 11.sp)
-            Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("دور " + fa(timer.round) + " از " + fa(data.settings.rounds), color = muted(), fontSize = 10.sp)
+                Text(fa((progress * 100).toInt()) + "٪ تکمیل شده", color = muted(), fontSize = 10.sp)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Button(
                     onClick = { if (timer.status == TimerStatus.RUNNING) runtime.pause() else runtime.start() },
-                    contentPadding = PaddingValues(horizontal = 22.dp, vertical = 9.dp)
+                    contentPadding = PaddingValues(horizontal = 19.dp, vertical = 9.dp),
+                    shape = RoundedCornerShape(13.dp)
                 ) {
-                    Text(if (timer.status == TimerStatus.RUNNING) "مکث" else if (timer.status == TimerStatus.PAUSED) "ادامه" else "شروع")
+                    Text(if (timer.status == TimerStatus.RUNNING) "Ⅱ  مکث" else if (timer.status == TimerStatus.PAUSED) "▶  ادامه" else "▶  شروع")
                 }
-                OutlinedButton(onClick = runtime::reset) { Text("بازنشانی") }
-                OutlinedButton(onClick = runtime::skip) { Text("رد کردن") }
+                OutlinedButton(
+                    onClick = runtime::reset,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 9.dp),
+                    shape = RoundedCornerShape(13.dp)
+                ) { Text("↺", fontSize = 15.sp) }
+                OutlinedButton(
+                    onClick = runtime::skip,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 9.dp),
+                    shape = RoundedCornerShape(13.dp)
+                ) { Text("»", fontSize = 15.sp) }
             }
         }
     }
@@ -1617,14 +1759,28 @@ private fun PlaceholderPage(title: String, message: String) {
 
 @Composable
 private fun MetricCard(title: String, value: String, detail: String, modifier: Modifier = Modifier) {
-    Panel(title, modifier.height(110.dp)) {
+    val glyph = when (title) {
+        "تمرکز امروز" -> "timer"
+        "وظایف باز" -> "tasks"
+        else -> "chart"
+    }
+    Panel(title, modifier.height(104.dp)) {
         Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Bottom,
+            Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(value, fontSize = 25.sp, fontWeight = FontWeight.Bold, letterSpacing = (-.35).sp)
-            Text(detail, color = muted(), fontSize = 11.sp)
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(value, fontSize = 23.sp, fontWeight = FontWeight.Bold, letterSpacing = (-.35).sp)
+                Text(detail, color = muted(), fontSize = 10.sp)
+            }
+            Box(
+                Modifier.size(39.dp)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = .12f), RoundedCornerShape(13.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                SidebarGlyph(glyph, MaterialTheme.colorScheme.primary)
+            }
         }
     }
 }
@@ -1635,77 +1791,86 @@ private fun Panel(title: String, modifier: Modifier = Modifier, content: @Compos
     val profile = MedFlowDesign.glassProfile(settings.glassQuality)
     val darkSurface = MaterialTheme.colorScheme.background == MedFlowDesign.darkBackground
     val shape = RoundedCornerShape(MedFlowDesign.panelRadius)
-    val surfaceOpacity = (
-        profile.surfaceAlpha * (.78f + settings.glassOpacity.coerceIn(.55f, 1f) * .22f)
-    ).coerceIn(.76f, .985f)
-    val tint = if (darkSurface) Color(0xFF426487) else Color(0xFFB9CDE5)
+    val surfaceBase = if (darkSurface) Color(0xFF152338) else Color(0xFFF9FCFF)
+    val alpha = (profile.surfaceAlpha * settings.glassOpacity.coerceIn(.55f, 1f)).coerceIn(.42f, .98f)
+    val surfaceBrush = Brush.linearGradient(
+        listOf(
+            surfaceBase.copy(alpha = alpha),
+            surfaceBase.copy(alpha = (alpha * .86f).coerceIn(.35f, .94f)),
+            surfaceBase.copy(alpha = (alpha * .94f).coerceIn(.38f, .97f))
+        )
+    )
     val edge = Brush.linearGradient(
         listOf(
-            Color.White.copy(
-                alpha = (profile.edgeAlpha + settings.glassShine.coerceIn(0f, 1f) * .045f).coerceAtMost(.24f)
-            ),
-            MaterialTheme.colorScheme.primary.copy(alpha = profile.edgeAlpha * .62f),
-            MaterialTheme.colorScheme.onSurface.copy(alpha = if (darkSurface) .035f else .055f)
+            Color.White.copy(alpha = profile.edgeAlpha),
+            MaterialTheme.colorScheme.primary.copy(alpha = profile.edgeAlpha * .78f),
+            Color.White.copy(alpha = profile.edgeAlpha * .28f)
         )
     )
-    val sheen = Brush.horizontalGradient(
+    val reflection = Brush.linearGradient(
         listOf(
-            Color.Transparent,
             Color.White.copy(alpha = profile.highlightAlpha),
-            Color.Transparent
+            Color.White.copy(alpha = profile.highlightAlpha * .18f),
+            Color.Transparent,
+            MaterialTheme.colorScheme.primary.copy(alpha = profile.tintAlpha * .55f)
         )
     )
+    val accentGlow = if (darkSurface) Color(0xFF719EFF) else Color(0xFF8BAFFF)
 
-    Card(
+    Box(
         modifier = modifier
             .then(if (settings.animations) Modifier.animateContentSize() else Modifier)
             .shadow(profile.elevation, shape)
-            .border(1.dp, edge, shape),
-        shape = shape,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = surfaceOpacity)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            .clip(shape)
+            .background(surfaceBrush, shape)
+            .border(1.dp, edge, shape)
     ) {
-        Box(Modifier.fillMaxSize()) {
-            if (settings.glassQuality != GlassQuality.LOW) {
-                Box(
-                    Modifier.matchParentSize().background(
-                        Brush.linearGradient(
-                            listOf(
-                                tint.copy(alpha = profile.tintAlpha * settings.glassOpacity.coerceIn(.55f, 1f)),
-                                Color.Transparent,
-                                MaterialTheme.colorScheme.primary.copy(alpha = profile.tintAlpha * .28f)
-                            )
-                        ),
-                        shape
-                    )
+        Box(
+            Modifier.matchParentSize()
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            Color.White.copy(alpha = profile.highlightAlpha * .48f),
+                            Color.Transparent,
+                            accentGlow.copy(alpha = profile.tintAlpha * .58f)
+                        )
+                    ),
+                    shape
                 )
-            }
-            Column(
-                Modifier.fillMaxSize().padding(
-                    horizontal = MedFlowDesign.panelPaddingHorizontal,
-                    vertical = MedFlowDesign.panelPaddingVertical
-                ),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
+        )
+        Box(
+            Modifier.align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(reflection)
+        )
+        Box(
+            Modifier.align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(Color.White.copy(alpha = profile.edgeAlpha * .25f))
+        )
+        Column(
+            Modifier.fillMaxSize().padding(
+                horizontal = MedFlowDesign.panelPaddingHorizontal,
+                vertical = MedFlowDesign.panelPaddingVertical
+            ),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(
+                    Modifier.size(6.dp)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = .9f), CircleShape)
+                )
                 Text(
                     title,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 13.sp,
-                    letterSpacing = .05.sp,
+                    letterSpacing = (-.05).sp,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                content(this)
             }
-            if (profile.highlightAlpha > 0f) {
-                Box(
-                    Modifier.align(Alignment.TopCenter)
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(sheen)
-                )
-            }
+            content(this)
         }
     }
 }

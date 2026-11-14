@@ -20,6 +20,8 @@ class DesktopDesignSystemTest {
         assertTrue(profiles.zipWithNext().all { (a, b) -> a.tintAlpha < b.tintAlpha })
         assertTrue(profiles.zipWithNext().all { (a, b) -> a.edgeAlpha < b.edgeAlpha })
         assertTrue(profiles.zipWithNext().all { (a, b) -> a.elevation < b.elevation })
+        assertTrue(profiles[2].surfaceAlpha < .8f)
+        assertTrue(profiles[3].surfaceAlpha < profiles[2].surfaceAlpha)
     }
 
     @Test

@@ -6,36 +6,39 @@ import androidx.compose.ui.unit.dp
 import com.flow.focus.data.GlassQuality
 
 /**
- * Shared visual tokens for the Windows desktop experience.
- * Keep surfaces, spacing and material choices centralized.
+ * MedFlow's desktop visual language.
+ *
+ * The window backdrop is provided by Windows DWM (Mica/Acrylic) when available;
+ * composable surfaces add a layered glass treatment without expensive per-frame
+ * bitmap capture, blur or custom GPU shaders.
  */
 internal object MedFlowDesign {
-    val darkBackground = Color(0xFF0D121A)
-    val darkSurface = Color(0xFF141B25)
-    val darkElevated = Color(0xFF1C2633)
-    val darkVariant = Color(0xFF222E3D)
-    val darkText = Color(0xFFF1F4F8)
-    val darkMuted = Color(0xFF98A5B5)
-    val darkAccent = Color(0xFF82A5F5)
-    val darkBorder = Color(0x2BFFFFFF)
+    val darkBackground = Color(0xFF0B111C)
+    val darkSurface = Color(0xFF142034)
+    val darkElevated = Color(0xFF1A2A40)
+    val darkVariant = Color(0xFF24354B)
+    val darkText = Color(0xFFF4F7FC)
+    val darkMuted = Color(0xFFA4B2C5)
+    val darkAccent = Color(0xFF8AB8FF)
+    val darkBorder = Color(0x38FFFFFF)
 
-    val lightBackground = Color(0xFFF3F5F8)
-    val lightSurface = Color(0xFFFFFFFF)
-    val lightElevated = Color(0xFFF9FAFC)
-    val lightVariant = Color(0xFFE9EEF4)
-    val lightText = Color(0xFF202938)
-    val lightMuted = Color(0xFF6D7989)
-    val lightAccent = Color(0xFF4D6FD4)
-    val lightBorder = Color(0xFFDDE3EA)
+    val lightBackground = Color(0xFFEAF0F7)
+    val lightSurface = Color(0xFFF9FBFE)
+    val lightElevated = Color(0xFFFFFFFF)
+    val lightVariant = Color(0xFFE2EAF3)
+    val lightText = Color(0xFF1C293A)
+    val lightMuted = Color(0xFF68778B)
+    val lightAccent = Color(0xFF557FC8)
+    val lightBorder = Color(0x40FFFFFF)
 
     val sidebarExpanded = 236.dp
     val sidebarCollapsed = 72.dp
     val contentMaxWidth = 1480.dp
     val windowInset = 18.dp
 
-    val panelRadius = 20.dp
-    val sidebarRadius = 22.dp
-    val controlRadius = 12.dp
+    val panelRadius = 23.dp
+    val sidebarRadius = 27.dp
+    val controlRadius = 14.dp
     val panelPaddingHorizontal = 20.dp
     val panelPaddingVertical = 17.dp
 
@@ -48,8 +51,8 @@ internal object MedFlowDesign {
     )
 
     /**
-     * Deliberately distinct quality profiles.
-     * Native DWM backdrop selection is handled by WindowsBackdrop.
+     * Performance keeps opaque, inexpensive surfaces. High and Ultra reveal more
+     * of the DWM backdrop and add restrained edge/reflection detail.
      */
     fun glassProfile(quality: GlassQuality): GlassProfile = when (quality) {
         GlassQuality.LOW -> GlassProfile(
@@ -60,25 +63,25 @@ internal object MedFlowDesign {
             elevation = 1.dp
         )
         GlassQuality.MEDIUM -> GlassProfile(
-            surfaceAlpha = .945f,
-            tintAlpha = .018f,
-            edgeAlpha = .085f,
-            highlightAlpha = .11f,
-            elevation = 4.dp
+            surfaceAlpha = .86f,
+            tintAlpha = .024f,
+            edgeAlpha = .12f,
+            highlightAlpha = .10f,
+            elevation = 5.dp
         )
         GlassQuality.HIGH -> GlassProfile(
-            surfaceAlpha = .895f,
-            tintAlpha = .034f,
-            edgeAlpha = .125f,
-            highlightAlpha = .19f,
-            elevation = 7.dp
+            surfaceAlpha = .73f,
+            tintAlpha = .042f,
+            edgeAlpha = .19f,
+            highlightAlpha = .17f,
+            elevation = 8.dp
         )
         GlassQuality.ULTRA -> GlassProfile(
-            surfaceAlpha = .855f,
-            tintAlpha = .052f,
-            edgeAlpha = .17f,
-            highlightAlpha = .27f,
-            elevation = 10.dp
+            surfaceAlpha = .64f,
+            tintAlpha = .062f,
+            edgeAlpha = .25f,
+            highlightAlpha = .23f,
+            elevation = 11.dp
         )
     }
 }

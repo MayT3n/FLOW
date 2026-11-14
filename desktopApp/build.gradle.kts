@@ -9,6 +9,47 @@ kotlin {
     jvmToolchain(17)
 }
 
+val vazirmatnResources = layout.buildDirectory.dir("generated/vazirmatn-resources")
+val downloadVazirmatnFonts by tasks.registering {
+    outputs.dir(vazirmatnResources)
+    doLast {
+        val output = vazirmatnResources.get().asFile
+        val fontFiles = listOf("Vazirmatn-Regular.ttf", "Vazirmatn-Bold.ttf")
+        fontFiles.forEach { name ->
+            val target = output.resolve("fonts/$name")
+            if (!target.exists() || target.length() < 50_000L) {
+                target.parentFile.mkdirs()
+                val url = java.net.URL(
+                    "https://raw.githubusercontent.com/rastikerdar/vazirmatn/master/fonts/ttf/$name"
+                )
+                val connection = url.openConnection().apply {
+                    connectTimeout = 15_000
+                    readTimeout = 30_000
+                    setRequestProperty("User-Agent", "MedFlow-Desktop-Build")
+                }
+                val bytes = connection.getInputStream().use { it.readBytes() }
+                check(bytes.size > 50_000) { "Downloaded Vazirmatn font is incomplete: $name" }
+                target.writeBytes(bytes)
+            }
+        }
+        val license = output.resolve("fonts/OFL.txt")
+        if (!license.exists()) {
+            license.parentFile.mkdirs()
+            val url = java.net.URL("https://raw.githubusercontent.com/rastikerdar/vazirmatn/master/OFL.txt")
+            val licenseText = url.openStream().bufferedReader(Charsets.UTF_8).use { it.readText() }
+            license.writeText(licenseText, Charsets.UTF_8)
+        }
+    }
+}
+
+sourceSets.main {
+    resources.srcDir(vazirmatnResources)
+}
+
+tasks.named("processResources") {
+    dependsOn(downloadVazirmatnFonts)
+}
+
 dependencies {
     implementation(compose.desktop.currentOs)
     implementation(compose.material3)
