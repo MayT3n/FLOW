@@ -110,6 +110,8 @@ data class RootBackdropFrame(
     val settings: Settings,
     /** پس‌زمینه‌ی ثابت و از-پیش-تارشده (تصویر کوچک‌مقیاس) که همه‌ی سطح‌های شیشه‌ای فقط بزرگ‌نمایی‌اش می‌کنند. */
     val blurred: androidx.compose.runtime.State<ImageBitmap?>,
+    /** نسخه‌ی کم‌تار برای سطح‌های Subtle در «کیفیت زیاد». */
+    val blurredLight: androidx.compose.runtime.State<ImageBitmap?>,
 )
 
 val LocalRootBackdrop = compositionLocalOf<RootBackdropFrame?> { null }
@@ -299,6 +301,7 @@ fun GlassBackdropHost(
     val palette = remember { mutableStateOf(builtinWallpaperPalette(settings.wallpaperId)) }
     val layer = rememberGraphicsLayer()
     val blurredState = remember { mutableStateOf<ImageBitmap?>(null) }
+    val blurredLightState = remember { mutableStateOf<ImageBitmap?>(null) }
     val glassForStatic = LocalGlass.current
     val wallpaperPlan = LocalWallpaperPlan.current
 
@@ -323,13 +326,14 @@ fun GlassBackdropHost(
     }
 
     // The phase is read by drawing, not by the composition on every frame.
-    val phase: State<Float> = if (g.animations && g.quality != GlassQuality.LOW) {
+    // فقط «کیفیت زیاد» پس‌زمینه‌ی متحرک دارد؛ «متعادل» ثابت و بدون ترسیم دائمی است.
+    val phase: State<Float> = if (g.animations && g.quality == GlassQuality.HIGH) {
         rememberInfiniteTransition(label = "bg")
             .animateFloat(0f, 1f, infiniteRepeatable(tween(60_000, easing = LinearEasing), RepeatMode.Restart), label = "bgPhase")
     } else remember { mutableStateOf(0f) }
 
     val surfacePhase = remember(phase) { derivedStateOf { (phase.value * 90f).toInt() / 90f } }
-    val frame = RootBackdropFrame(image, phase, surfacePhase, tone, palette, rootOrigin, settings, blurredState)
+    val frame = RootBackdropFrame(image, phase, surfacePhase, tone, palette, rootOrigin, settings, blurredState, blurredLightState)
     Box(
         Modifier.fillMaxSize()
             .onSizeChanged { size.value = it }
@@ -342,7 +346,7 @@ fun GlassBackdropHost(
             Box(
                 Modifier.fillMaxSize().drawWithContent {
                     // The live layer is recorded only when floating chrome can actually sample it.
-                    if (g.quality != GlassQuality.LOW) {
+                    if (g.quality == GlassQuality.HIGH) {
                         layer.record { this@drawWithContent.drawContent() }
                         drawLayer(layer)
                     } else {
@@ -356,25 +360,31 @@ fun GlassBackdropHost(
                         val strength = when (glassForStatic.quality) {
                             GlassQuality.LOW -> 0f
                             GlassQuality.MEDIUM -> 0.42f
-                            GlassQuality.HIGH -> 0.78f
+                            GlassQuality.HIGH -> 0.9f
                         }
                         val extra = settings.wallpaperBlurDp.dp.toPx() * 0.35f
-                        val maxR = if (glassForStatic.quality == GlassQuality.MEDIUM) 16.dp.toPx() else 30.dp.toPx()
+                        val maxR = if (glassForStatic.quality == GlassQuality.MEDIUM) 16.dp.toPx() else 36.dp.toPx()
                         val r = (glassForStatic.blurDp.dp.toPx() * strength * 0.82f + extra * strength).coerceAtMost(maxR)
                         // بلور = رسم در مقیاس کوچک و بزرگ‌نمایی با فیلتر نرم؛ فقط وقتی پس‌زمینه عوض شود دوباره ساخته می‌شود.
-                        val factor = (r / 1.5f).coerceIn(3f, 20f)
-                        val bw = (this.size.width / factor).toInt().coerceAtLeast(8)
-                        val bh = (this.size.height / factor).toInt().coerceAtLeast(8)
-                        val bmp = ImageBitmap(bw, bh)
                         val sw = this.size.width
                         val sh = this.size.height
-                        val canvasScope = androidx.compose.ui.graphics.drawscope.CanvasDrawScope()
-                        canvasScope.draw(this, layoutDirection, androidx.compose.ui.graphics.Canvas(bmp), androidx.compose.ui.geometry.Size(bw.toFloat(), bh.toFloat())) {
-                            scale(bw / sw, bh / sh, pivot = Offset.Zero) {
-                                drawBackdrop(c, 0f, sw, sh, image.value, settings, wallpaperPlan.value)
+                        fun bake(factor: Float): ImageBitmap {
+                            val bw = (sw / factor).toInt().coerceAtLeast(8)
+                            val bh = (sh / factor).toInt().coerceAtLeast(8)
+                            val bmp = ImageBitmap(bw, bh)
+                            androidx.compose.ui.graphics.drawscope.CanvasDrawScope().draw(
+                                this, layoutDirection, androidx.compose.ui.graphics.Canvas(bmp),
+                                androidx.compose.ui.geometry.Size(bw.toFloat(), bh.toFloat()),
+                            ) {
+                                scale(bw / sw, bh / sh, pivot = Offset.Zero) {
+                                    drawBackdrop(c, 0f, sw, sh, image.value, settings, wallpaperPlan.value)
+                                }
                             }
+                            return bmp
                         }
-                        blurredState.value = bmp
+                        val factor = (r / 1.5f).coerceIn(3f, 20f)
+                        blurredState.value = bake(factor)
+                        blurredLightState.value = if (glassForStatic.quality == GlassQuality.HIGH) bake((factor * 0.5f).coerceAtLeast(3f)) else null
                     },
                 )
                 Canvas(
@@ -389,7 +399,7 @@ fun GlassBackdropHost(
                 }
                 source()
             }
-            CompositionLocalProvider(LocalBackdropLayer provides if (g.quality != GlassQuality.LOW) layer else null) {
+            CompositionLocalProvider(LocalBackdropLayer provides if (g.quality == GlassQuality.HIGH) layer else null) {
                 chrome()
             }
         }
@@ -448,6 +458,7 @@ fun GlassSurface(
 
     val depth = when {
         g.quality == GlassQuality.LOW -> if (elevated) 8.dp else 0.dp
+        g.quality == GlassQuality.MEDIUM -> if (elevated) 10.dp else if (level == GlassLevel.Strong) 4.dp else 0.dp
         elevated -> 18.dp
         level == GlassLevel.Strong -> 8.dp
         level == GlassLevel.Regular -> 4.dp
@@ -490,7 +501,7 @@ fun GlassSurface(
                 Box(
                     Modifier.matchParentSize().drawBehind {
                         val frame = rootBackdrop!!
-                        val bmp = frame.blurred.value
+                        val bmp = if (level == GlassLevel.Subtle && g.quality == GlassQuality.HIGH) frame.blurredLight.value ?: frame.blurred.value else frame.blurred.value
                         val full = rootSize!!.value
                         if (bmp != null) {
                             translate(-origin.x, -origin.y) {

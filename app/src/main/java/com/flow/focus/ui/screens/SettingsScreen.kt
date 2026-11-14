@@ -484,8 +484,8 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             Text(
                 when (st.glassQuality) {
                     GlassQuality.LOW -> "سطح ساده و کم‌مصرف؛ مناسب دستگاه‌های ضعیف."
-                    GlassQuality.MEDIUM -> "تاری ملایم پس‌زمینه همراه با شفافیت و لبه‌ی نورانی (اندروید ۱۲ به بالا)."
-                    GlassQuality.HIGH -> "تاری قوی‌تر پس‌زمینه و عمق بیشتر؛ مصرف گرافیکی بالاتر (اندروید ۱۲ به بالا)."
+                    GlassQuality.MEDIUM -> "روان و کم‌مصرف: شیشه‌ی تارشده با لبه‌ی نورانی، پس‌زمینه‌ی ثابت و سایه‌ی سبک. پیشنهاد برای استفاده‌ی روزانه."
+                    GlassQuality.HIGH -> "کامل: پس‌زمینه‌ی متحرک، تاری زنده‌ی محتوا پشت داک و مینی‌پلیر، انعکاس نور و عمق بیشتر؛ مصرف باتری و گرافیک بالاتر."
                 },
                 style = Flow.type.caption, color = Flow.colors.textSecondary,
             )
