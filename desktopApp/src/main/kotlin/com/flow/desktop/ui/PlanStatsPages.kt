@@ -70,7 +70,7 @@ internal fun PlanningPage(data: AppData, runtime: DesktopRuntime) {
                         )
                     }
                 }
-                Column(Modifier.fillMaxWidth().weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     weeks.forEach { week ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             week.forEach { date ->
