@@ -90,7 +90,7 @@ internal object BackdropRenderer {
         CanvasDrawScope().draw(Density(1f), LayoutDirection.Ltr, canvas, Size(w.toFloat(), h.toFloat())) {
             drawRect(if (req.dark) FlowColors.dark.wallBase else FlowColors.light.wallBase)
             if (custom != null) drawCustom(custom, req.fit) else WallpaperArt.draw(this, req.wallpaperId, req.dark)
-            if (req.dim > 0f) drawRect(Color.Black.copy(alpha = req.dim.coerceIn(0f, .65f)))
+            if (req.dim > 0f) drawRect(Color.Black.copy(alpha = (req.dim.coerceIn(0f, .65f) * (if (req.dark) 1f else .22f))))
         }
         val finalSharp = if (req.wallpaperBlur > 0) blurImage(sharp, 1f, req.wallpaperBlur * sharpScale * .5f) else sharp
         val blurred = if (req.sampleBlur) {

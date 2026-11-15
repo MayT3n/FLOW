@@ -56,7 +56,7 @@ internal fun MusicPage(runtime: DesktopRuntime, data: AppData) {
                         )
                     }
                     MusicProgress(runtime, current != null)
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+                    LtrRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         FlowIconButton(FlowIcon.Shuffle, if (state.shuffle) "تصادفی: روشن" else "تصادفی: خاموش", { runtime.music.toggleShuffle() }, selected = state.shuffle, size = 40.dp)
                         FlowIconButton(FlowIcon.Previous, "قبلی", { runtime.music.previous() }, enabled = current != null, size = 44.dp, iconSize = 22.dp, filledIcon = true)
                         FlowButton(

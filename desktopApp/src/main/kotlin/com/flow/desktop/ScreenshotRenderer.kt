@@ -91,10 +91,10 @@ internal object ScreenshotRenderer {
                 }
                 var image: org.jetbrains.skia.Image? = null
                 // Several frames: lets the backdrop bake (background thread) and entry animations settle.
-                for (i in 0 until 70) {
+                for (i in 0 until 14) {
                     image?.close()
-                    image = scene.render(i * 33_000_000L)
-                    if (i < 40) Thread.sleep(40)
+                    image = scene.render(i * 120_000_000L)
+                    if (i < 10) Thread.sleep(160)
                 }
                 val data = image!!.encodeToData(EncodedImageFormat.PNG)!!
                 File(outDir, shot.name + ".png").writeBytes(data.bytes)

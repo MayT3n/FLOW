@@ -210,7 +210,7 @@ internal fun StatsPage(data: AppData) {
                     if (s.buckets.all { it.minutes == 0L }) EmptyState(FlowIcon.Chart, "هنوز داده‌ی کافی نیست", "پس از ثبت جلسه‌های تمرکز، نمودار اینجا کامل می‌شود.")
                     else BarChart(
                         s.buckets.map { it.minutes }, labels, Modifier.fillMaxWidth(), height = 190.dp,
-                        highlight = if (range == StatsRange.WEEK) JalaliDate.weekdayIndex(today) else null,
+                        highlight = if (range == StatsRange.DAY) null else s.buckets.lastIndex,
                     )
                 }
             }

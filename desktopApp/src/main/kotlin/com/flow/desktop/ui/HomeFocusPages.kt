@@ -82,16 +82,17 @@ internal fun DashboardPage(data: AppData, now: Long, runtime: DesktopRuntime, on
                 StatTile(FlowIcon.CheckCircle, "جلسه‌های کامل", num(dayStats.completedSessions), "جلسه‌ی امروز", Modifier.weight(1f))
             }
             if (wide) {
-                Row(Modifier.fillMaxWidth().height(520.dp), horizontalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
-                    TodayTasksPanel(data, runtime, onNavigate, Modifier.weight(1f).fillMaxHeight())
-                    TimerCard(data, now, runtime, Modifier.weight(1f).fillMaxHeight(), ringSize = 220.dp, digitSp = 44, showPhaseSwitcher = true, showTaskPicker = true)
+                val rowH = (maxHeight - 112.dp).coerceAtLeast(560.dp)
+                Row(Modifier.fillMaxWidth().height(rowH), horizontalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
+                    Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
+                        TodayTasksPanel(data, runtime, onNavigate, Modifier.weight(1.15f).fillMaxWidth())
+                        AgendaPanel(data, today, onNavigate, Modifier.weight(1f).fillMaxWidth())
+                    }
+                    TimerCard(data, now, runtime, Modifier.weight(1f).fillMaxHeight(), ringSize = 230.dp, digitSp = 46, showPhaseSwitcher = true, showTaskPicker = true)
                     Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
                         MusicCard(runtime, data, onNavigate)
-                        WeeklyCard(weekStats.buckets.map { it.minutes }, weekStats.buckets.map { it.label }, today, Modifier.weight(1f))
+                        WeeklyCard(weekStats.buckets.map { it.minutes }, weekStats.buckets.map { it.label }, today, Modifier.weight(1f).fillMaxWidth())
                     }
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
-                    AgendaPanel(data, today, onNavigate, Modifier.weight(1f))
                 }
             } else {
                 Row(Modifier.fillMaxWidth().height(500.dp), horizontalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
@@ -116,8 +117,10 @@ private fun TodayTasksPanel(data: AppData, runtime: DesktopRuntime, onNavigate: 
     val pal = Flow.colors
     val todayEpoch = LocalDate.now().toEpochDay()
     val list = remember(data.tasks, todayEpoch) {
-        val due = TaskQuery.apply(data.tasks, TaskFilter.TODAY, TaskSort.DUE, null, "", todayEpoch)
-        (due + TaskQuery.apply(data.tasks, TaskFilter.UPCOMING, TaskSort.DUE, null, "", todayEpoch)).take(6)
+        val todays = data.tasks.filter { it.dueDay == todayEpoch }.sortedWith(compareBy({ it.dueMinute ?: Int.MAX_VALUE }, { it.createdAt }))
+        val overdue = TaskQuery.apply(data.tasks, TaskFilter.TODAY, TaskSort.DUE, null, "", todayEpoch).filter { it.dueDay != todayEpoch }
+        val upcoming = TaskQuery.apply(data.tasks, TaskFilter.UPCOMING, TaskSort.DUE, null, "", todayEpoch)
+        (overdue + todays + upcoming).take(6)
     }
     val (done, total) = remember(data.tasks, todayEpoch) { TaskQuery.todayProgress(data.tasks, todayEpoch) }
     GlassPanel(modifier) {
@@ -148,7 +151,13 @@ private fun TaskMiniRow(task: Task, runtime: DesktopRuntime) {
             val due = task.dueDay?.let { numText(DateFormats.short(LocalDate.ofEpochDay(it))) } ?: "بدون سررسید"
             FlowText(due + (task.dueMinute?.let { " · " + clockText(it, LocalPersianDigits.current) } ?: ""), style = FlowType.caption, color = pal.textTertiary, maxLines = 1)
         }
-        Box(Modifier.size(8.dp).clip(CircleShape).background(priorityColor(task.priority, pal)))
+        Row(
+            Modifier.clip(RoundedCornerShape(8.dp)).background(priorityColor(task.priority, pal).copy(alpha = .14f)).padding(horizontal = 8.dp, vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Box(Modifier.size(6.dp).clip(CircleShape).background(priorityColor(task.priority, pal)))
+            FlowText(task.priority.label, style = FlowType.caption, color = pal.textSecondary)
+        }
     }
 }
 
@@ -175,7 +184,7 @@ private fun MusicCard(runtime: DesktopRuntime, data: AppData, onNavigate: (Page)
             )
         }
         MusicProgress(runtime, isCurrent)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        LtrRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             FlowIconButton(FlowIcon.Shuffle, "پخش تصادفی", { runtime.music.toggleShuffle() }, selected = state.shuffle)
             FlowIconButton(FlowIcon.Previous, "قبلی", { runtime.music.previous() }, enabled = state.trackId != null, filledIcon = true)
             val playing = isCurrent && state.playing
@@ -215,7 +224,7 @@ internal fun MusicProgress(runtime: DesktopRuntime, active: Boolean, modifier: M
 
 @Composable
 private fun WeeklyCard(values: List<Long>, labels: List<String>, today: LocalDate, modifier: Modifier) {
-    val idx = com.flow.focus.core.JalaliDate.weekdayIndex(today)
+    val idx = values.lastIndex
     GlassPanel(modifier) {
         PanelHeader("فعالیت هفتگی", FlowIcon.Chart)
         if (values.all { it == 0L }) {
@@ -246,12 +255,12 @@ private fun AgendaPanel(data: AppData, today: LocalDate, onNavigate: (Page) -> U
         }
         entries.take(5).forEach { e ->
             Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                FlowText(e.minute?.let { clockText(it, LocalPersianDigits.current) } ?: "—", Modifier.width(46.dp), FlowType.caption, pal.textSecondary)
                 Box(Modifier.size(8.dp).clip(CircleShape).background(if (e.done) pal.success else Color(Categories.byId(e.categoryId).color)))
                 Column(Modifier.weight(1f)) {
                     FlowText(e.title, style = FlowType.bodyMedium, color = if (e.done) pal.textTertiary else pal.text, maxLines = 1)
                     FlowText(Categories.byId(e.categoryId).name, style = FlowType.caption, color = pal.textTertiary)
                 }
-                e.minute?.let { FlowText(clockText(it, LocalPersianDigits.current), style = FlowType.caption, color = pal.textSecondary) }
             }
         }
     }
@@ -318,5 +327,12 @@ internal fun FocusPage(data: AppData, now: Long, runtime: DesktopRuntime) {
                 side(Modifier.fillMaxWidth())
             }
         }
+    }
+}
+
+@Composable
+internal fun LtrRow(modifier: Modifier = Modifier, horizontalArrangement: Arrangement.Horizontal = Arrangement.Start, content: @Composable RowScope.() -> Unit) {
+    CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
+        Row(modifier, horizontalArrangement = horizontalArrangement, verticalAlignment = Alignment.CenterVertically, content = content)
     }
 }

@@ -108,7 +108,7 @@ internal fun TimerCard(
                 { runtime.selectPhase(it) }, Modifier.align(Alignment.CenterHorizontally),
             )
         }
-        Box(Modifier.fillMaxWidth().weight(1f, fill = false), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
             ProgressRing(progress, size = ringSize, stroke = (ringSize.value * .045f).dp) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     FlowIconView(if (timer.phase == PhaseType.FOCUS) FlowIcon.Leaf else FlowIcon.Coffee, pal.accent, size = 20.dp)

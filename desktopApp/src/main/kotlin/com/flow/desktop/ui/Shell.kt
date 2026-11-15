@@ -164,7 +164,6 @@ private fun SidebarItem(page: Page, active: Boolean, compact: Boolean, onClick: 
                     if (active) FlowType.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold) else FlowType.bodyMedium,
                     if (active) pal.text else pal.textSecondary, maxLines = 1,
                 )
-                Box(Modifier.size(6.dp).clip(CircleShape).background(if (active) pal.accent else Color.Transparent))
             }
         }
     }

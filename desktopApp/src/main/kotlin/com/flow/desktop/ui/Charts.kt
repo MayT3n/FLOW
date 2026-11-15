@@ -49,9 +49,6 @@ internal fun BarChart(
     val dense = values.size > 12
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(Modifier.fillMaxWidth().height(height), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Column(Modifier.fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween, horizontalAlignment = Alignment.End) {
-                ticks.forEach { FlowText(num(it), style = FlowType.caption, color = pal.textTertiary, textAlign = TextAlign.End) }
-            }
             Box(Modifier.weight(1f).fillMaxHeight()) {
                 Canvas(Modifier.fillMaxSize()) {
                     val dash = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 5.dp.toPx()))
@@ -77,9 +74,11 @@ internal fun BarChart(
                     }
                 }
             }
+            Column(Modifier.fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween, horizontalAlignment = Alignment.End) {
+                ticks.forEach { FlowText(num(it), style = FlowType.caption, color = pal.textTertiary, textAlign = TextAlign.End) }
+            }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Spacer(Modifier.width(26.dp))
             Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(if (dense) 3.dp else 10.dp)) {
                 labels.forEachIndexed { i, l ->
                     val show = !dense || i % 3 == 0 || i == labels.lastIndex
@@ -89,10 +88,10 @@ internal fun BarChart(
                     )
                 }
             }
+            Spacer(Modifier.width(26.dp))
         }
     }
 }
-
 
 /** Smooth area/line chart. Oldest value is drawn at the right edge (reading direction in RTL). */
 @Composable
