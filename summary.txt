@@ -1,1 +1,1 @@
-shots=54 failed=1
+shots=54 failed=0
