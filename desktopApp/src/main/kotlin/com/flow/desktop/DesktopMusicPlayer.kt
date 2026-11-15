@@ -371,6 +371,7 @@ class DesktopMusicPlayer(private val root: File = appDataDirectory()) {
 }
 
 internal fun appDataDirectory(): File {
+    System.getProperty("flow.data.dir")?.takeIf { it.isNotBlank() }?.let { return File(it).apply { mkdirs() } }
     val appData = System.getenv("APPDATA")?.takeIf { it.isNotBlank() }?.let(::File)
         ?: File(System.getProperty("user.home"), "AppData/Roaming")
     return File(appData, "MedFlow").apply { mkdirs() }

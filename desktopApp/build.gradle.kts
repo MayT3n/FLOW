@@ -17,7 +17,7 @@ val downloadVazirmatnFonts by tasks.registering {
     outputs.dir(vazirmatnResources)
     doLast {
         val output = vazirmatnResources.get().asFile
-        val fontFiles = listOf("Vazirmatn-Regular.ttf", "Vazirmatn-Bold.ttf")
+        val fontFiles = listOf("Vazirmatn-Regular.ttf", "Vazirmatn-Medium.ttf", "Vazirmatn-SemiBold.ttf", "Vazirmatn-Bold.ttf")
         fontFiles.forEach { name ->
             val target = output.resolve("fonts/$name")
             if (!target.exists() || target.length() < 50_000L) {

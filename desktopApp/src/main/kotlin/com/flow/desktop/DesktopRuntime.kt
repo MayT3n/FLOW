@@ -19,6 +19,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,12 +41,19 @@ class DesktopRuntime {
     private val _now = MutableStateFlow(System.currentTimeMillis())
     val now: StateFlow<Long> = _now.asStateFlow()
 
+    private val wake = Channel<Unit>(Channel.CONFLATED)
+
+    /**
+     * UI clock. While the timer runs it ticks once per wall-clock second (aligned to the timer's own
+     * second boundary, so the display never skips or jitters); when idle it sleeps and costs nothing.
+     */
     init {
         scope.launch {
             while (isActive) {
                 val nowMs = System.currentTimeMillis()
                 val snapshot = repository.current
-                if (snapshot.timer.status == TimerStatus.RUNNING && snapshot.timer.endAtMs <= nowMs) {
+                val running = snapshot.timer.status == TimerStatus.RUNNING
+                if (running && snapshot.timer.endAtMs <= nowMs) {
                     val (timer, sessions) = PomodoroEngine.catchUp(snapshot.timer, snapshot.settings, nowMs)
                     repository.update { current ->
                         current.copy(timer = timer, sessions = current.sessions + sessions)
@@ -60,34 +69,56 @@ class DesktopRuntime {
                     }
                 }
                 _now.value = nowMs
-                delay(250)
+                val wait = if (repository.current.timer.status == TimerStatus.RUNNING) {
+                    val remaining = repository.current.timer.endAtMs - System.currentTimeMillis()
+                    val toBoundary = if (remaining <= 0) 20L else (remaining % 1000L).let { if (it < 20L) it + 1000L else it }
+                    toBoundary.coerceIn(20L, 1000L)
+                } else 60_000L
+                withTimeoutOrNull(wait) { wake.receive() }
             }
         }
     }
 
-    fun start() = repository.update { current ->
-        current.copy(timer = PomodoroEngine.start(current.timer, System.currentTimeMillis()))
+    private fun poke() { _now.value = System.currentTimeMillis(); wake.trySend(Unit) }
+
+    fun start() {
+        repository.update { current ->
+            current.copy(timer = PomodoroEngine.start(current.timer, System.currentTimeMillis()))
+        }
+        poke()
     }
 
-    fun pause() = repository.update { current ->
-        current.copy(timer = PomodoroEngine.pause(current.timer, System.currentTimeMillis()))
+    fun pause() {
+        repository.update { current ->
+            current.copy(timer = PomodoroEngine.pause(current.timer, System.currentTimeMillis()))
+        }
+        poke()
     }
 
-    fun reset() = repository.update { current ->
-        val result = PomodoroEngine.reset(current.timer, current.settings, System.currentTimeMillis())
-        current.copy(timer = result.state, sessions = current.sessions + listOfNotNull(result.session))
+    fun reset() {
+        repository.update { current ->
+            val result = PomodoroEngine.reset(current.timer, current.settings, System.currentTimeMillis())
+            current.copy(timer = result.state, sessions = current.sessions + listOfNotNull(result.session))
+        }
+        poke()
     }
 
-    fun skip() = repository.update { current ->
-        val result = PomodoroEngine.skip(current.timer, current.settings, System.currentTimeMillis())
-        current.copy(timer = result.state, sessions = current.sessions + listOfNotNull(result.session))
+    fun skip() {
+        repository.update { current ->
+            val result = PomodoroEngine.skip(current.timer, current.settings, System.currentTimeMillis())
+            current.copy(timer = result.state, sessions = current.sessions + listOfNotNull(result.session))
+        }
+        poke()
     }
 
     fun selectTask(taskId: String?) = repository.update { current -> current.copy(timer = current.timer.copy(taskId = taskId)) }
 
-    fun selectPhase(phase: PhaseType) = repository.update { current ->
-        val result = PomodoroEngine.switchPhase(current.timer, phase, current.settings, System.currentTimeMillis())
-        current.copy(timer = result.state, sessions = current.sessions + listOfNotNull(result.session))
+    fun selectPhase(phase: PhaseType) {
+        repository.update { current ->
+            val result = PomodoroEngine.switchPhase(current.timer, phase, current.settings, System.currentTimeMillis())
+            current.copy(timer = result.state, sessions = current.sessions + listOfNotNull(result.session))
+        }
+        poke()
     }
 
     fun addTask(
@@ -146,6 +177,16 @@ class DesktopRuntime {
     fun updateSettings(block: (com.flow.focus.data.Settings) -> com.flow.focus.data.Settings) =
         repository.updateSettings(block)
 
+    /** Changes settings and, if the timer is idle, re-seeds it so new durations show immediately. */
+    fun updateSettingsSyncTimer(block: (com.flow.focus.data.Settings) -> com.flow.focus.data.Settings) {
+        repository.update { cur ->
+            val s = block(cur.settings)
+            val t = if (cur.timer.status == TimerStatus.IDLE) PomodoroEngine.idle(cur.timer.phase, s, cur.timer.round, cur.timer.taskId) else cur.timer
+            cur.copy(settings = s, timer = t)
+        }
+        poke()
+    }
+
     fun exportJson(): String = repository.exportJson()
 
     fun importJson(json: String): Boolean = repository.importJson(json)
@@ -160,6 +201,9 @@ class DesktopRuntime {
     }
 
     private fun dataFile(): File {
+        System.getProperty("flow.data.dir")?.takeIf { it.isNotBlank() }?.let {
+            return File(it).apply { mkdirs() }.resolve("flow_data.json")
+        }
         val root = System.getenv("APPDATA")
             ?.takeIf { it.isNotBlank() }
             ?.let(::File)

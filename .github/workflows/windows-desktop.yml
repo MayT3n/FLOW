@@ -46,7 +46,9 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
-    timeout-minutes: 25
+    timeout-minutes: 40
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -61,6 +63,38 @@ jobs:
         run: .\gradlew.bat :desktopApp:compileKotlin --stacktrace
       - name: Run desktop domain tests
         run: .\gradlew.bat :desktopApp:test --stacktrace
+      - name: Render UI screenshots (real composables, headless)
+        shell: pwsh
+        run: |
+          .\gradlew.bat :desktopApp:run --args="--render-screens $env:GITHUB_WORKSPACE\screens" --stacktrace
+          Get-Content "$env:GITHUB_WORKSPACE\screens\summary.txt"
+      - name: Upload screenshots artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FLOW-Desktop-Screenshots
+          path: screens/
+          if-no-files-found: warn
+      - name: Publish screenshots to ci/screenshots branch
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/feature/windows-desktop'
+        shell: pwsh
+        run: |
+          if (-not (Test-Path screens)) { exit 0 }
+          $sha = "${{ github.sha }}".Substring(0,7)
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          $dir = Join-Path $env:RUNNER_TEMP "shots"
+          git clone --depth 1 --branch ci/screenshots "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" $dir 2>$null
+          if (-not (Test-Path $dir)) {
+            git init $dir
+            git -C $dir checkout -b ci/screenshots
+            git -C $dir remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}"
+          }
+          Get-ChildItem $dir -Exclude ".git" | Remove-Item -Recurse -Force
+          Copy-Item screens\* $dir -Recurse
+          git -C $dir add -A
+          git -C $dir commit -m "Screenshots for $sha" 2>$null
+          git -C $dir push origin ci/screenshots --force
       - name: Package Windows MSI
         run: .\gradlew.bat :desktopApp:packageMsi
       - name: Install and smoke-test Windows MSI
@@ -75,6 +109,12 @@ jobs:
           $exe = Get-ChildItem -Path @("$env:ProgramFiles", "$env:LOCALAPPDATA\Programs") -Filter "MedFlow.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $exe) { throw "Installed MedFlow.exe was not found." }
 
+          $report = Join-Path $env:RUNNER_TEMP "selftest.txt"
+          $st = Start-Process -FilePath $exe.FullName -ArgumentList @("--selftest", $report) -Wait -PassThru
+          if (Test-Path $report) { Get-Content $report }
+          Copy-Item $report "$env:GITHUB_WORKSPACE\selftest.txt" -ErrorAction SilentlyContinue
+          if ($st.ExitCode -ne 0) { throw "Installed-app self-test failed (exit $($st.ExitCode))." }
+
           $app = Start-Process -FilePath $exe.FullName -PassThru
           Start-Sleep -Seconds 8
           $app.Refresh()
@@ -83,6 +123,13 @@ jobs:
 
           $uninstall = Start-Process -FilePath "msiexec.exe" -ArgumentList @("/x", $msi.FullName, "/qn", "/norestart") -Wait -PassThru
           if ($uninstall.ExitCode -notin @(0, 3010)) { throw "MSI uninstall failed with exit code $($uninstall.ExitCode)." }
+      - name: Upload self-test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FLOW-Selftest-Report
+          path: selftest.txt
+          if-no-files-found: ignore
       - name: Upload MSI
         uses: actions/upload-artifact@v4
         with:

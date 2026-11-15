@@ -1,15 +1,21 @@
 package com.flow.desktop
 
-import com.flow.focus.data.GlassQuality
+import androidx.compose.ui.graphics.Color
 import com.sun.jna.Library
 import com.sun.jna.Memory
 import com.sun.jna.Native
 import com.sun.jna.Pointer
-import java.awt.Color
 import java.awt.Window
-import javax.swing.RootPaneContainer
 
-/** Native Windows 11 system backdrop with a safe fallback outside Windows. */
+/**
+ * Native Windows window chrome integration (DWM). This does NOT make the window transparent and does
+ * not claim Mica/Acrylic: all glass in FLOW is rendered by the app itself (design/Glass.kt) so it looks
+ * identical on every machine. What DWM is used for:
+ *  - immersive dark title bar following the app theme,
+ *  - title bar / border colour matched to the wallpaper base (Windows 11, build 22000+),
+ *  - rounded window corners (Windows 11).
+ * Every call is best-effort; on older Windows builds unsupported attributes are ignored.
+ */
 object WindowsBackdrop {
     private interface DwmApi : Library {
         fun DwmSetWindowAttribute(hwnd: Pointer, attribute: Int, value: Pointer, valueSize: Int): Int
@@ -19,39 +25,26 @@ object WindowsBackdrop {
 
     fun isSupported(): Boolean = System.getProperty("os.name").lowercase().contains("windows")
 
-    fun apply(window: Window, dark: Boolean, quality: GlassQuality): Boolean {
+    private fun colorRef(c: Color): Int {
+        val r = (c.red * 255f + .5f).toInt().coerceIn(0, 255)
+        val g = (c.green * 255f + .5f).toInt().coerceIn(0, 255)
+        val b = (c.blue * 255f + .5f).toInt().coerceIn(0, 255)
+        return r or (g shl 8) or (b shl 16)
+    }
+
+    fun applyChrome(window: Window, dark: Boolean, base: Color): Boolean {
         if (!isSupported()) return false
         return runCatching {
-            val hwnd = Native.getComponentPointer(window)
-            if (hwnd == null || Pointer.nativeValue(hwnd) == 0L) return false
-
-            if (window is RootPaneContainer) {
-                window.rootPane.isOpaque = false
-                (window.contentPane as? javax.swing.JComponent)?.isOpaque = false
-            }
-            window.setBackground(Color(0, 0, 0, 0))
-
-            // DWM system backdrop types: MAINWINDOW = Mica, TRANSIENTWINDOW = Acrylic.
-            // Acrylic is reserved for quality profiles; performance modes keep Mica.
-            val backdropType = when (quality) {
-                GlassQuality.LOW, GlassQuality.MEDIUM -> 2
-                GlassQuality.HIGH, GlassQuality.ULTRA -> 3
-            }
-            val requestedBackdrop = Memory(4).apply { setInt(0, backdropType) }
-            val immersiveDark = Memory(4).apply { setInt(0, if (dark) 1 else 0) }
-            val rounded = Memory(4).apply { setInt(0, 2) }
+            val hwnd = Native.getComponentPointer(window) ?: return false
+            if (Pointer.nativeValue(hwnd) == 0L) return false
             val api = dwm
-
-            val requestedResult = api.DwmSetWindowAttribute(hwnd, 38, requestedBackdrop, 4)
-            val result = if (requestedResult != 0 && backdropType == 3) {
-                // Older Windows builds can reject Acrylic. Fall back to Mica.
-                val mica = Memory(4).apply { setInt(0, 2) }
-                api.DwmSetWindowAttribute(hwnd, 38, mica, 4)
-            } else requestedResult
-
-            api.DwmSetWindowAttribute(hwnd, 20, immersiveDark, 4)
-            api.DwmSetWindowAttribute(hwnd, 33, rounded, 4)
-            result == 0
+            fun set(attr: Int, value: Int): Int = api.DwmSetWindowAttribute(hwnd, attr, Memory(4).apply { setInt(0, value) }, 4)
+            val dark20 = set(20, if (dark) 1 else 0)          // DWMWA_USE_IMMERSIVE_DARK_MODE
+            set(33, 2)                                         // DWMWA_WINDOW_CORNER_PREFERENCE = round
+            set(35, colorRef(base))                            // DWMWA_CAPTION_COLOR
+            set(34, colorRef(base))                            // DWMWA_BORDER_COLOR
+            set(36, colorRef(if (dark) Color(0xFFF2F5FF) else Color(0xFF121C33))) // DWMWA_TEXT_COLOR
+            dark20 == 0
         }.getOrDefault(false)
     }
 }
