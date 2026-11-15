@@ -102,7 +102,7 @@ internal object FlowDims {
     val s8 = 32.dp
 
     val windowInset = 16.dp
-    val gap = 14.dp
+    val gap = 18.dp
 
     val panelRadius = 20.dp
     val cardRadius = 14.dp
@@ -114,8 +114,8 @@ internal object FlowDims {
     val toolbarHeight = 54.dp
     val contentMaxWidth = 1560.dp
 
-    val panelPadding = 18.dp
-    val rowHeight = 52.dp
+    val panelPadding = 22.dp
+    val rowHeight = 56.dp
 }
 
 /** Motion tokens. `reduce` collapses every duration to zero (instant state changes). */

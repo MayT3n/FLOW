@@ -121,6 +121,11 @@ internal fun FlowApp(
             dim = settings.wallpaperDim, wallpaperBlur = settings.wallpaperBlurDp,
             spec = spec, useNativeBackdrop = false,
         ) {
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+            // Wide windows get proportionally larger UI so pages feel comfortable rather than sparse.
+            val base = androidx.compose.ui.platform.LocalDensity.current
+            val uiScale = (maxWidth.value / 1500f).coerceIn(1f, 1.35f)
+            CompositionLocalProvider(androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(base.density * uiScale, base.fontScale)) {
             Box(
                 Modifier.fillMaxSize().focusRequester(focus).focusTarget().onKeyEvent { e ->
                     if (e.type != KeyEventType.KeyDown) return@onKeyEvent false
@@ -170,13 +175,13 @@ internal fun FlowApp(
                                         when (p) {
                                             Page.Home -> DashboardPage(data, now, runtime) { page = it }
                                             Page.Focus -> FocusPage(data, now, runtime)
-                                            Page.Tasks -> Narrow { TasksPage(data, runtime) }
-                                            Page.Routines -> Narrow { RoutinesPage(data, runtime) }
-                                            Page.Goals -> Narrow { GoalsPage(data, runtime) }
-                                            Page.Planning -> PlanningPage(data, runtime)
-                                            Page.Stats -> StatsPage(data)
-                                            Page.Music -> MusicPage(runtime, data)
-                                            Page.Settings -> Narrow { SettingsPage(data, runtime) }
+                                            Page.Tasks -> Narrow(1120) { TasksPage(data, runtime) }
+                                            Page.Routines -> Narrow(1120) { RoutinesPage(data, runtime) }
+                                            Page.Goals -> Narrow(1120) { GoalsPage(data, runtime) }
+                                            Page.Planning -> Narrow(1240) { PlanningPage(data, runtime) }
+                                            Page.Stats -> Narrow(1240) { StatsPage(data) }
+                                            Page.Music -> Narrow(1280) { MusicPage(runtime, data) }
+                                            Page.Settings -> Narrow(1120) { SettingsPage(data, runtime) }
                                         }
                                     }
                                 }
@@ -187,14 +192,16 @@ internal fun FlowApp(
                 }
                 if (searchOpen) CommandPalette(onSelect = { page = it; searchOpen = false }, onDismiss = { searchOpen = false })
             }
+            }
+            }
         }
     }
 }
 
 /** Keeps list-style pages at a readable measure on wide windows. */
 @androidx.compose.runtime.Composable
-private fun Narrow(content: @androidx.compose.runtime.Composable () -> Unit) {
+private fun Narrow(maxW: Int, content: @androidx.compose.runtime.Composable () -> Unit) {
     androidx.compose.foundation.layout.Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.TopCenter) {
-        androidx.compose.foundation.layout.Box(Modifier.fillMaxHeight().widthIn(max = 1120.dp)) { content() }
+        androidx.compose.foundation.layout.Box(Modifier.fillMaxHeight().widthIn(max = maxW.dp)) { content() }
     }
 }
