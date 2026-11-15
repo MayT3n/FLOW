@@ -87,7 +87,7 @@ internal fun DashboardPage(data: AppData, now: Long, runtime: DesktopRuntime, on
                         TodayTasksPanel(data, runtime, onNavigate, Modifier.fillMaxWidth())
                         AgendaPanel(data, today, onNavigate, Modifier.fillMaxWidth())
                     }
-                    TimerCard(data, now, runtime, Modifier.weight(1f), ringSize = 250.dp, digitSp = 50, showPhaseSwitcher = true, showTaskPicker = true)
+                    TimerCard(data, now, runtime, Modifier.weight(1f), ringSize = 250.dp, digitSp = 50, fillHeight = false, showPhaseSwitcher = true, showTaskPicker = true)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
                         MusicCard(runtime, data, onNavigate)
                         WeeklyCard(weekStats.buckets.map { it.minutes }, weekStats.buckets.map { it.label }, today, Modifier.fillMaxWidth())
@@ -95,7 +95,7 @@ internal fun DashboardPage(data: AppData, now: Long, runtime: DesktopRuntime, on
                 }
             } else {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
-                    TimerCard(data, now, runtime, Modifier.weight(1f), ringSize = 210.dp, digitSp = 40)
+                    TimerCard(data, now, runtime, Modifier.weight(1f), ringSize = 210.dp, digitSp = 40, fillHeight = false)
                     TodayTasksPanel(data, runtime, onNavigate, Modifier.weight(1f))
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
@@ -128,9 +128,9 @@ private fun TodayTasksPanel(data: AppData, runtime: DesktopRuntime, onNavigate: 
             FlowButton("همه", { onNavigate(Page.Tasks) }, kind = ButtonKind.Ghost, compact = true)
         }
         if (list.isEmpty()) {
-            EmptyState(FlowIcon.Check, "کار بازی نداری", "وظیفه‌ی جدید را از صفحه‌ی وظایف اضافه کن.", Modifier.weight(1f))
+            EmptyState(FlowIcon.Check, "کار بازی نداری", "وظیفه‌ی جدید را از صفحه‌ی وظایف اضافه کن.", Modifier.fillMaxWidth().heightIn(min = 140.dp))
         } else {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 list.forEach { task -> TaskMiniRow(task, runtime) }
             }
         }
@@ -227,9 +227,9 @@ private fun WeeklyCard(values: List<Long>, labels: List<String>, today: LocalDat
     GlassPanel(modifier) {
         PanelHeader("فعالیت هفتگی", FlowIcon.Chart)
         if (values.all { it == 0L }) {
-            EmptyState(FlowIcon.Chart, "هنوز جلسه‌ای ثبت نشده", "با اولین جلسه‌ی تمرکز، روند هفته اینجا نمایش داده می‌شود.", Modifier.weight(1f))
+            EmptyState(FlowIcon.Chart, "هنوز جلسه‌ای ثبت نشده", "با اولین جلسه‌ی تمرکز، روند هفته اینجا نمایش داده می‌شود.", Modifier.fillMaxWidth().heightIn(min = 140.dp))
         } else {
-            BarChart(values, labels, Modifier.fillMaxWidth().weight(1f), highlight = idx, height = 130.dp)
+            BarChart(values, labels, Modifier.fillMaxWidth(), highlight = idx, height = 130.dp)
         }
     }
 }
