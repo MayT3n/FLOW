@@ -170,13 +170,13 @@ internal fun FlowApp(
                                         when (p) {
                                             Page.Home -> DashboardPage(data, now, runtime) { page = it }
                                             Page.Focus -> FocusPage(data, now, runtime)
-                                            Page.Tasks -> TasksPage(data, runtime)
-                                            Page.Routines -> RoutinesPage(data, runtime)
-                                            Page.Goals -> GoalsPage(data, runtime)
+                                            Page.Tasks -> Narrow { TasksPage(data, runtime) }
+                                            Page.Routines -> Narrow { RoutinesPage(data, runtime) }
+                                            Page.Goals -> Narrow { GoalsPage(data, runtime) }
                                             Page.Planning -> PlanningPage(data, runtime)
                                             Page.Stats -> StatsPage(data)
                                             Page.Music -> MusicPage(runtime, data)
-                                            Page.Settings -> SettingsPage(data, runtime)
+                                            Page.Settings -> Narrow { SettingsPage(data, runtime) }
                                         }
                                     }
                                 }
@@ -188,5 +188,13 @@ internal fun FlowApp(
                 if (searchOpen) CommandPalette(onSelect = { page = it; searchOpen = false }, onDismiss = { searchOpen = false })
             }
         }
+    }
+}
+
+/** Keeps list-style pages at a readable measure on wide windows. */
+@androidx.compose.runtime.Composable
+private fun Narrow(content: @androidx.compose.runtime.Composable () -> Unit) {
+    androidx.compose.foundation.layout.Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.TopCenter) {
+        androidx.compose.foundation.layout.Box(Modifier.fillMaxHeight().widthIn(max = 1120.dp)) { content() }
     }
 }

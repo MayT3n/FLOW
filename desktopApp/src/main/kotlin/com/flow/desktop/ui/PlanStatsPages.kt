@@ -220,7 +220,7 @@ internal fun StatsPage(data: AppData) {
                     if (s.weeklyTrend.all { it == 0L }) EmptyState(FlowIcon.Layers, "هنوز روندی نیست", "با ادامه‌ی تمرکز، مقایسه‌ی هفتگی دیده می‌شود.")
                     else {
                         TrendChart(s.weeklyTrend, listOf("۷ هفته پیش", "۴ هفته پیش", "اکنون"), Modifier.fillMaxWidth(), height = 160.dp)
-                        FlowText("مجموع دقیقه‌های تمرکز در هر هفته (جدیدترین در سمت راست)", style = FlowType.caption, color = pal.textTertiary)
+                        FlowText("مجموع دقیقه‌های تمرکز در هر هفته (جدیدترین در سمت چپ)", style = FlowType.caption, color = pal.textTertiary)
                     }
                 }
             }
