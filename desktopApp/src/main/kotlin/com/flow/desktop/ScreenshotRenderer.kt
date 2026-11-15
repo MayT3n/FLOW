@@ -78,7 +78,11 @@ internal object ScreenshotRenderer {
             }
         }
         var failed = 0
+        // Watchdog: never let a stuck frame hang CI; whatever was rendered so far is still published.
+        val deadline = System.currentTimeMillis() + 10 * 60_000L
         for (shot in shots) {
+            if (System.currentTimeMillis() > deadline) { File(outDir, "TIMEOUT.txt").writeText("stopped before ${shot.name}"); failed++; break }
+            println("rendering ${shot.name}")
             try {
                 runtime.updateSettings { it.copy(theme = if (shot.dark) ThemeMode.DARK else ThemeMode.LIGHT, glassQuality = shot.quality) }
                 val backdrop = BackdropState()

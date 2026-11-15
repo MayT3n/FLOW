@@ -36,7 +36,7 @@ import com.flow.focus.data.TimerStatus
 fun main(args: Array<String>) {
     // Headless entry points used by CI (render screenshots / installed-app self-test).
     val renderIdx = args.indexOf("--render-screens")
-    if (renderIdx >= 0) { ScreenshotRenderer.run(java.io.File(args.getOrElse(renderIdx + 1) { "screens" })); return }
+    if (renderIdx >= 0) { ScreenshotRenderer.run(java.io.File(args.getOrElse(renderIdx + 1) { "screens" })); System.exit(0); return }
     val selfIdx = args.indexOf("--selftest")
     if (selfIdx >= 0) { System.exit(SelfTest.run(args.getOrNull(selfIdx + 1))); return }
 
