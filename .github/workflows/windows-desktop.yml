@@ -64,7 +64,7 @@ jobs:
       - name: Run desktop domain tests
         run: .\gradlew.bat :desktopApp:test --stacktrace
       - name: Render UI screenshots (real composables, headless)
-        timeout-minutes: 14
+        timeout-minutes: 20
         continue-on-error: true
         shell: pwsh
         run: |
