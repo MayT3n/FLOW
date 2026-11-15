@@ -72,6 +72,16 @@ compose.desktop {
             packageVersion = "1.0.0"
             description = "MedFlow productivity and focus desktop application"
             vendor = "MayT3n"
+            licenseFile.set(project.file("packaging/license.rtf"))
+            windows {
+                iconFile.set(project.file("packaging/flow.ico"))
+                dirChooser = true
+                perUserInstall = false
+                menu = true
+                menuGroup = "FLOW"
+                shortcut = true
+                upgradeUuid = "6f0c2c1e-3b0a-4d57-9a53-5b1f6a7d8e41"
+            }
         }
     }
 }

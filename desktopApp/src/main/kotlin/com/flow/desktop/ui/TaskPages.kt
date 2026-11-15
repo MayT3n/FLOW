@@ -89,7 +89,7 @@ internal fun TasksPage(data: AppData, runtime: DesktopRuntime) {
                 }
             }
         }
-        GlassPanel(Modifier.fillMaxWidth().weight(1f), padding = PaddingValues(horizontal = 10.dp, vertical = 14.dp), verticalSpacing = 8.dp) {
+        GlassPanel(Modifier.fillMaxWidth().weight(1f, fill = false), padding = PaddingValues(horizontal = 10.dp, vertical = 14.dp), verticalSpacing = 8.dp) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 FlowText("فهرست وظایف", Modifier.weight(1f), FlowType.title2)
                 FlowText("${num(openCount)} باز · ${num(data.tasks.size - openCount)} انجام‌شده", style = FlowType.caption, color = pal.textSecondary)
@@ -99,10 +99,10 @@ internal fun TasksPage(data: AppData, runtime: DesktopRuntime) {
                     FlowIcon.Tasks,
                     if (data.tasks.isEmpty()) "هنوز وظیفه‌ای نداری" else "موردی پیدا نشد",
                     if (data.tasks.isEmpty()) "از کادر بالا اولین وظیفه را اضافه کن." else "فیلتر یا عبارت جست‌وجو را تغییر بده.",
-                    Modifier.weight(1f),
+                    Modifier.fillMaxWidth().heightIn(min = 180.dp),
                 )
             } else {
-                LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                LazyColumn(Modifier.weight(1f, fill = false).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     items(tasks, key = { it.id }) { task ->
                         TaskRow(task, persian, runtime, onEdit = { editor = task })
                     }
@@ -299,7 +299,7 @@ internal fun RoutinesPage(data: AppData, runtime: DesktopRuntime) {
             }
         }
         if (split) Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
-            list(Modifier.weight(1.35f).fillMaxHeight().verticalScroll(rememberScrollState()))
+            list(Modifier.weight(1.35f).verticalScroll(rememberScrollState()))
             form(Modifier.weight(1f).verticalScroll(rememberScrollState()))
         } else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
             form(Modifier.fillMaxWidth()); list(Modifier.fillMaxWidth())

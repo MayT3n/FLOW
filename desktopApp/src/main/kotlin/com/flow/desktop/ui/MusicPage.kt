@@ -126,8 +126,8 @@ internal fun MusicPage(runtime: DesktopRuntime, data: AppData) {
                     FlowChip("علاقه‌مندی‌ها", onlyFavorites, { onlyFavorites = !onlyFavorites }, icon = FlowIcon.Heart)
                 }
                 FlowTextField(query, { query = it }, "جست‌وجوی آهنگ یا حال‌وهوا", Modifier.fillMaxWidth().padding(horizontal = 8.dp), leading = FlowIcon.Search)
-                if (shown.isEmpty()) EmptyState(FlowIcon.Music, "آهنگی پیدا نشد", "عبارت جست‌وجو یا فیلتر را تغییر بده.", Modifier.weight(1f))
-                else LazyColumn(Modifier.weight(1f, fill = true).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                if (shown.isEmpty()) EmptyState(FlowIcon.Music, "آهنگی پیدا نشد", "عبارت جست‌وجو یا فیلتر را تغییر بده.", Modifier.fillMaxWidth().heightIn(min = 180.dp))
+                else LazyColumn(Modifier.weight(1f, fill = false).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     items(shown, key = { it.id }) { track ->
                         val progress = downloads[track.id]
                         val downloaded = remember(track.id, progress != null) { runtime.music.isDownloaded(track) }
@@ -170,8 +170,8 @@ internal fun MusicPage(runtime: DesktopRuntime, data: AppData) {
             }
         }
         if (split) Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
-            player(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()))
-            library(Modifier.weight(1f).fillMaxHeight())
+            player(Modifier.weight(1f).verticalScroll(rememberScrollState()))
+            library(Modifier.weight(1f))
         } else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
             player(Modifier.fillMaxWidth()); library(Modifier.fillMaxWidth().height(520.dp))
         }

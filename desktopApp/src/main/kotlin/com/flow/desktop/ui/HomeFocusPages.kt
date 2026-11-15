@@ -82,29 +82,28 @@ internal fun DashboardPage(data: AppData, now: Long, runtime: DesktopRuntime, on
                 StatTile(FlowIcon.CheckCircle, "جلسه‌های کامل", num(dayStats.completedSessions), "جلسه‌ی امروز", Modifier.weight(1f))
             }
             if (wide) {
-                val rowH = (this@BoxWithConstraints.maxHeight - 112.dp).coerceIn(560.dp, 720.dp)
-                Row(Modifier.fillMaxWidth().height(rowH), horizontalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
-                    Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
-                        TodayTasksPanel(data, runtime, onNavigate, Modifier.weight(1.15f).fillMaxWidth())
-                        AgendaPanel(data, today, onNavigate, Modifier.weight(1f).fillMaxWidth())
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
+                        TodayTasksPanel(data, runtime, onNavigate, Modifier.fillMaxWidth())
+                        AgendaPanel(data, today, onNavigate, Modifier.fillMaxWidth())
                     }
-                    TimerCard(data, now, runtime, Modifier.weight(1f).fillMaxHeight(), ringSize = if (rowH > 680.dp) 270.dp else 230.dp, digitSp = if (rowH > 680.dp) 54 else 46, showPhaseSwitcher = true, showTaskPicker = true)
-                    Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
+                    TimerCard(data, now, runtime, Modifier.weight(1f), ringSize = 250.dp, digitSp = 50, showPhaseSwitcher = true, showTaskPicker = true)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
                         MusicCard(runtime, data, onNavigate)
-                        WeeklyCard(weekStats.buckets.map { it.minutes }, weekStats.buckets.map { it.label }, today, Modifier.weight(1f).fillMaxWidth())
+                        WeeklyCard(weekStats.buckets.map { it.minutes }, weekStats.buckets.map { it.label }, today, Modifier.fillMaxWidth())
                     }
                 }
             } else {
-                Row(Modifier.fillMaxWidth().height(500.dp), horizontalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
-                    TimerCard(data, now, runtime, Modifier.weight(1f).fillMaxHeight(), ringSize = 200.dp, digitSp = 40)
-                    TodayTasksPanel(data, runtime, onNavigate, Modifier.weight(1f).fillMaxHeight())
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
+                    TimerCard(data, now, runtime, Modifier.weight(1f), ringSize = 210.dp, digitSp = 40)
+                    TodayTasksPanel(data, runtime, onNavigate, Modifier.weight(1f))
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
                         MusicCard(runtime, data, onNavigate)
                         AgendaPanel(data, today, onNavigate, Modifier.fillMaxWidth())
                     }
-                    WeeklyCard(weekStats.buckets.map { it.minutes }, weekStats.buckets.map { it.label }, today, Modifier.weight(1f).heightIn(min = 280.dp))
+                    WeeklyCard(weekStats.buckets.map { it.minutes }, weekStats.buckets.map { it.label }, today, Modifier.weight(1f))
                 }
             }
             Spacer(Modifier.height(4.dp))

@@ -120,8 +120,8 @@ internal fun PlanningPage(data: AppData, runtime: DesktopRuntime) {
             }
         }
         if (split) Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
-            calendar(Modifier.weight(1.6f).fillMaxHeight().verticalScroll(rememberScrollState()))
-            details(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()))
+            calendar(Modifier.weight(1.6f).verticalScroll(rememberScrollState()))
+            details(Modifier.weight(1f).verticalScroll(rememberScrollState()))
         } else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
             calendar(Modifier.fillMaxWidth()); details(Modifier.fillMaxWidth())
         }
