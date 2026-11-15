@@ -82,13 +82,13 @@ internal fun DashboardPage(data: AppData, now: Long, runtime: DesktopRuntime, on
                 StatTile(FlowIcon.CheckCircle, "جلسه‌های کامل", num(dayStats.completedSessions), "جلسه‌ی امروز", Modifier.weight(1f))
             }
             if (wide) {
-                val rowH = (this@BoxWithConstraints.maxHeight - 112.dp).coerceAtLeast(560.dp)
+                val rowH = (this@BoxWithConstraints.maxHeight - 112.dp).coerceIn(560.dp, 720.dp)
                 Row(Modifier.fillMaxWidth().height(rowH), horizontalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
                     Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
                         TodayTasksPanel(data, runtime, onNavigate, Modifier.weight(1.15f).fillMaxWidth())
                         AgendaPanel(data, today, onNavigate, Modifier.weight(1f).fillMaxWidth())
                     }
-                    TimerCard(data, now, runtime, Modifier.weight(1f).fillMaxHeight(), ringSize = 230.dp, digitSp = 46, showPhaseSwitcher = true, showTaskPicker = true)
+                    TimerCard(data, now, runtime, Modifier.weight(1f).fillMaxHeight(), ringSize = if (rowH > 680.dp) 270.dp else 230.dp, digitSp = if (rowH > 680.dp) 54 else 46, showPhaseSwitcher = true, showTaskPicker = true)
                     Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
                         MusicCard(runtime, data, onNavigate)
                         WeeklyCard(weekStats.buckets.map { it.minutes }, weekStats.buckets.map { it.label }, today, Modifier.weight(1f).fillMaxWidth())
