@@ -82,7 +82,7 @@ internal fun DashboardPage(data: AppData, now: Long, runtime: DesktopRuntime, on
                 StatTile(FlowIcon.CheckCircle, "جلسه‌های کامل", num(dayStats.completedSessions), "جلسه‌ی امروز", Modifier.weight(1f))
             }
             if (wide) {
-                val rowH = (maxHeight - 112.dp).coerceAtLeast(560.dp)
+                val rowH = (this@BoxWithConstraints.maxHeight - 112.dp).coerceAtLeast(560.dp)
                 Row(Modifier.fillMaxWidth().height(rowH), horizontalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
                     Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(FlowDims.gap)) {
                         TodayTasksPanel(data, runtime, onNavigate, Modifier.weight(1.15f).fillMaxWidth())
