@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "MatFocus"
-include(":app")
+include(":app", ":desktopApp")
