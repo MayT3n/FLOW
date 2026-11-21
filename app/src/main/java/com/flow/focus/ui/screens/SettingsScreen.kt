@@ -498,6 +498,9 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             }
             Text("اعداد", style = Flow.type.body, color = Flow.colors.textPrimary, modifier = Modifier.padding(top = 8.dp))
             SegmentedControl(listOf("فارسی ۱۲۳", "انگلیسی 123"), if (st.persianDigits) 0 else 1, { vm.updateSettings { s -> s.copy(persianDigits = it == 0) } })
+            SwitchRow("روشن ماندن صفحه", st.keepScreenOn, { v -> vm.updateSettings { it.copy(keepScreenOn = v) } }, subtitle = "هنگام اجرای تایمر صفحه خاموش نمی‌شود")
+            Text("صفحه‌ی شروع", style = Flow.type.body, color = Flow.colors.textPrimary, modifier = Modifier.padding(top = 8.dp))
+            SegmentedControl(listOf("خانه", "برنامه", "روتین", "آمار"), st.startTab.coerceIn(0, 3), { vm.updateSettings { s -> s.copy(startTab = it) } })
             SwitchRow("انیمیشن‌ها", st.animations, { v -> vm.updateSettings { it.copy(animations = v) } }, subtitle = "خاموش کردن، مصرف باتری را کم می‌کند")
         }
 

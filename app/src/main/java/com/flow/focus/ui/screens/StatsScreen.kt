@@ -10,6 +10,8 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import com.flow.focus.data.FocusSession
+import com.flow.focus.data.PhaseType
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -132,6 +134,9 @@ fun StatsScreen(data: AppData, modifier: Modifier = Modifier) {
             focusMinutes = dailySummary.focusMinutes,
             goalMinutes = data.settings.dailyGoalMin,
         )
+
+        val insights = remember(data.sessions, today) { computeInsights(data.sessions, today) }
+        if (insights != null) InsightsCard(insights)
 
         SectionTitle("خلاصه عملکرد")
         Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -659,5 +664,70 @@ private fun CategoryDonut(categories: List<CategoryStat>, modifier: Modifier = M
             }
             angle += rawSweep
         }
+    }
+}
+
+
+private class Insights(val streak: Int, val bestStreak: Int, val bestHour: Int, val totalHours: Long)
+
+private fun computeInsights(sessions: List<FocusSession>, today: java.time.LocalDate): Insights? {
+    val zone = java.time.ZoneId.systemDefault()
+    val focus = sessions.filter { it.type == PhaseType.FOCUS && it.actualMs >= 60_000L }
+    if (focus.isEmpty()) return null
+    val days = HashSet<Long>()
+    val perHour = LongArray(24)
+    var total = 0L
+    for (f in focus) {
+        val t = java.time.Instant.ofEpochMilli(f.startedAt).atZone(zone)
+        days += t.toLocalDate().toEpochDay()
+        perHour[t.hour] += f.actualMs
+        total += f.actualMs
+    }
+    var cursor = today.toEpochDay()
+    if (cursor !in days) cursor -= 1
+    var streak = 0
+    while (cursor in days) { streak++; cursor-- }
+    var best = 0
+    var run = 0
+    var prev = Long.MIN_VALUE
+    for (d in days.sorted()) {
+        run = if (d == prev + 1) run + 1 else 1
+        if (run > best) best = run
+        prev = d
+    }
+    val bestHour = perHour.indices.maxByOrNull { perHour[it] } ?: 0
+    return Insights(streak, best, bestHour, total / 3_600_000L)
+}
+
+@Composable
+private fun InsightsCard(i: Insights) {
+    val c = Flow.colors
+    GlassSurface(Modifier.fillMaxWidth(), shape = StatsSmallShape, level = GlassLevel.Subtle) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 13.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                FlowIcon(FlowIcons.Flame, tint = c.warning, size = 18.dp)
+                Text("بینش‌های شما", style = Flow.type.bodyStrong, color = c.textPrimary)
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                InsightCell(num("${i.streak} روز"), "پیاپیِ فعلی", Modifier.weight(1f))
+                InsightCell(num("${i.bestStreak} روز"), "بهترین پیاپی", Modifier.weight(1f))
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                InsightCell(num("${i.bestHour}:00"), "پربازده‌ترین ساعت", Modifier.weight(1f))
+                InsightCell(num("${i.totalHours} ساعت"), "مجموع تمرکز", Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun InsightCell(value: String, caption: String, modifier: Modifier) {
+    val c = Flow.colors
+    Column(
+        modifier.clip(RoundedCornerShape(14.dp)).background(c.accentSoft).padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(value, style = Flow.type.bodyStrong, color = c.textPrimary, maxLines = 1)
+        Text(caption, style = Flow.type.caption, color = c.textSecondary, maxLines = 1)
     }
 }

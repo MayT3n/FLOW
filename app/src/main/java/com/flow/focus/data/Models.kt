@@ -123,6 +123,10 @@ data class Settings(
     val vibration: Boolean = true,
     /** لرزش خفیف هنگام لمس دکمه‌ها و کارت‌ها */
     val hapticFeedback: Boolean = true,
+    /** صفحه روشن می‌ماند تا وقتی تایمر در حال اجراست */
+    val keepScreenOn: Boolean = true,
+    /** تب شروع برنامه: ۰ خانه، ۱ برنامه‌ریزی، ۲ روتین، ۳ آمار */
+    val startTab: Int = 0,
     val animations: Boolean = true,
     val glassQuality: GlassQuality = GlassQuality.MEDIUM,
     val glassOpacity: Float = 1f,

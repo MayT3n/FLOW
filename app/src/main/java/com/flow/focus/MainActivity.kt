@@ -132,8 +132,14 @@ private fun RequestNotificationPermission(wanted: Boolean, onReady: () -> Unit) 
 
 @Composable
 private fun AppScaffold(vm: AppViewModel, data: AppData) {
-    var tab by rememberSaveable { mutableStateOf(0) }
+    var tab by rememberSaveable { mutableStateOf(data.settings.startTab.coerceIn(0, 3)) }
     var musicOpen by rememberSaveable { mutableStateOf(false) }
+    val keepOn = data.settings.keepScreenOn && data.timer.status == com.flow.focus.data.TimerStatus.RUNNING
+    val hostView = androidx.compose.ui.platform.LocalView.current
+    androidx.compose.runtime.DisposableEffect(keepOn) {
+        hostView.keepScreenOn = keepOn
+        onDispose { hostView.keepScreenOn = false }
+    }
     var miniCollapsed by rememberSaveable { mutableStateOf(false) }
     val music by vm.musicState.collectAsStateWithLifecycle()
     var dockAreaHeightPx by rememberSaveable { mutableStateOf(0) }
