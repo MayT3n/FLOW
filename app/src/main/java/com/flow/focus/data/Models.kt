@@ -121,6 +121,8 @@ data class Settings(
     val notifications: Boolean = true,
     val sound: Boolean = true,
     val vibration: Boolean = true,
+    /** لرزش خفیف هنگام لمس دکمه‌ها و کارت‌ها */
+    val hapticFeedback: Boolean = true,
     val animations: Boolean = true,
     val glassQuality: GlassQuality = GlassQuality.MEDIUM,
     val glassOpacity: Float = 1f,

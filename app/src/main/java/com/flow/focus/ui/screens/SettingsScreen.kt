@@ -614,6 +614,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
             GlassButton("ارسال اعلان آزمایشی", { vm.sendTestNotification() }, Modifier.fillMaxWidth(), icon = FlowIcons.Bell)
             SwitchRow("صدا", st.sound, { v -> vm.updateSettings { it.copy(sound = v) } })
             SwitchRow("لرزش", st.vibration, { v -> vm.updateSettings { it.copy(vibration = v) } })
+            SwitchRow("بازخورد لمسی", st.hapticFeedback, { v -> vm.updateSettings { it.copy(hapticFeedback = v) } }, subtitle = "لرزش بسیار خفیف هنگام لمس دکمه‌ها")
         }
 
         AnimatedSettingsSection(selectedPage == "ambient", "صدای محیط") {

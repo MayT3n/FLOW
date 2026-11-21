@@ -623,6 +623,11 @@ fun Modifier.springClick(
     val src = remember { MutableInteractionSource() }
     val pressed by src.collectIsPressedAsState()
     val anim = LocalGlass.current.animations
+    val haptics = LocalGlass.current.haptics
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    androidx.compose.runtime.LaunchedEffect(pressed) {
+        if (pressed && enabled && haptics) haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+    }
     val scale by animateFloatAsState(
         targetValue = if (pressed && enabled) scaleDown else 1f,
         animationSpec = if (anim) spring(dampingRatio = 0.5f, stiffness = 600f) else snap(),

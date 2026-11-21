@@ -108,6 +108,7 @@ data class GlassConfig(
     val blurDp: Int = 24,
     val shine: Float = 0.7f,
     val animations: Boolean = true,
+    val haptics: Boolean = true,
 )
 
 val LocalFlowColors = compositionLocalOf { DarkColors }
@@ -231,7 +232,7 @@ fun FlowTheme(settings: Settings, content: @Composable () -> Unit) {
     val type = remember(family) { FlowTypography(family) }
     val cap = remember { GlassGovernor.deviceCap(ctx) }
     val quality = GlassGovernor.effective(settings.glassQuality, cap)
-    val glass = GlassConfig(quality, settings.glassOpacity, settings.glassBlurDp, settings.glassShine, animations)
+    val glass = GlassConfig(quality, settings.glassOpacity, settings.glassBlurDp, settings.glassShine, animations, settings.hapticFeedback)
     MaterialTheme(colorScheme = scheme(colors)) {
         // رابط کاربری همیشه راست‌چین است، مستقل از زبان دستگاه.
         CompositionLocalProvider(

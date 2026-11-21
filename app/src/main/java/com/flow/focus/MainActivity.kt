@@ -156,8 +156,8 @@ private fun AppScaffold(vm: AppViewModel, data: AppData) {
             transitionSpec = {
                 if (animations) {
                     val direction = if (targetState > initialState) -1 else 1
-                    (fadeIn(Motion.enter(Motion.Medium)) + slideInHorizontally(Motion.enter(Motion.Long)) { it * direction / 18 }) togetherWith
-                        (fadeOut(Motion.exit(Motion.Short)) + slideOutHorizontally(Motion.exit(Motion.Medium)) { -it * direction / 18 })
+                    (fadeIn(Motion.enter(Motion.Medium)) + androidx.compose.animation.scaleIn(Motion.enter(Motion.Long), initialScale = 0.965f) + slideInHorizontally(Motion.enter(Motion.Long)) { it * direction / 18 }) togetherWith
+                        (fadeOut(Motion.exit(Motion.Short)) + androidx.compose.animation.scaleOut(Motion.exit(Motion.Medium), targetScale = 0.975f) + slideOutHorizontally(Motion.exit(Motion.Medium)) { -it * direction / 18 })
                 } else {
                     ContentTransform(EnterTransition.None, ExitTransition.None)
                 }
