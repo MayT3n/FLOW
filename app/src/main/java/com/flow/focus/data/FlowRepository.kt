@@ -134,6 +134,7 @@ class FlowRepository(private val store: JsonStore, scope: CoroutineScope) {
             wallpaperDim = bounded(settings.wallpaperDim, 0f..0.5f, 0.18f),
             wallpaperBlurDp = settings.wallpaperBlurDp.coerceIn(0, 24),
             ambientSound = settings.ambientSound.takeIf { it in supportedAmbientIds } ?: "none",
+            accentId = settings.accentId.takeIf { id -> com.flow.focus.ui.theme.AccentThemes.find(id) != null } ?: "default",
             wallpaperId = settings.wallpaperId.takeIf { it in com.flow.focus.ui.glass.BuiltinWallpapers.allowedIds } ?: "gradient",
         )
         val migratedTasks = data.tasks.map { task ->

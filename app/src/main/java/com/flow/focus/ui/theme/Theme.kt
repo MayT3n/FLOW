@@ -204,7 +204,7 @@ fun FlowTheme(settings: Settings, content: @Composable () -> Unit) {
     var systemAnimations by remember { mutableStateOf(systemAnimationsEnabled(ctx)) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { systemAnimations = systemAnimationsEnabled(ctx) }
     val animations = settings.animations && systemAnimations
-    val base = if (dark) DarkColors else LightColors
+    val base = (if (dark) DarkColors else LightColors).withAccent(AccentThemes.find(settings.accentId), dark)
     // پروفایل تصویر شخصی از نمونه‌ی کوچک (۲۵۶px) خارج از رشته‌ی UI ساخته می‌شود.
     var customProfile by remember { mutableStateOf<WallpaperProfile?>(null) }
     val isArt = BuiltinWallpapers.find(settings.wallpaperId)?.art == true
@@ -244,4 +244,27 @@ fun FlowTheme(settings: Settings, content: @Composable () -> Unit) {
             content = content,
         )
     }
+}
+
+
+/** رنگ‌های تأکید انتخابی؛ مقدار تیره/روشن جدا تا کنتراست در هر دو تم حفظ شود. */
+class AccentTheme(val id: String, val label: String, val dark: Color, val light: Color)
+
+object AccentThemes {
+    val all = listOf(
+        AccentTheme("default", "آبی", Color(0xFF79A9E4), Color(0xFF477FC5)),
+        AccentTheme("violet", "بنفش", Color(0xFFA68CF0), Color(0xFF7456D6)),
+        AccentTheme("rose", "رز", Color(0xFFF09AB4), Color(0xFFC8466F)),
+        AccentTheme("amber", "کهربایی", Color(0xFFF2B866), Color(0xFFB87414)),
+        AccentTheme("mint", "نعنایی", Color(0xFF6FD6B0), Color(0xFF1E8F6B)),
+        AccentTheme("coral", "مرجانی", Color(0xFFF19A82), Color(0xFFC95A3C)),
+        AccentTheme("teal", "فیروزه‌ای", Color(0xFF5FCBD8), Color(0xFF1C8795)),
+    )
+    fun find(id: String): AccentTheme? = all.firstOrNull { it.id == id }
+}
+
+fun FlowColors.withAccent(t: AccentTheme?, dark: Boolean): FlowColors {
+    if (t == null || t.id == "default") return this
+    val c = if (dark) t.dark else t.light
+    return copy(accent = c, accentAlt = c.copy(alpha = 0.78f), accentSoft = c.copy(alpha = if (dark) 0.20f else 0.14f))
 }

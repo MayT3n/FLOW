@@ -477,6 +477,25 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
                 ThemeModeCard("روشن", "روز و روشنایی", ThemeMode.LIGHT, st.theme == ThemeMode.LIGHT, st.wallpaperId, Modifier.weight(1f)) { vm.updateSettings { s -> s.copy(theme = ThemeMode.LIGHT) } }
                 ThemeModeCard("تاریک", "شب و تمرکز", ThemeMode.DARK, st.theme == ThemeMode.DARK, st.wallpaperId, Modifier.weight(1f)) { vm.updateSettings { s -> s.copy(theme = ThemeMode.DARK) } }
             }
+            Text("رنگ تأکید", style = Flow.type.body, color = Flow.colors.textPrimary, modifier = Modifier.padding(top = 8.dp))
+            Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                com.flow.focus.ui.theme.AccentThemes.all.forEach { a ->
+                    val sel = st.accentId == a.id
+                    val c = if (Flow.colors.isDark) a.dark else a.light
+                    Column(
+                        Modifier.clip(RoundedCornerShape(14.dp)).semantics { this.selected = sel }
+                            .springClick(role = Role.RadioButton, scaleDown = 0.92f) { vm.updateSettings { s -> s.copy(accentId = a.id) } }
+                            .padding(4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Box(Modifier.size(38.dp).clip(androidx.compose.foundation.shape.CircleShape).background(c)
+                            .border(if (sel) 3.dp else 1.dp, if (sel) Flow.colors.textPrimary else Flow.colors.glassEdge, androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) {
+                            if (sel) FlowIcon(FlowIcons.Check, tint = Color.White, size = 18.dp)
+                        }
+                        Text(a.label, style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 1)
+                    }
+                }
+            }
             Text("اعداد", style = Flow.type.body, color = Flow.colors.textPrimary, modifier = Modifier.padding(top = 8.dp))
             SegmentedControl(listOf("فارسی ۱۲۳", "انگلیسی 123"), if (st.persianDigits) 0 else 1, { vm.updateSettings { s -> s.copy(persianDigits = it == 0) } })
             SwitchRow("انیمیشن‌ها", st.animations, { v -> vm.updateSettings { it.copy(animations = v) } }, subtitle = "خاموش کردن، مصرف باتری را کم می‌کند")

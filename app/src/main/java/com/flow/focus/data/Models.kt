@@ -137,6 +137,8 @@ data class Settings(
     val wallpaperFit: WallpaperFit = WallpaperFit.CROP,
     val wallpaperDim: Float = 0.18f,
     val wallpaperBlurDp: Int = 0,
+    /** رنگ تأکید برنامه؛ default یعنی آبی استاندارد */
+    val accentId: String = "default",
 ) {
     fun durationMs(phase: PhaseType): Long = when (phase) {
         PhaseType.FOCUS -> focusMin
