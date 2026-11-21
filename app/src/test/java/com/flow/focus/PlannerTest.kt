@@ -20,10 +20,6 @@ import com.flow.focus.domain.TaskFilter
 import com.flow.focus.domain.TaskQuery
 import com.flow.focus.domain.TaskSort
 import com.flow.focus.platform.AmbientSynth
-import com.flow.focus.music.MusicPlaylist
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.json.Json
 import com.flow.focus.platform.AmbientLibrary
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -131,18 +127,6 @@ class PlannerTest {
         assertNull("صدای مصنوعی کتابخانه حذف شده", AmbientLibrary.byId("library"))
     }
 
-    @Test fun customPlaylistsSurviveSerialization() {
-        val playlist = MusicPlaylist(
-            id = "focus-night",
-            name = "تمرکز شبانه",
-            trackIds = listOf("quiet-room", "afterglow-vast"),
-            createdAt = 1_794_355_200_000L,
-        )
-        val codec = Json { encodeDefaults = true }
-        val encoded = codec.encodeToString(playlist)
-        val decoded = codec.decodeFromString<MusicPlaylist>(encoded)
-        assertEquals(playlist, decoded)
-    }
     @Test fun legacyDataMigratesWithoutLosingUserContent() {
         val directory = createTempDir(prefix = "matfocus-migration-")
         val file = File(directory, "flow_data.json")

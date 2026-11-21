@@ -1,14 +1,29 @@
 package com.flow.focus.ui.components
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.animation.core.spring
+import kotlinx.coroutines.launch
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +38,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -42,8 +58,12 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -60,17 +80,24 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.flow.focus.core.withDigits
 import com.flow.focus.ui.glass.GlassLevel
 import com.flow.focus.ui.glass.GlassSurface
+import com.flow.focus.ui.glass.LocalBackdropLayer
+import com.flow.focus.ui.motion.Motion
+import com.flow.focus.ui.motion.rememberEnterState
+import androidx.compose.runtime.CompositionLocalProvider
 import com.flow.focus.ui.glass.dpSpring
 import com.flow.focus.ui.glass.floatSpring
 import com.flow.focus.ui.glass.springClick
@@ -90,7 +117,35 @@ fun FlowIcon(
     size: Dp = 24.dp,
     contentDescription: String? = null,
 ) {
-    Icon(imageVector = icon, contentDescription = contentDescription, tint = tint, modifier = modifier.size(size))
+    val animations = LocalGlass.current.animations
+    val iconTint by animateColorAsState(
+        targetValue = tint,
+        animationSpec = if (animations) tween(180) else snap(),
+        label = "flow-icon-tint",
+    )
+    // جایگزین AnimatedContent: هر آیکون برنامه از این تابع می‌گذرد و یک Transition کامل برای هر کدام گران است.
+    // فقط وقتی آیکون واقعاً عوض شد، آیکون جدید با یک محو/بزرگ‌شدن کوتاه ظاهر می‌شود.
+    val reveal = remember { mutableFloatStateOf(1f) }
+    var shownIcon by remember { mutableStateOf(icon) }
+    if (shownIcon != icon) {
+        // همزمان با ترکیب جدید صفر می‌شود تا یک فریم آیکون کامل قبل از شروع انیمیشن دیده نشود.
+        shownIcon = icon
+        reveal.floatValue = if (animations) 0f else 1f
+    }
+    LaunchedEffect(icon) {
+        if (reveal.floatValue < 1f) animate(reveal.floatValue, 1f, animationSpec = tween(150)) { v, _ -> reveal.floatValue = v }
+    }
+    Icon(
+        imageVector = icon,
+        contentDescription = contentDescription,
+        tint = iconTint,
+        modifier = modifier.size(size).graphicsLayer {
+            val t = reveal.floatValue
+            alpha = t
+            scaleX = 0.86f + 0.14f * t
+            scaleY = 0.86f + 0.14f * t
+        },
+    )
 }
 
 @Composable
@@ -105,13 +160,23 @@ fun GlassIconButton(
     active: Boolean = false,
     enabled: Boolean = true,
 ) {
-    GlassSurface(
-        modifier = modifier.size(size).alpha(if (enabled) 1f else 0.4f).springClick(enabled = enabled, onClick = onClick),
-        shape = CircleShape,
-        tint = if (active) Flow.colors.accent else null,
+    Box(
+        modifier = Modifier
+            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+            .then(modifier)
+            .alpha(if (enabled) 1f else 0.4f)
+            .springClick(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            FlowIcon(icon, tint = if (active) Flow.colors.accent else tint, size = iconSize, contentDescription = contentDescription)
+        // Keep the visual diameter compact while exposing an accessible touch target.
+        GlassSurface(
+            modifier = Modifier.size(size),
+            shape = CircleShape,
+            tint = if (active) Flow.colors.accent else null,
+        ) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                FlowIcon(icon, tint = if (active) Flow.colors.accent else tint, size = iconSize, contentDescription = contentDescription)
+            }
         }
     }
 }
@@ -142,7 +207,7 @@ fun PrimaryButton(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (icon != null) FlowIcon(icon, tint = c.textOnAccent, size = 20.dp)
-            Text(text, style = Flow.type.bodyStrong, color = c.textOnAccent, maxLines = 1)
+            Text(text, style = Flow.type.bodyStrong, color = c.textOnAccent, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -169,7 +234,7 @@ fun GlassButton(
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         ) {
             if (icon != null) FlowIcon(icon, tint = color, size = 20.dp)
-            Text(text, style = Flow.type.bodyStrong, color = color, maxLines = 1)
+            Text(text, style = Flow.type.bodyStrong, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -189,17 +254,32 @@ fun SegmentedControl(
 ) {
     val c = Flow.colors
     GlassSurface(modifier.alpha(if (enabled) 1f else 0.55f), shape = RoundedCornerShape(22.dp), level = GlassLevel.Subtle) {
-        Row(Modifier.fillMaxWidth().padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            Modifier.fillMaxWidth().padding(3.dp).clip(RoundedCornerShape(19.dp)).background(c.track)
+                .border(1.dp, if (c.isDark) Color.White.copy(alpha = 0.16f) else Color(0xFF1F2A38).copy(alpha = 0.14f), RoundedCornerShape(19.dp))
+                .padding(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
             options.forEachIndexed { i, label ->
                 val sel = i == selected
                 val bg by animateColorAsState(if (sel) c.accent else Color.Transparent, anim(), label = "segBg")
                 val fg by animateColorAsState(if (sel) c.textOnAccent else c.textSecondary, anim(), label = "segFg")
+                val emphasis by animateFloatAsState(
+                    targetValue = if (sel) 1f else 0f,
+                    animationSpec = floatSpring(0.82f, 520f),
+                    label = "segment-emphasis",
+                )
                 Box(
                     Modifier
                         .weight(1f)
-                        .height(38.dp)
+                        .height(44.dp)
+                        .graphicsLayer {
+                            scaleX = 0.975f + emphasis * 0.025f
+                            scaleY = 0.95f + emphasis * 0.05f
+                        }
                         .clip(RoundedCornerShape(18.dp))
                         .background(bg)
+                        .semantics { this.selected = sel }
                         .clickable(enabled = enabled, role = Role.Tab, onClick = { onSelect(i) }),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -232,8 +312,8 @@ fun SettingRow(
 ) {
     Row(modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(title, style = Flow.type.body, color = Flow.colors.textPrimary)
-            if (subtitle != null) Text(subtitle, style = Flow.type.caption, color = Flow.colors.textSecondary)
+            Text(title, style = Flow.type.body, color = Flow.colors.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (subtitle != null) Text(subtitle, style = Flow.type.caption, color = Flow.colors.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         Spacer(Modifier.width(12.dp))
         trailing()
@@ -259,13 +339,31 @@ fun FlowSlider(value: Float, onChange: (Float) -> Unit, range: ClosedFloatingPoi
 @Composable
 fun Stepper(value: Int, onChange: (Int) -> Unit, range: IntRange, modifier: Modifier = Modifier, step: Int = 1, suffix: String = "") {
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        GlassIconButton(FlowIcons.Minus, { onChange((value - step).coerceIn(range)) }, size = 36.dp, iconSize = 18.dp, enabled = value > range.first)
-        Text(
-            num(value) + if (suffix.isNotEmpty()) " $suffix" else "",
-            style = Flow.type.bodyStrong, color = Flow.colors.textPrimary,
-            modifier = Modifier.widthIn(min = 56.dp), textAlign = TextAlign.Center, maxLines = 1,
-        )
-        GlassIconButton(FlowIcons.Plus, { onChange((value + step).coerceIn(range)) }, size = 36.dp, iconSize = 18.dp, enabled = value < range.last)
+        GlassIconButton(FlowIcons.Minus, { onChange((value - step).coerceIn(range)) }, size = 36.dp, iconSize = 18.dp, enabled = value > range.first, contentDescription = "کاهش مقدار")
+        val displayValue = num(value) + if (suffix.isNotEmpty()) " $suffix" else ""
+        if (LocalGlass.current.animations) {
+            AnimatedContent(
+                targetState = displayValue,
+                transitionSpec = {
+                    (fadeIn(tween(120)) + slideInVertically(tween(145)) { it / 4 }) togetherWith
+                        (fadeOut(tween(90)) + slideOutVertically(tween(115)) { -it / 4 })
+                },
+                label = "stepper-value",
+            ) { shownValue ->
+                Text(
+                    shownValue,
+                    style = Flow.type.bodyStrong, color = Flow.colors.textPrimary,
+                    modifier = Modifier.widthIn(min = 56.dp), textAlign = TextAlign.Center, maxLines = 1,
+                )
+            }
+        } else {
+            Text(
+                displayValue,
+                style = Flow.type.bodyStrong, color = Flow.colors.textPrimary,
+                modifier = Modifier.widthIn(min = 56.dp), textAlign = TextAlign.Center, maxLines = 1,
+            )
+        }
+        GlassIconButton(FlowIcons.Plus, { onChange((value + step).coerceIn(range)) }, size = 36.dp, iconSize = 18.dp, enabled = value < range.last, contentDescription = "افزایش مقدار")
     }
 }
 
@@ -281,6 +379,11 @@ fun FlowTextField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
 ) {
     val c = Flow.colors
+    var focused by remember { mutableStateOf(false) }
+    val borderColor by animateColorAsState(
+        if (focused) c.accent else if (c.isDark) Color.White.copy(alpha = 0.26f) else Color(0xFF1F2A38).copy(alpha = 0.22f),
+        anim(), label = "field-border",
+    )
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
@@ -289,16 +392,28 @@ fun FlowTextField(
         keyboardOptions = keyboardOptions,
         textStyle = Flow.type.body.copy(color = c.textPrimary),
         cursorBrush = SolidColor(c.accent),
-        modifier = modifier,
+        modifier = modifier.onFocusChanged { focused = it.isFocused },
         decorationBox = { inner ->
-            GlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), level = GlassLevel.Subtle) {
+            // کادر ورودی: فرورفته‌تر از کارت اطراف (پرکننده‌ی تیره/روشن) با مرز مشخص؛ هنگام فوکوس مرز به رنگ تأکید می‌شود.
+            Box(
+                Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(if (c.isDark) Color.Black.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.55f))
+                    .border(if (focused) 1.6.dp else 1.dp, borderColor, RoundedCornerShape(16.dp)),
+            ) {
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     if (leading != null) FlowIcon(leading, tint = c.textSecondary, size = 20.dp)
                     Box(Modifier.weight(1f)) {
-                        if (value.isEmpty()) Text(placeholder, style = Flow.type.body, color = c.textSecondary.copy(alpha = 0.75f))
+                        if (value.isEmpty()) Text(
+                            placeholder,
+                            style = Flow.type.body,
+                            color = c.textSecondary.copy(alpha = 0.75f),
+                            maxLines = if (singleLine) 1 else Int.MAX_VALUE,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                         inner()
                     }
                 }
@@ -308,20 +423,35 @@ fun FlowTextField(
 }
 
 @Composable
-fun CheckCircle(checked: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier, size: Dp = 28.dp, color: Color = Flow.colors.accent) {
+fun CheckCircle(
+    checked: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+    size: Dp = 28.dp,
+    color: Color = Flow.colors.accent,
+    contentDescription: String = "وضعیت تکمیل",
+) {
     val c = Flow.colors
     val fill by animateFloatAsState(if (checked) 1f else 0f, floatSpring(0.55f, 500f), label = "check")
     Box(
         modifier
-            .size(size)
-            .springClick(role = Role.Checkbox, onClick = onToggle)
-            .drawBehind {
+            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+            .semantics(mergeDescendants = true) {
+                this.contentDescription = contentDescription
+                toggleableState = if (checked) ToggleableState.On else ToggleableState.Off
+            }
+            .springClick(role = Role.Checkbox, onClick = onToggle),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier.size(size).drawBehind {
                 drawCircle(c.textSecondary.copy(alpha = 0.55f * (1f - fill)), radius = this.size.minDimension / 2f - 1.5f, style = androidx.compose.ui.graphics.drawscope.Stroke(2f))
                 drawCircle(color, radius = (this.size.minDimension / 2f) * fill)
             },
-        contentAlignment = Alignment.Center,
-    ) {
-        FlowIcon(FlowIcons.Check, tint = Color.White, size = size * 0.62f, modifier = Modifier.alpha(fill).scale(0.6f + 0.4f * fill))
+            contentAlignment = Alignment.Center,
+        ) {
+            FlowIcon(FlowIcons.Check, tint = Color.White, size = size * 0.62f, modifier = Modifier.alpha(fill).scale(0.6f + 0.4f * fill))
+        }
     }
 }
 
@@ -337,20 +467,29 @@ fun FlowProgressBar(progress: Float, modifier: Modifier = Modifier, color: Color
 @Composable
 fun SectionTitle(text: String, modifier: Modifier = Modifier, trailing: (@Composable () -> Unit)? = null) {
     Row(modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(text, style = Flow.type.heading, color = Flow.colors.textPrimary, modifier = Modifier.weight(1f))
+        Text(text, style = Flow.type.heading, color = Flow.colors.textPrimary, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
         trailing?.invoke()
     }
 }
 
 @Composable
 fun EmptyState(icon: ImageVector, title: String, subtitle: String, modifier: Modifier = Modifier) {
-    Column(
-        modifier.fillMaxWidth().padding(vertical = 28.dp, horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp),
+    val animations = LocalGlass.current.animations
+    AnimatedVisibility(
+        visibleState = rememberEnterState(true),
+        enter = if (animations) {
+            fadeIn(Motion.enter(Motion.Medium)) + scaleIn(initialScale = 0.96f, animationSpec = Motion.enter(Motion.Medium)) +
+                slideInVertically(Motion.enter(Motion.Medium)) { it / 14 }
+        } else EnterTransition.None,
     ) {
-        FlowIcon(icon, tint = Flow.colors.textSecondary.copy(alpha = 0.8f), size = 40.dp)
-        Text(title, style = Flow.type.heading, color = Flow.colors.textPrimary, textAlign = TextAlign.Center)
-        Text(subtitle, style = Flow.type.caption, color = Flow.colors.textSecondary, textAlign = TextAlign.Center)
+        Column(
+            modifier.fillMaxWidth().padding(vertical = 28.dp, horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FlowIcon(icon, tint = Flow.colors.textSecondary.copy(alpha = 0.8f), size = 40.dp)
+            Text(title, style = Flow.type.heading, color = Flow.colors.textPrimary, textAlign = TextAlign.Center)
+            Text(subtitle, style = Flow.type.caption, color = Flow.colors.textSecondary, textAlign = TextAlign.Center)
+        }
     }
 }
 
@@ -359,35 +498,90 @@ fun Chip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifie
     val c = Flow.colors
     val bg by animateColorAsState(if (selected) c.accent else Color.Transparent, anim(), label = "chipBg")
     val fg by animateColorAsState(if (selected) c.textOnAccent else c.textPrimary, anim(), label = "chipFg")
-    GlassSurface(modifier.springClick(onClick = onClick), shape = RoundedCornerShape(18.dp), level = GlassLevel.Subtle) {
+    GlassSurface(modifier.semantics { this.selected = selected }.springClick(onClick = onClick), shape = RoundedCornerShape(18.dp), level = GlassLevel.Subtle) {
         Row(
-            Modifier.background(bg).padding(horizontal = 14.dp, vertical = 8.dp),
+            Modifier.heightIn(min = 44.dp).background(bg).padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             if (dot != null) Box(Modifier.size(8.dp).clip(CircleShape).background(dot))
-            Text(text, style = Flow.type.label, color = fg, maxLines = 1)
+            Text(text, style = Flow.type.label, color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
 
 /** پوسته‌ی واحد پنجره‌ها؛ عنوان، بستن، فاصله‌گذاری و سطح شیشه‌ای در تمام دیالوگ‌ها یکسان است. */
 @Composable
-fun FlowDialog(onDismiss: () -> Unit, title: String? = null, content: @Composable ColumnScope.() -> Unit) {
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+private fun animations0(): Boolean = LocalGlass.current.animations
+
+@Composable
+fun FlowDialog(onDismiss: () -> Unit, title: String? = null, onSwipeDown: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
+    val dragY = remember { androidx.compose.animation.core.Animatable(0f) }
+    val dragScope = androidx.compose.runtime.rememberCoroutineScope()
+    // ورود سه‌بعدی پنجره: از کمی خوابیده (چرخش حول محور افقی) به حالت ایستاده، با پرسپکتیو؛ فقط یک Animatable ساده.
+    val startFlat = animations0()
+    val enter3d = remember { androidx.compose.animation.core.Animatable(if (startFlat) 0f else 1f) }
+    LaunchedEffect(Unit) { enter3d.animateTo(1f, spring(0.72f, 260f)) }
+    val animations = LocalGlass.current.animations
+    var visible by remember { mutableStateOf(true) }
+    val enterState = rememberEnterState(visible)
+    val requestDismiss = {
+        if (visible) visible = false
+    }
+    LaunchedEffect(visible) {
+        if (!visible) {
+            if (animations) delay(175)
+            onDismiss()
+        }
+    }
+    Dialog(onDismissRequest = requestDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        CompositionLocalProvider(LocalBackdropLayer provides null) {
         AnimatedVisibility(
-            visible = true,
-            enter = fadeIn(tween(150)) + scaleIn(initialScale = 0.965f, animationSpec = tween(180)),
+            visibleState = enterState,
+            enter = if (animations) fadeIn(Motion.enter(Motion.Short)) + scaleIn(initialScale = 0.94f, animationSpec = Motion.soft()) else EnterTransition.None,
+            exit = if (animations) fadeOut(Motion.exit(Motion.Fast)) + scaleOut(targetScale = 0.965f, animationSpec = Motion.exit(Motion.Short)) else ExitTransition.None,
         ) {
             GlassSurface(
-                Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 22.dp).widthIn(max = 440.dp),
+                Modifier.widthIn(max = 440.dp).fillMaxWidth().padding(horizontal = 18.dp, vertical = 22.dp)
+                    .graphicsLayer {
+                        rotationX = (1f - enter3d.value) * 16f
+                        cameraDistance = 22f * density
+                        translationY = dragY.value
+                        alpha = (1f - dragY.value / 1400f).coerceIn(0.35f, 1f)
+                    },
                 shape = RoundedCornerShape(28.dp),
                 level = GlassLevel.Strong,
                 elevated = true,
             ) {
                 Column(
-                    Modifier.heightIn(max = 640.dp).verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 17.dp),
+                    Modifier.border(1.2.dp, Flow.colors.glassEdge.copy(alpha = if (Flow.colors.isDark) 0.30f else 0.75f), RoundedCornerShape(28.dp))
+                        .heightIn(max = 640.dp).verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 17.dp),
                     verticalArrangement = Arrangement.spacedBy(13.dp),
                 ) {
+                    if (onSwipeDown != null) {
+                        // دستگیره: با کشیدن به پایین، پنجره زیر داک می‌رود و به دایره‌ی کوچک پلیر تبدیل می‌شود.
+                        Box(
+                            Modifier.fillMaxWidth().height(26.dp)
+                                .pointerInput(Unit) {
+                                    detectVerticalDragGestures(
+                                        onDragEnd = {
+                                            dragScope.launch {
+                                                if (dragY.value > 110f) {
+                                                    dragY.animateTo(2400f, tween(260, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                                                    onSwipeDown()
+                                                } else dragY.animateTo(0f, spring(0.7f, 420f))
+                                            }
+                                        },
+                                        onDragCancel = { dragScope.launch { dragY.animateTo(0f, spring(0.7f, 420f)) } },
+                                    ) { change, delta ->
+                                        change.consume()
+                                        dragScope.launch { dragY.snapTo((dragY.value + delta).coerceAtLeast(0f)) }
+                                    }
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Box(Modifier.width(42.dp).height(5.dp).clip(RoundedCornerShape(3.dp)).background(Flow.colors.textSecondary.copy(alpha = 0.45f)))
+                        }
+                    }
                     if (title != null) {
                         Row(
                             Modifier.fillMaxWidth(),
@@ -400,10 +594,11 @@ fun FlowDialog(onDismiss: () -> Unit, title: String? = null, content: @Composabl
                                 style = Flow.type.title,
                                 color = Flow.colors.textPrimary,
                                 maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
                             )
                             GlassIconButton(
                                 FlowIcons.Close,
-                                onDismiss,
+                                requestDismiss,
                                 size = 34.dp,
                                 iconSize = 16.dp,
                                 contentDescription = "بستن پنجره",
@@ -415,17 +610,18 @@ fun FlowDialog(onDismiss: () -> Unit, title: String? = null, content: @Composabl
                 }
             }
         }
+        }
     }
 }
 
-data class DockItem(val label: String, val icon: ImageVector)
+data class DockItem(val label: String, val icon: ImageVector, val activeIcon: ImageVector = icon)
 
 /** نوار شناور پایین با زبان بصری iOS، سطح شیشه‌ای مشترک و وضعیت انتخاب دسترس‌پذیر. */
 @Composable
 fun FlowDock(items: List<DockItem>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
     val c = Flow.colors
     GlassSurface(
-        modifier.fillMaxWidth().widthIn(max = 440.dp).height(68.dp),
+        Modifier.widthIn(max = 440.dp).then(modifier).fillMaxWidth().height(68.dp),
         shape = RoundedCornerShape(34.dp),
         level = GlassLevel.Strong,
         elevated = true,
@@ -496,9 +692,9 @@ fun FlowDock(items: List<DockItem>, selected: Int, onSelect: (Int) -> Unit, modi
                             verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
                             FlowIcon(
-                                item.icon,
+                                if (isSelected) item.activeIcon else item.icon,
                                 tint = if (isSelected) c.accent else c.textSecondary,
-                                size = 21.dp,
+                                size = 23.dp,
                                 modifier = Modifier.graphicsLayer {
                                     scaleX = 1f + 0.045f * emphasis
                                     scaleY = 1f + 0.045f * emphasis
@@ -522,9 +718,49 @@ fun FlowDock(items: List<DockItem>, selected: Int, onSelect: (Int) -> Unit, modi
 @Composable
 fun ScreenHeader(title: String, modifier: Modifier = Modifier, trailing: (@Composable () -> Unit)? = null) {
     Row(modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, style = Flow.type.title, color = Flow.colors.textPrimary, modifier = Modifier.weight(1f))
+        Text(title, style = Flow.type.title, color = Flow.colors.textPrimary, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
         trailing?.invoke()
     }
 }
 
 val ScreenPadding = PaddingValues(horizontal = 18.dp)
+
+/** رنگ‌های کاشی آیکون (الهام‌گرفته از تنظیمات iOS): گرادیان ملایم از روشن به سیر. */
+enum class TileTone(val top: Color, val bottom: Color) {
+    Blue(Color(0xFF5AA8FF), Color(0xFF2F7BEA)),
+    Green(Color(0xFF58D68D), Color(0xFF2FAE66)),
+    Orange(Color(0xFFFFB454), Color(0xFFF08A1C)),
+    Red(Color(0xFFFF7A7A), Color(0xFFE5484D)),
+    Pink(Color(0xFFFF7EB6), Color(0xFFE5489A)),
+    Purple(Color(0xFFB08CFF), Color(0xFF7C5CE0)),
+    Teal(Color(0xFF5ED6D0), Color(0xFF1FA5A8)),
+    Slate(Color(0xFF9AA7B8), Color(0xFF6F7E92)),
+}
+
+fun tileToneFor(icon: ImageVector): TileTone = when (icon) {
+    FlowIcons.Sun, FlowIcons.Book, FlowIcons.Cup -> TileTone.Orange
+    FlowIcons.Moon -> TileTone.Purple
+    FlowIcons.Layers, FlowIcons.Calendar, FlowIcons.CalendarCheck -> TileTone.Blue
+    FlowIcons.Clock, FlowIcons.Timer, FlowIcons.Bell, FlowIcons.Flame -> TileTone.Red
+    FlowIcons.Music, FlowIcons.Volume, FlowIcons.Heart -> TileTone.Pink
+    FlowIcons.Export, FlowIcons.Import, FlowIcons.Download -> TileTone.Teal
+    FlowIcons.Stats, FlowIcons.Target, FlowIcons.Leaf, FlowIcons.Tasks -> TileTone.Green
+    FlowIcons.Settings, FlowIcons.Info, FlowIcons.Filter -> TileTone.Slate
+    else -> TileTone.Blue
+}
+
+/** کاشی گرد آیکون با گرادیان و لبه‌ی نورانی؛ برای سرتیتر بخش‌ها و ردیف‌های تنظیمات. */
+@Composable
+fun IconTile(icon: ImageVector, tone: TileTone, modifier: Modifier = Modifier, size: Dp = 34.dp) {
+    val shape = RoundedCornerShape(size * 0.3f)
+    Box(
+        modifier
+            .size(size)
+            .clip(shape)
+            .background(Brush.verticalGradient(listOf(tone.top, tone.bottom)))
+            .border(0.8.dp, Color.White.copy(alpha = 0.28f), shape),
+        contentAlignment = Alignment.Center,
+    ) {
+        FlowIcon(icon, tint = Color.White, size = size * 0.56f)
+    }
+}

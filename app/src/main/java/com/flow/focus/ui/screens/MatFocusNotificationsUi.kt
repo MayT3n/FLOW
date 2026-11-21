@@ -1,5 +1,9 @@
 package com.flow.focus.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -149,8 +153,14 @@ fun MatFocusNotificationsDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                     color = Flow.colors.textSecondary,
                 )
             } else {
-                items.forEach { item ->
+                items.forEachIndexed { index, item ->
                     val isRead = item.id in readIds
+                    val delay = index.coerceAtMost(8) * 25
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = fadeIn(tween(175, delayMillis = delay)) +
+                            slideInVertically(tween(205, delayMillis = delay)) { it / 14 },
+                    ) {
                     GlassSurface(
                         Modifier.fillMaxWidth().springClick(onClick = {
                             selected = item
@@ -175,6 +185,7 @@ fun MatFocusNotificationsDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                                 GlassIconButton(FlowIcons.Check, { vm.markNewsUnread(item.id) }, size = 30.dp, iconSize = 15.dp, contentDescription = "علامت‌گذاری به‌عنوان خوانده‌نشده")
                             }
                         }
+                    }
                     }
                 }
             }

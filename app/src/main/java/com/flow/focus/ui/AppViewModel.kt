@@ -15,16 +15,20 @@ import com.flow.focus.data.Routine
 import com.flow.focus.data.Settings
 import com.flow.focus.data.Task
 import com.flow.focus.data.FlowRepository
+import com.flow.focus.platform.AmbientSynth
 import com.flow.focus.music.MusicCatalog
 import com.flow.focus.music.MusicSnapshot
-import com.flow.focus.platform.AmbientSynth
 import com.flow.focus.platform.WallpaperStore
 import com.flow.focus.remote.NewsItem
 import com.flow.focus.remote.UpdateDownloadState
 import com.flow.focus.remote.UpdateManifest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -41,9 +45,34 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     val data: StateFlow<AppData> get() = c.repo.data
+
+    /** اعلان خوش‌آمد فقط یک‌بار بعد از نصب؛ اگر اجازه هنوز داده نشده باشد، بعداً دوباره تلاش می‌شود. */
+    fun maybeWelcome() {
+        val prefs = getApplication<Application>().getSharedPreferences("flow_ui", 0)
+        if (prefs.getBoolean("welcomed", false)) return
+        val st = data.value.settings
+        if (!st.notifications) return
+        if (!androidx.core.app.NotificationManagerCompat.from(getApplication()).areNotificationsEnabled()) return
+        c.notifier.showWelcome(st)
+        prefs.edit().putBoolean("welcomed", true).apply()
+    }
+
+    fun sendTestNotification() = c.notifier.showWelcome(data.value.settings, test = true)
     val offlineCalendarOccasions: StateFlow<List<CalendarOccasion>> get() = _offlineCalendarOccasions
     val ambientPlaying: StateFlow<String?> get() = c.ambient.playing
     val ambientDownloadProgress get() = c.ambient.downloadProgress
+    val musicSnapshot: StateFlow<MusicSnapshot> get() = c.music.snapshot
+    /** همان وضعیت پلیر بدون موقعیت لحظه‌ای؛ تیک نیم‌ثانیه‌ای موقعیت، صفحه و فهرست را دوباره نمی‌سازد. */
+    val musicState: StateFlow<MusicSnapshot> = c.music.snapshot
+        .map { it.copy(positionMs = 0L) }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, MusicSnapshot())
+    val musicFavorites: StateFlow<Set<String>> get() = c.music.favorites
+    val musicPlaylists get() = c.music.playlists
+    val musicDownloadProgress get() = c.music.downloadProgress
+    val musicDownloadRevision get() = c.music.downloadRevision
+    private val _musicDownloadErrors = MutableStateFlow<Map<String, String>>(emptyMap())
+    val musicDownloadErrors: StateFlow<Map<String, String>> get() = _musicDownloadErrors
     // News, updates and persistent read state
     val newsItems: StateFlow<List<NewsItem>> get() = c.remote.items
     val newsReadIds: StateFlow<Set<String>> get() = c.remote.readIds
@@ -69,13 +98,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    // Media3 playback
-    val musicSnapshot: StateFlow<MusicSnapshot> get() = c.music.snapshot
-    val musicFavorites: StateFlow<Set<String>> get() = c.music.favorites
-    val musicPlaylists get() = c.music.playlists
-    val musicDownloadProgress get() = c.music.downloadProgress
-    val musicTracks get() = MusicCatalog.tracks
-    fun playMusic(id: String) = c.music.play(id)
+    // ---- موسیقی ----
+    /** آهنگ دانلودشده فوراً پخش می‌شود؛ در غیر این صورت اول دانلود و بعد خودکار پخش می‌شود. */
+    fun playMusic(id: String) {
+        if (c.music.isDownloaded(id)) c.music.play(id) else downloadMusicTrack(id, playWhenReady = true)
+    }
     fun toggleMusicPlayback() = c.music.togglePlayPause()
     fun nextMusic() = c.music.next()
     fun previousMusic() = c.music.previous()
@@ -92,9 +119,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun playMusicPlaylist(playlistId: String) = c.music.playPlaylist(playlistId)
     fun isMusicDownloaded(id: String) = c.music.isDownloaded(id)
     fun downloadedMusicBytes() = c.music.downloadedBytes()
-    fun removeMusicDownload(id: String) = c.music.removeDownload(id)
-    fun downloadMusicTrack(id: String) {
-        viewModelScope.launch { runCatching { c.music.downloadTrack(id) } }
+    fun removeMusicDownload(id: String) {
+        c.music.removeDownload(id)
+    }
+    fun downloadMusicTrack(id: String, playWhenReady: Boolean = false) {
+        if (c.music.downloadProgress.value.containsKey(id)) return
+        viewModelScope.launch {
+            _musicDownloadErrors.value = _musicDownloadErrors.value - id
+            runCatching { c.music.downloadTrack(id) }
+                .onSuccess { if (playWhenReady) c.music.play(id) }
+                .onFailure { error ->
+                    _musicDownloadErrors.value = _musicDownloadErrors.value + (id to (error.message ?: "دانلود ناموفق بود"))
+                }
+        }
     }
 
     // ---- تایمر ----
@@ -133,6 +170,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun saveRoutine(r: Routine) = c.repo.upsertRoutine(r)
     fun deleteRoutine(id: String) = c.repo.deleteRoutine(id)
     fun toggleRoutine(routineId: String, epochDay: Long) = c.repo.toggleRoutineCheck(routineId, epochDay)
+    fun markRoutineDone(routineId: String, epochDay: Long) = c.repo.markRoutineDone(routineId, epochDay)
 
     fun addGoal(title: String, period: GoalPeriod, periodStartDay: Long) {
         if (title.isBlank()) return
@@ -154,7 +192,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (durationsChanged) c.timer.syncIdle() else if (effectsChanged) c.timer.refresh()
         if (before.notifications != after.notifications) c.alarms.rescheduleAllReminders(c.repo.current)
         if (before.ambientVolume != after.ambientVolume) c.ambient.setVolume(after.ambientVolume)
-        if (before.musicVolume != after.musicVolume) c.music.setVolume(after.musicVolume)
     }
 
     /** پیش‌شنوایی صدای محیط در تنظیمات (جدا از پخش خودکار تایمر) */
