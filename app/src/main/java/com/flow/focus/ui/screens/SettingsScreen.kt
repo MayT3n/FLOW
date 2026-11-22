@@ -637,6 +637,11 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, modifier: Modifier = Modifie
         }
 
         AnimatedSettingsSection(selectedPage == "data", "مدیریت داده‌ها") {
+            Text("برنامه‌ی آماده", style = Flow.type.body, color = Flow.colors.textPrimary)
+            Text("جدول مطالعاتی ماز (دوازدهم ریاضی) از ۱ تا ۱۳ آذر؛ کلاس‌ها، مطالعه و تست‌ها در برنامه‌ریزی اضافه می‌شوند. اضافه کردن دوباره چیزی را تکرار نمی‌کند.", style = Flow.type.caption, color = Flow.colors.textSecondary)
+            var mazMsg by remember { mutableStateOf<String?>(null) }
+            GlassButton("افزودن برنامه‌ی مطالعاتی ماز", { val n = vm.addMazPlan(); mazMsg = if (n > 0) "$n مورد به برنامه‌ریزی اضافه شد" else "این برنامه از قبل اضافه شده است" }, Modifier.fillMaxWidth().padding(vertical = 6.dp), icon = FlowIcons.Calendar)
+            mazMsg?.let { Text(num(it), style = Flow.type.caption, color = Flow.colors.success) }
             Text(
                 num("${data.tasks.size} وظیفه · ${data.sessions.size} جلسه‌ی ثبت‌شده · ${data.routines.size} روتین"),
                 style = Flow.type.caption, color = Flow.colors.textSecondary,

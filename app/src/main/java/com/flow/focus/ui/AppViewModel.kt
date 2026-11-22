@@ -150,6 +150,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         c.alarms.syncReminder(t, c.repo.current.settings.notifications)
     }
 
+    fun addMazPlan(): Int {
+        return c.repo.addTasksIfMissing(com.flow.focus.data.StudyPlanMaz.tasks(System.currentTimeMillis()))
+    }
+
     fun deleteTask(id: String) {
         c.repo.deleteTask(id)
         c.alarms.cancelReminder(id)

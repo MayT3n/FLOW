@@ -62,6 +62,16 @@ class FlowRepository(private val store: JsonStore, scope: CoroutineScope) {
         d.copy(tasks = if (exists) d.tasks.map { if (it.id == task.id) task else it } else d.tasks + task)
     }
 
+    /** افزودن گروهی؛ وظیفه‌هایی که شناسه‌شان وجود دارد دست‌نخورده می‌مانند. برمی‌گرداند چند مورد تازه اضافه شد. */
+    fun addTasksIfMissing(tasks: List<Task>): Int {
+        val before = current.tasks.size
+        update { d ->
+            val have = d.tasks.mapTo(HashSet()) { it.id }
+            d.copy(tasks = d.tasks + tasks.filter { it.id !in have })
+        }
+        return current.tasks.size - before
+    }
+
     fun deleteTask(id: String) = update { d ->
         d.copy(
             tasks = d.tasks.filterNot { it.id == id },
