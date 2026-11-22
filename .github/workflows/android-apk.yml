@@ -12,10 +12,6 @@ on:
         required: false
         default: ''
 
-concurrency:
-  group: matfocus-android-${{ github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
 
@@ -72,7 +68,7 @@ jobs:
         run: |
           mkdir -p app/src/main/assets/fonts
           base="https://raw.githubusercontent.com/rastikerdar/vazirmatn/master/fonts/ttf"
-          for w in Regular Medium Bold; do
+          for w in Regular Medium SemiBold Bold; do
             curl -fsSL --retry 3 -o "app/src/main/assets/fonts/Vazirmatn-$w.ttf" "$base/Vazirmatn-$w.ttf"
           done
           ls -l app/src/main/assets/fonts
@@ -100,7 +96,11 @@ jobs:
           KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          if [[ -n "${KS_B64:-}" && -n "${KS_PASS:-}" && -n "${KEY_ALIAS:-}" && -n "${KEY_PASS:-}" ]]; then
+          # فقط دو Secret لازم است: ANDROID_KEYSTORE_BASE64 و ANDROID_KEYSTORE_PASSWORD.
+          # نام کلید پیش‌فرض matfocus و رمز کلید پیش‌فرض همان رمز keystore است (قابل override با Secretهای اختیاری).
+          KEY_ALIAS="${KEY_ALIAS:-matfocus}"
+          KEY_PASS="${KEY_PASS:-${KS_PASS:-}}"
+          if [[ -n "${KS_B64:-}" && -n "${KS_PASS:-}" ]]; then
             echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/matfocus-release.jks"
             {
               echo "FLOW_KEYSTORE_PATH=$RUNNER_TEMP/matfocus-release.jks"

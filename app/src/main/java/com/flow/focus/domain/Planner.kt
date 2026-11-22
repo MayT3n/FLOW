@@ -1,6 +1,7 @@
 package com.flow.focus.domain
 
 import com.flow.focus.core.JalaliDate
+import com.flow.focus.data.ActivityKind
 import com.flow.focus.data.AppData
 import com.flow.focus.data.Priority
 import com.flow.focus.data.Routine
@@ -15,6 +16,9 @@ sealed interface PlanEntry {
     val minute: Int?
     val categoryId: String
     val done: Boolean
+    /** مدت‌زمان به دقیقه (اگر مشخص باشد) */
+    val durationMin: Int?
+    val kind: ActivityKind?
 }
 
 data class TaskEntry(val task: Task) : PlanEntry {
@@ -23,6 +27,8 @@ data class TaskEntry(val task: Task) : PlanEntry {
     override val minute get() = task.dueMinute
     override val categoryId get() = task.categoryId
     override val done get() = task.done
+    override val durationMin get() = task.durationMin
+    override val kind get() = task.kind
 }
 
 data class RoutineEntry(val routine: Routine, val day: LocalDate, val checked: Boolean) : PlanEntry {
@@ -31,6 +37,8 @@ data class RoutineEntry(val routine: Routine, val day: LocalDate, val checked: B
     override val minute get() = routine.minute
     override val categoryId get() = routine.categoryId
     override val done get() = checked
+    override val durationMin get() = routine.steps.takeIf { it.isNotEmpty() }?.sumOf { it.minutes }
+    override val kind: ActivityKind? get() = null
 }
 
 object Planner {
@@ -60,6 +68,21 @@ object Planner {
     }
 
     fun countOn(data: AppData, day: LocalDate): Int = entriesFor(data, day).size
+
+    /** وظایف بدون تاریخ (صندوق ورودی) */
+    fun undated(data: AppData): List<Task> =
+        data.tasks.filter { it.dueDay == null }.sortedWith(compareBy<Task>({ it.done }, { -it.priority.ordinal }, { -it.createdAt }))
+
+    /** وظایف انجام‌نشده‌ی روزهای گذشته */
+    fun overdue(data: AppData, today: LocalDate): List<Task> =
+        data.tasks.filter { !it.done && it.dueDay != null && it.dueDay < today.toEpochDay() }
+            .sortedWith(compareBy<Task>({ it.dueDay }, { it.dueMinute ?: Int.MAX_VALUE }))
+
+    /** (انجام‌شده، کل) برای خلاصه‌ی روز */
+    fun summary(entries: List<PlanEntry>): Pair<Int, Int> = entries.count { it.done } to entries.size
+
+    /** مجموع دقیقه‌ی برنامه‌ریزی‌شده‌ی روز (فقط ردیف‌هایی که مدت دارند) */
+    fun plannedMinutes(entries: List<PlanEntry>): Int = entries.sumOf { it.durationMin ?: 0 }
 
     fun markedDays(data: AppData, from: LocalDate, to: LocalDate): Set<Long> {
         val out = HashSet<Long>()
@@ -120,4 +143,36 @@ object TaskQuery {
     }
 
     fun priorityLabel(p: Priority) = p.label
+}
+
+/** آمار اجرای روتین از روی ثبت‌های روزانه‌ی «routineId|epochDay». */
+object RoutineStats {
+    fun isChecked(data: AppData, routineId: String, epochDay: Long) = "$routineId|$epochDay" in data.routineChecks
+
+    /** تعداد روزهای انجام‌شده در [days] روز منتهی به [today] */
+    fun doneInLast(data: AppData, routineId: String, today: LocalDate, days: Int): Int =
+        (0 until days).count { isChecked(data, routineId, today.toEpochDay() - it) }
+
+    /** تعداد روزهای زمان‌بندی‌شده در [days] روز منتهی به [today] */
+    fun scheduledInLast(routine: Routine, today: LocalDate, days: Int): Int =
+        (0 until days).count { JalaliDate.weekdayIndex(today.minusDays(it.toLong())) in routine.weekdays }
+
+    /**
+     * روزهای متوالیِ زمان‌بندی‌شده که انجام شده‌اند. اگر امروز هنوز انجام نشده، زنجیره از دیروز حساب می‌شود
+     * تا نیمه‌ی روز، زنجیره را صفر نکند.
+     */
+    fun streak(data: AppData, routine: Routine, today: LocalDate): Int {
+        var count = 0
+        var day = today
+        var first = true
+        repeat(366) {
+            if (JalaliDate.weekdayIndex(day) in routine.weekdays) {
+                if (isChecked(data, routine.id, day.toEpochDay())) count++
+                else if (!(first && day == today)) return count
+            }
+            first = false
+            day = day.minusDays(1)
+        }
+        return count
+    }
 }
